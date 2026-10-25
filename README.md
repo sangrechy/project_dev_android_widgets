@@ -1,75 +1,55 @@
-# DevWidgets: LeetCode & GitHub Android Home Screen Dashboard
+# Dev Life: LeetCode & GitHub Android Home Screen Dashboard
 
-A native Android home screen widget built with **Kotlin**, **Jetpack Compose**, **RemoteViews**, and **WorkManager** that brings your live developer activity straight to your home screen.
+[![Download APK](https://img.shields.io/badge/Download%20APK-v1.0.0-success?style=for-the-badge&logo=android)](https://github.com/sangrechy/project_dev_android_widgets/releases/download/v1.0.0/dev-life-v1.0.apk)
+[![Latest Release](https://img.shields.io/github/v/release/sangrechy/project_dev_android_widgets?style=for-the-badge&logo=github)](https://github.com/sangrechy/project_dev_android_widgets/releases/latest)
 
-Designed directly from the architectural layout in [`idea/ui_idea.png`](idea/ui_idea.png):
-- **Top Section — LeetCode**:
-  - Circular Solved Count & Difficulty Arc Gauge (Easy / Medium / Hard)
-  - Submission Activity Heatmap (7 rows x N weeks)
-  - Last 10 Submissions list with verdict & timestamp
-- **Bottom Section — GitHub**:
-  - Contribution Type Breakdown Map (Commits, Pull Requests, Issues, Reviews cross/quadrant chart)
-  - GitHub Green Contribution Heatmap (7 rows x N weeks)
-  - Last 10 Activities / Events log
+A native Android home screen widget built with **Kotlin**, **Jetpack Compose**, **RemoteViews**, and **WorkManager** that brings your live developer telemetry directly to your home screen with a sleek glassmorphic aesthetic.
 
 ---
 
-## Architecture & Features
+## 📥 Download & Install
 
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│ LeetCode Section                                                       │
-│ ┌──────────────┐  ┌─────────────────────────────────┐  ┌─────────────┐ │
-│ │  Total Count │  │   Submission Activity Heatmap   │  │   Last 10   │ │
-│ │  & Breakdown │  │       (7 rows x N weeks)        │  │ Submissions │ │
-│ └──────────────┘  └─────────────────────────────────┘  └─────────────┘ │
-├────────────────────────────────────────────────────────────────────────┤
-│ GitHub Section                                                         │
-│ ┌──────────────┐  ┌─────────────────────────────────┐  ┌─────────────┐ │
-│ │ Contribution │  │   Contribution Activity Heatmap │  │   Last 10   │ │
-│ │  Type Map    │  │       (7 rows x N weeks)        │  │   Events    │ │
-│ └──────────────┘  └─────────────────────────────────┘  └─────────────┘ │
-└────────────────────────────────────────────────────────────────────────┘
-```
-
-1. **User Profile Setup UI (`MainActivity.kt` & `MainScreen.kt`)**:
-   - Prompts the user on first launch to enter their **LeetCode Username** and **GitHub Username** (with optional GitHub token for private stats/rate limit increase).
-   - "Save & Sync Widget" button saves the handles and triggers immediate background synchronization.
-   - Includes a "Use Sample" demo mode and an interactive **Live Widget Preview**.
-   - Includes a direct "Pin Widget to Home Screen" shortcut.
-
-2. **Custom Canvas Bitmap Rendering (`WidgetBitmapRenderer.kt`)**:
-   - Android `RemoteViews` doesn't natively support dynamic HTML/Canvas directly in launchers without high latency. To solve this, `WidgetBitmapRenderer` renders pixel-perfect high-DPI bitmaps for:
-     - LeetCode circular progress gauge and difficulty arcs.
-     - 7×18 submission activity heatmaps.
-     - GitHub 4-quadrant coordinate/radar type-map cross.
-     - Signature GitHub contribution matrix.
-
-3. **Data Fetching Layer (`DevApiService.kt`)**:
-   - **LeetCode**: Official GraphQL endpoint (`https://leetcode.com/graphql`) querying `matchedUser` for `submitStatsGlobal`, `submissionCalendar`, and `recentAcSubmissionList`.
-   - **GitHub**: Public REST API (`https://api.github.com/users/{username}/events`) and GitHub GraphQL / contributions endpoints.
-   - Intelligent fallback to cached or sample data when offline.
-
-4. **Background Periodic Sync (`WidgetSyncWorker.kt`)**:
-   - Uses Android `WorkManager` with network constraints to refresh data automatically every 1 hour in the background, consuming minimal battery.
+You can download the pre-compiled APK directly:
+- **Direct APK Download**: [**`dev-life-v1.0.apk`** (v1.0.0)](https://github.com/sangrechy/project_dev_android_widgets/releases/download/v1.0.0/dev-life-v1.0.apk)
+- **GitHub Releases Page**: [Releases · sangrechy/project_dev_android_widgets](https://github.com/sangrechy/project_dev_android_widgets/releases/tag/v1.0.0)
 
 ---
 
-## Opening and Running the Project
+## ✨ Features
 
-### Using Android Studio
-1. Launch **Android Studio** (installed at `/home/sangrechy/main/devtools/android/android-studio/bin/studio.sh` or from your system applications menu).
-2. Click **Open** and select `/mnt/7A96AE5396AE0FA5/projects/project_dev_android_widgets`.
-3. Allow Gradle to sync dependencies.
-4. Select your connected device or emulator and hit **Run** (`Shift + F10`).
-5. Open the app, enter your LeetCode and GitHub IDs, and click **Save & Sync Widget**!
-6. Long-press your home screen, search for **DevWidgets**, and place the widget on your home screen.
+- **LeetCode Glass Card**:
+  - **3/4 Circular Speedometer Gauge**: Displays total solved count with Easy, Medium, and Hard proportional color arcs and clean legend tags.
+  - **Frosted Stat Badges**: Dedicated glassmorphic pills for Easy, Medium, Hard, and Total Solved counts.
+  - **Authentic Brand Emblem**: Official 3-part LeetCode emblem (white curve, silver divider, `#FFA116` chevron).
+  - **2-Tier 1-Year Heatmap**: 52 weeks / 365 days stacked in two 6-month tiers (Nov–Apr and May–Oct) with authentic month separation gaps, weekday indicators (Mon, Wed, Fri), and submission count.
+
+- **GitHub Glass Card**:
+  - **4-Quadrant Spider Radar Chart**: Coordinate axes (`+`), concentric guidance rings, green radar polygon, and center telemetry hub (`842 CONTRIBS`).
+  - **Frosted Stat Badges**: Dedicated glassmorphic pills for Commits, Pull Requests, Issues, and Code Reviews.
+  - **Official Octocat Logo**: Crisp vector GitHub branding.
+  - **2-Tier 1-Year Contribution Matrix**: 52 weeks of contributions rendered in glowing emerald cells with distinct month boundaries.
+
+- **Responsive Multi-Size Layout**:
+  - Uses modern Android `RemoteViews(mapOf(SizeF ...))` to automatically transition between an expanded dashboard and a compact layout as the widget is resized on your launcher.
+
+- **Background Synchronization**:
+  - Uses Android `WorkManager` with network constraints to refresh data automatically every 1 hour, plus one-tap manual sync via the widget header or app.
+
+---
+
+## 🛠️ Building From Source
+
+### Prerequisites
+- Android Studio Ladybug / Meerkat or Android SDK (API 36)
+- Java 17+
 
 ### Command Line
 ```bash
 # Build Debug APK
 ./gradlew assembleDebug
 
-# Install on connected device or emulator
+# Install directly on a connected device or emulator via ADB
 ./gradlew installDebug
 ```
+The output APK will be located at:
+`app/build/outputs/apk/debug/app-debug.apk`
