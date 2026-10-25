@@ -82,6 +82,7 @@ class DefaultDataRepository(private val context: Context) : DataRepository {
                 gitHub = GitHubStats(status = AccountStatus.NOT_CONFIGURED),
                 lastUpdatedMillis = System.currentTimeMillis()
             )
+            prefs.saveDashboardData(emptyData)
             _dashboardData.value = emptyData
             return@withContext Result.success(emptyData)
         }

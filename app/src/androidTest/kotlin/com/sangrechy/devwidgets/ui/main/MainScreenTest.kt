@@ -19,7 +19,9 @@ class MainScreenTest {
 
     @Test
     fun configurationSections_exist() {
-        composeTestRule.onNodeWithText("Configure Developer Profiles").assertExists()
-        composeTestRule.onNodeWithText("Home Screen Widget Preview").assertExists()
+        composeTestRule.onNodeWithText("Developer Accounts & Linking").assertExists()
+        composeTestRule.onNodeWithText("Live Home Screen Widget Preview").assertExists()
+        composeTestRule.onNodeWithText("LeetCode Profile").assertExists()
+        composeTestRule.onNodeWithText("GitHub Profile").assertExists()
     }
 }

@@ -30,7 +30,7 @@ class WidgetSyncWorker(
             Result.success()
         } else {
             // Even if network fails, widget was refreshed with latest cache or fallback
-            Result.retry()
+            if (runAttemptCount > 3) Result.failure() else Result.retry()
         }
     }
 

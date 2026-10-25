@@ -63,20 +63,27 @@ class DevApiService(private val okHttpClient: OkHttpClient = defaultClient()) {
             .build()
 
         try {
-            val response = okHttpClient.newCall(request).execute()
-            if (!response.isSuccessful) {
+            val (statusFailed, failMsg, body) = okHttpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    Triple(true, "HTTP ${response.code}: Could not connect to LeetCode", null)
+                } else {
+                    val b = response.body?.string()
+                    if (b == null) {
+                        Triple(true, "Empty response from LeetCode", null)
+                    } else {
+                        Triple(false, "", b)
+                    }
+                }
+            }
+
+            if (statusFailed || body == null) {
                 return@withContext LeetCodeStats(
                     username = trimmed,
                     status = AccountStatus.FAILED,
-                    statusMessage = "HTTP ${response.code}: Could not connect to LeetCode"
+                    statusMessage = failMsg
                 )
             }
 
-            val body = response.body?.string() ?: return@withContext LeetCodeStats(
-                username = trimmed,
-                status = AccountStatus.FAILED,
-                statusMessage = "Empty response from LeetCode"
-            )
             val root = JSONObject(body)
             val data = root.optJSONObject("data")
             val matchedUser = data?.optJSONObject("matchedUser")
@@ -106,6 +113,11 @@ class DevApiService(private val okHttpClient: OkHttpClient = defaultClient()) {
                         "Hard" -> hard = count
                     }
                 }
+            }
+            if (total == 0 && (easy + med + hard > 0)) {
+                total = easy + med + hard
+            } else {
+                total = maxOf(total, easy + med + hard)
             }
 
             val calendarMap = mutableMapOf<Long, Int>()
@@ -170,19 +182,20 @@ class DevApiService(private val okHttpClient: OkHttpClient = defaultClient()) {
                 }
                 .build()
 
-            val checkResp = okHttpClient.newCall(userCheckReq).execute()
-            if (checkResp.code == 404) {
-                return@withContext GitHubStats(
-                    username = trimmed,
-                    status = AccountStatus.FAILED,
-                    statusMessage = "GitHub user '$trimmed' not found"
-                )
+            val (statusFailed, failMsg) = okHttpClient.newCall(userCheckReq).execute().use { checkResp ->
+                if (checkResp.code == 404) {
+                    Pair(true, "GitHub user '$trimmed' not found")
+                } else if (!checkResp.isSuccessful && checkResp.code != 403) {
+                    Pair(true, "GitHub returned HTTP ${checkResp.code}")
+                } else {
+                    Pair(false, "")
+                }
             }
-            if (!checkResp.isSuccessful && checkResp.code != 403) {
+            if (statusFailed) {
                 return@withContext GitHubStats(
                     username = trimmed,
                     status = AccountStatus.FAILED,
-                    statusMessage = "GitHub returned HTTP ${checkResp.code}"
+                    statusMessage = failMsg
                 )
             }
 
@@ -223,43 +236,44 @@ class DevApiService(private val okHttpClient: OkHttpClient = defaultClient()) {
 
         val events = mutableListOf<GitHubEvent>()
         try {
-            val response = okHttpClient.newCall(reqBuilder.build()).execute()
-            if (response.isSuccessful) {
-                val body = response.body?.string() ?: "[]"
-                val arr = JSONArray(body)
-                for (i in 0 until arr.length()) {
-                    val item = arr.getJSONObject(i)
-                    val type = item.optString("type", "Activity")
-                    val repo = item.optJSONObject("repo")?.optString("name", "repo") ?: "repo"
-                    val createdAt = item.optString("created_at", "")
+            okHttpClient.newCall(reqBuilder.build()).execute().use { response ->
+                if (response.isSuccessful) {
+                    val body = response.body?.string() ?: "[]"
+                    val arr = JSONArray(body)
+                    for (i in 0 until arr.length()) {
+                        val item = arr.getJSONObject(i)
+                        val type = item.optString("type", "Activity")
+                        val repo = item.optJSONObject("repo")?.optString("name", "repo") ?: "repo"
+                        val createdAt = item.optString("created_at", "")
 
-                    val summary = when (type) {
-                        "PushEvent" -> {
-                            val count = item.optJSONObject("payload")?.optJSONArray("commits")?.length() ?: 1
-                            "Pushed $count commit(s)"
+                        val summary = when (type) {
+                            "PushEvent" -> {
+                                val count = item.optJSONObject("payload")?.optJSONArray("commits")?.length() ?: 1
+                                "Pushed $count commit(s)"
+                            }
+                            "PullRequestEvent" -> {
+                                val action = item.optJSONObject("payload")?.optString("action", "action")
+                                "PR: $action"
+                            }
+                            "IssuesEvent" -> {
+                                val action = item.optJSONObject("payload")?.optString("action", "action")
+                                "Issue: $action"
+                            }
+                            "WatchEvent" -> "Starred repo"
+                            "ForkEvent" -> "Forked repo"
+                            "CreateEvent" -> "Created branch/tag"
+                            else -> type.replace("Event", "")
                         }
-                        "PullRequestEvent" -> {
-                            val action = item.optJSONObject("payload")?.optString("action", "action")
-                            "PR: $action"
-                        }
-                        "IssuesEvent" -> {
-                            val action = item.optJSONObject("payload")?.optString("action", "action")
-                            "Issue: $action"
-                        }
-                        "WatchEvent" -> "Starred repo"
-                        "ForkEvent" -> "Forked repo"
-                        "CreateEvent" -> "Created branch/tag"
-                        else -> type.replace("Event", "")
-                    }
 
-                    events.add(
-                        GitHubEvent(
-                            type = type,
-                            repoName = repo.substringAfter("/"),
-                            actionSummary = summary,
-                            createdAt = createdAt
+                        events.add(
+                            GitHubEvent(
+                                type = type,
+                                repoName = repo.substringAfter("/"),
+                                actionSummary = summary,
+                                createdAt = createdAt
+                            )
                         )
-                    )
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -285,32 +299,33 @@ class DevApiService(private val okHttpClient: OkHttpClient = defaultClient()) {
                 .header("User-Agent", "DevWidgets-Android")
                 .build()
 
-            val resp = okHttpClient.newCall(req).execute()
-            if (resp.isSuccessful) {
-                val body = resp.body?.string() ?: "{}"
-                val json = JSONObject(body)
-                val total = json.optJSONObject("total")?.optInt("lastYear", 0) ?: 0
-                val contribDays = mutableMapOf<String, Int>()
+            okHttpClient.newCall(req).execute().use { resp ->
+                if (resp.isSuccessful) {
+                    val body = resp.body?.string() ?: "{}"
+                    val json = JSONObject(body)
+                    val total = json.optJSONObject("total")?.optInt("lastYear", 0) ?: 0
+                    val contribDays = mutableMapOf<String, Int>()
 
-                val contribArr = json.optJSONArray("contributions")
-                if (contribArr != null) {
-                    for (i in 0 until contribArr.length()) {
-                        val cItem = contribArr.getJSONObject(i)
-                        val date = cItem.optString("date")
-                        val count = cItem.optInt("count", 0)
-                        if (date.isNotEmpty()) {
-                            contribDays[date] = count
+                    val contribArr = json.optJSONArray("contributions")
+                    if (contribArr != null) {
+                        for (i in 0 until contribArr.length()) {
+                            val cItem = contribArr.getJSONObject(i)
+                            val date = cItem.optString("date")
+                            val count = cItem.optInt("count", 0)
+                            if (date.isNotEmpty()) {
+                                contribDays[date] = count
+                            }
                         }
                     }
+
+                    // Breakdown approximation from total
+                    val commits = if (total > 0) (total * 0.70).toInt().coerceAtLeast(1) else 0
+                    val prs = (total * 0.15).toInt()
+                    val issues = (total * 0.08).toInt()
+                    val reviews = (total * 0.07).toInt()
+
+                    return GitHubContribResult(contribDays, total, commits, prs, issues, reviews)
                 }
-
-                // Breakdown approximation from total
-                val commits = (total * 0.70).toInt().coerceAtLeast(1)
-                val prs = (total * 0.15).toInt()
-                val issues = (total * 0.08).toInt()
-                val reviews = (total * 0.07).toInt()
-
-                return GitHubContribResult(contribDays, total, commits, prs, issues, reviews)
             }
         } catch (_: Exception) {}
 
@@ -347,32 +362,33 @@ class DevApiService(private val okHttpClient: OkHttpClient = defaultClient()) {
                     .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
                     .build()
 
-                val resp = okHttpClient.newCall(req).execute()
-                if (resp.isSuccessful) {
-                    val root = JSONObject(resp.body?.string() ?: "{}")
-                    val collection = root.optJSONObject("data")?.optJSONObject("user")?.optJSONObject("contributionsCollection")
-                    if (collection != null) {
-                        val cal = collection.optJSONObject("contributionCalendar")
-                        val total = cal?.optInt("totalContributions", 0) ?: 0
-                        val days = mutableMapOf<String, Int>()
-                        val weeks = cal?.optJSONArray("weeks")
-                        if (weeks != null) {
-                            for (w in 0 until weeks.length()) {
-                                val cDays = weeks.getJSONObject(w).optJSONArray("contributionDays") ?: continue
-                                for (d in 0 until cDays.length()) {
-                                    val item = cDays.getJSONObject(d)
-                                    days[item.getString("date")] = item.getInt("contributionCount")
+                okHttpClient.newCall(req).execute().use { resp ->
+                    if (resp.isSuccessful) {
+                        val root = JSONObject(resp.body?.string() ?: "{}")
+                        val collection = root.optJSONObject("data")?.optJSONObject("user")?.optJSONObject("contributionsCollection")
+                        if (collection != null) {
+                            val cal = collection.optJSONObject("contributionCalendar")
+                            val total = cal?.optInt("totalContributions", 0) ?: 0
+                            val days = mutableMapOf<String, Int>()
+                            val weeks = cal?.optJSONArray("weeks")
+                            if (weeks != null) {
+                                for (w in 0 until weeks.length()) {
+                                    val cDays = weeks.getJSONObject(w).optJSONArray("contributionDays") ?: continue
+                                    for (d in 0 until cDays.length()) {
+                                        val item = cDays.getJSONObject(d)
+                                        days[item.getString("date")] = item.getInt("contributionCount")
+                                    }
                                 }
                             }
+                            return GitHubContribResult(
+                                days = days,
+                                total = total,
+                                commits = collection.optInt("totalCommitContributions", 0),
+                                prs = collection.optInt("totalPullRequestContributions", 0),
+                                issues = collection.optInt("totalIssueContributions", 0),
+                                reviews = collection.optInt("totalPullRequestReviewContributions", 0)
+                            )
                         }
-                        return GitHubContribResult(
-                            days = days,
-                            total = total,
-                            commits = collection.optInt("totalCommitContributions", 0),
-                            prs = collection.optInt("totalPullRequestContributions", 0),
-                            issues = collection.optInt("totalIssueContributions", 0),
-                            reviews = collection.optInt("totalPullRequestReviewContributions", 0)
-                        )
                     }
                 }
             } catch (_: Exception) {}
