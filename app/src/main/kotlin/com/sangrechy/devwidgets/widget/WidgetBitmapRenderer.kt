@@ -100,7 +100,7 @@ object WidgetBitmapRenderer {
 
     // 2. Submission Activity Heatmap (7 rows x N weeks)
     fun renderHeatmap(
-        countsByDateOrTimestamp: Map<Any, Int>,
+        countsByDateOrTimestamp: Map<*, Int>,
         isLeetCode: Boolean,
         widthPx: Int = 600,
         heightPx: Int = 300,

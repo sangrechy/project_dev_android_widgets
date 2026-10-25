@@ -72,7 +72,7 @@
             android:scaleType="fitCenter"
             android:contentDescription="LeetCode Solved Count" />
 
-        <View
+        <FrameLayout
             android:layout_width="1dp"
             android:layout_height="match_parent"
             android:background="#262D38"
@@ -87,7 +87,7 @@
             android:scaleType="fitCenter"
             android:contentDescription="LeetCode Submission Heatmap" />
 
-        <View
+        <FrameLayout
             android:layout_width="1dp"
             android:layout_height="match_parent"
             android:background="#262D38"
@@ -118,7 +118,7 @@
                 android:id="@+id/tv_lc_sub_1"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="1. Two Sum • Accepted"
+                android:text="1. Two Sum • AC"
                 android:textColor="#E6EDF3"
                 android:textSize="8.5sp"
                 android:singleLine="true"
@@ -128,7 +128,7 @@
                 android:id="@+id/tv_lc_sub_2"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="2. LRU Cache • Accepted"
+                android:text="2. LRU Cache • AC"
                 android:textColor="#8B949E"
                 android:textSize="8.5sp"
                 android:singleLine="true"
@@ -148,7 +148,7 @@
                 android:id="@+id/tv_lc_sub_4"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="4. Trapping Rain Water • Accepted"
+                android:text="4. Trapping Rain Water • AC"
                 android:textColor="#8B949E"
                 android:textSize="8.5sp"
                 android:singleLine="true"
@@ -158,7 +158,7 @@
                 android:id="@+id/tv_lc_sub_5"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="5. Merge k Sorted Lists • Accepted"
+                android:text="5. Merge k Sorted Lists • AC"
                 android:textColor="#8B949E"
                 android:textSize="8.5sp"
                 android:singleLine="true"
@@ -167,7 +167,7 @@
     </LinearLayout>
 
     <!-- Mid Divider Line -->
-    <View
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:background="#2B323D"
@@ -193,7 +193,7 @@
             android:scaleType="fitCenter"
             android:contentDescription="GitHub Contribution Type Map" />
 
-        <View
+        <FrameLayout
             android:layout_width="1dp"
             android:layout_height="match_parent"
             android:background="#262D38"
@@ -208,7 +208,7 @@
             android:scaleType="fitCenter"
             android:contentDescription="GitHub Contribution Heatmap" />
 
-        <View
+        <FrameLayout
             android:layout_width="1dp"
             android:layout_height="match_parent"
             android:background="#262D38"
