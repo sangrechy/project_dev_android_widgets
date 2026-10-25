@@ -56,11 +56,11 @@
                 android:id="@+id/tv_widget_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="DEV DASHBOARD"
+                android:text="Dev Life"
                 android:textColor="#FFFFFF"
-                android:textSize="12.5sp"
+                android:textSize="13sp"
                 android:textStyle="bold"
-                android:letterSpacing="0.08"
+                android:letterSpacing="0.04"
                 android:singleLine="true" />
         </LinearLayout>
     </RelativeLayout>
@@ -93,20 +93,34 @@
                 android:textStyle="bold"
                 android:layout_alignParentEnd="true" />
 
-            <TextView
-                android:id="@+id/tv_lc_section_header"
-                android:layout_width="match_parent"
+            <LinearLayout
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="LEETCODE STATS &amp; PROGRESS"
-                android:textColor="#FFA116"
-                android:textSize="11sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.06"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
                 android:layout_alignParentStart="true"
                 android:layout_toStartOf="@id/tv_lc_user_tag"
-                android:layout_marginEnd="6dp"
-                android:singleLine="true"
-                android:ellipsize="end" />
+                android:layout_marginEnd="6dp">
+
+                <ImageView
+                    android:id="@+id/iv_lc_brand_logo"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:src="@drawable/ic_leetcode_logo"
+                    android:layout_marginEnd="5dp"
+                    android:contentDescription="LeetCode" />
+
+                <TextView
+                    android:id="@+id/tv_lc_section_header"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="LeetCode"
+                    android:textColor="#FFA116"
+                    android:textSize="11.5sp"
+                    android:textStyle="bold"
+                    android:singleLine="true"
+                    android:ellipsize="end" />
+            </LinearLayout>
         </RelativeLayout>
 
         <!-- Top Visual Row: Gauge + Heatmap side-by-side (Hero Elements) -->
@@ -306,6 +320,7 @@
                 android:background="@drawable/widget_row_plate"
                 android:paddingHorizontal="7dp"
                 android:paddingVertical="2dp"
+                android:layout_marginBottom="2dp"
                 android:gravity="center_vertical">
 
                 <TextView
@@ -342,6 +357,101 @@
                     android:textSize="8sp"
                     android:singleLine="true" />
             </LinearLayout>
+
+            <!-- Row 5 -->
+            <LinearLayout
+                android:id="@+id/row_lc_5"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="21dp"
+                android:orientation="horizontal"
+                android:background="@drawable/widget_row_plate"
+                android:paddingHorizontal="7dp"
+                android:paddingVertical="2dp"
+                android:layout_marginBottom="2dp"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/badge_lc_5"
+                    android:layout_width="22dp"
+                    android:layout_height="14dp"
+                    android:background="@drawable/badge_pill_ac"
+                    android:gravity="center"
+                    android:text="AC"
+                    android:textColor="#34D399"
+                    android:textSize="7sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_lc_title_5"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="7dp"
+                    android:text="Merge k Sorted Lists"
+                    android:textColor="#FFFFFF"
+                    android:textSize="9.5sp"
+                    android:textStyle="bold"
+                    android:singleLine="true"
+                    android:ellipsize="end" />
+
+                <TextView
+                    android:id="@+id/tv_lc_sub_5"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="C++ • 1d ago"
+                    android:textColor="#94A3B8"
+                    android:textSize="8sp"
+                    android:singleLine="true" />
+            </LinearLayout>
+
+            <!-- Row 6 -->
+            <LinearLayout
+                android:id="@+id/row_lc_6"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="21dp"
+                android:orientation="horizontal"
+                android:background="@drawable/widget_row_plate"
+                android:paddingHorizontal="7dp"
+                android:paddingVertical="2dp"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/badge_lc_6"
+                    android:layout_width="22dp"
+                    android:layout_height="14dp"
+                    android:background="@drawable/badge_pill_ac"
+                    android:gravity="center"
+                    android:text="AC"
+                    android:textColor="#34D399"
+                    android:textSize="7sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_lc_title_6"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="7dp"
+                    android:text="Valid Parentheses"
+                    android:textColor="#FFFFFF"
+                    android:textSize="9.5sp"
+                    android:textStyle="bold"
+                    android:singleLine="true"
+                    android:ellipsize="end" />
+
+                <TextView
+                    android:id="@+id/tv_lc_sub_6"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="Python • 2d ago"
+                    android:textColor="#94A3B8"
+                    android:textSize="8sp"
+                    android:singleLine="true" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 
@@ -372,20 +482,34 @@
                 android:textStyle="bold"
                 android:layout_alignParentEnd="true" />
 
-            <TextView
-                android:id="@+id/tv_gh_section_header"
-                android:layout_width="match_parent"
+            <LinearLayout
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="GITHUB ACTIVITY &amp; CONTRIBUTIONS"
-                android:textColor="#3FB950"
-                android:textSize="11sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.06"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
                 android:layout_alignParentStart="true"
                 android:layout_toStartOf="@id/tv_gh_user_tag"
-                android:layout_marginEnd="6dp"
-                android:singleLine="true"
-                android:ellipsize="end" />
+                android:layout_marginEnd="6dp">
+
+                <ImageView
+                    android:id="@+id/iv_gh_brand_logo"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:src="@drawable/ic_github_logo"
+                    android:layout_marginEnd="5dp"
+                    android:contentDescription="GitHub" />
+
+                <TextView
+                    android:id="@+id/tv_gh_section_header"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="GitHub"
+                    android:textColor="#3FB950"
+                    android:textSize="11.5sp"
+                    android:textStyle="bold"
+                    android:singleLine="true"
+                    android:ellipsize="end" />
+            </LinearLayout>
         </RelativeLayout>
 
         <!-- Top Visual Row: Radar + Heatmap side-by-side (Hero Elements) -->
@@ -585,6 +709,7 @@
                 android:background="@drawable/widget_row_plate"
                 android:paddingHorizontal="7dp"
                 android:paddingVertical="2dp"
+                android:layout_marginBottom="2dp"
                 android:gravity="center_vertical">
 
                 <TextView
@@ -617,6 +742,101 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
                     android:text="Closed issue #12 • 1d ago"
+                    android:textColor="#94A3B8"
+                    android:textSize="8sp"
+                    android:singleLine="true" />
+            </LinearLayout>
+
+            <!-- Row 5 -->
+            <LinearLayout
+                android:id="@+id/row_gh_5"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="21dp"
+                android:orientation="horizontal"
+                android:background="@drawable/widget_row_plate"
+                android:paddingHorizontal="7dp"
+                android:paddingVertical="2dp"
+                android:layout_marginBottom="2dp"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/badge_gh_5"
+                    android:layout_width="26dp"
+                    android:layout_height="14dp"
+                    android:background="@drawable/badge_pill_gh"
+                    android:gravity="center"
+                    android:text="REV"
+                    android:textColor="#A5B4FC"
+                    android:textSize="6.5sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_gh_title_5"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="7dp"
+                    android:text="developer-tools"
+                    android:textColor="#FFFFFF"
+                    android:textSize="9.5sp"
+                    android:textStyle="bold"
+                    android:singleLine="true"
+                    android:ellipsize="end" />
+
+                <TextView
+                    android:id="@+id/tv_gh_sub_5"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="Approved PR #108 • 2d ago"
+                    android:textColor="#94A3B8"
+                    android:textSize="8sp"
+                    android:singleLine="true" />
+            </LinearLayout>
+
+            <!-- Row 6 -->
+            <LinearLayout
+                android:id="@+id/row_gh_6"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="21dp"
+                android:orientation="horizontal"
+                android:background="@drawable/widget_row_plate"
+                android:paddingHorizontal="7dp"
+                android:paddingVertical="2dp"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/badge_gh_6"
+                    android:layout_width="26dp"
+                    android:layout_height="14dp"
+                    android:background="@drawable/badge_pill_gh"
+                    android:gravity="center"
+                    android:text="PUSH"
+                    android:textColor="#A5B4FC"
+                    android:textSize="6.5sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_gh_title_6"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="7dp"
+                    android:text="portfolio-site"
+                    android:textColor="#FFFFFF"
+                    android:textSize="9.5sp"
+                    android:textStyle="bold"
+                    android:singleLine="true"
+                    android:ellipsize="end" />
+
+                <TextView
+                    android:id="@+id/tv_gh_sub_6"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="Pushed 5 commits • 3d ago"
                     android:textColor="#94A3B8"
                     android:textSize="8sp"
                     android:singleLine="true" />

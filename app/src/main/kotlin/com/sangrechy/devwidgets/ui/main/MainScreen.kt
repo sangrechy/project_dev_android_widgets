@@ -57,6 +57,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavKey
+import androidx.compose.ui.res.painterResource
+import com.sangrechy.devwidgets.R
 import com.sangrechy.devwidgets.data.DefaultDataRepository
 import com.sangrechy.devwidgets.data.model.WidgetDashboardData
 import com.sangrechy.devwidgets.widget.DevActivityWidgetProvider
@@ -273,9 +275,9 @@ fun WidgetVisualPreview(data: WidgetDashboardData) {
         WidgetBitmapRenderer.renderHeatmap(
             data.leetCode.submissionCalendar,
             isLeetCode = true,
-            widthPx = 600,
-            heightPx = 220,
-            weeksCount = 18
+            widthPx = 680,
+            heightPx = 200,
+            weeksCount = 26
         ).asImageBitmap()
     }
     val ghTypeMap = remember(data.gitHub) {
@@ -285,9 +287,9 @@ fun WidgetVisualPreview(data: WidgetDashboardData) {
         WidgetBitmapRenderer.renderHeatmap(
             data.gitHub.contributionDays,
             isLeetCode = false,
-            widthPx = 600,
-            heightPx = 220,
-            weeksCount = 18
+            widthPx = 680,
+            heightPx = 200,
+            weeksCount = 26
         ).asImageBitmap()
     }
 
@@ -314,11 +316,11 @@ fun WidgetVisualPreview(data: WidgetDashboardData) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "DEV DASHBOARD",
+                    text = "Dev Life",
                     color = androidx.compose.ui.graphics.Color(0xFFFFFFFF),
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.8.sp
+                    letterSpacing = 0.5.sp
                 )
                 Text(
                     text = "Live Glass Preview",
@@ -347,12 +349,22 @@ fun WidgetVisualPreview(data: WidgetDashboardData) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "LEETCODE STATS & PROGRESS",
-                            color = androidx.compose.ui.graphics.Color(0xFFFFA116),
-                            fontSize = 10.5.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Image(
+                                painter = painterResource(R.drawable.ic_leetcode_logo),
+                                contentDescription = "LeetCode",
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Text(
+                                text = "LeetCode",
+                                color = androidx.compose.ui.graphics.Color(0xFFFFA116),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                         Text(
                             text = "@${data.leetCode.username.ifBlank { "dev" }}",
                             color = androidx.compose.ui.graphics.Color(0xFF94A3B8),
@@ -391,7 +403,7 @@ fun WidgetVisualPreview(data: WidgetDashboardData) {
                     }
 
                     // Bottom Submissions Full-Width Rows
-                    val subs = data.leetCode.recentSubmissions.take(3)
+                    val subs = data.leetCode.recentSubmissions.take(6)
                     subs.forEach { sub ->
                         val isAc = sub.statusDisplay.contains("Accept", ignoreCase = true)
                         Box(
@@ -478,12 +490,22 @@ fun WidgetVisualPreview(data: WidgetDashboardData) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "GITHUB ACTIVITY & CONTRIBUTIONS",
-                            color = androidx.compose.ui.graphics.Color(0xFF3FB950),
-                            fontSize = 10.5.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Image(
+                                painter = painterResource(R.drawable.ic_github_logo),
+                                contentDescription = "GitHub",
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Text(
+                                text = "GitHub",
+                                color = androidx.compose.ui.graphics.Color(0xFF3FB950),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                         Text(
                             text = "@${data.gitHub.username.ifBlank { "dev" }}",
                             color = androidx.compose.ui.graphics.Color(0xFF94A3B8),
@@ -522,7 +544,7 @@ fun WidgetVisualPreview(data: WidgetDashboardData) {
                     }
 
                     // Bottom Events Full-Width Rows
-                    val events = data.gitHub.recentEvents.take(3)
+                    val events = data.gitHub.recentEvents.take(6)
                     events.forEach { ev ->
                         val tag = when (ev.type) {
                             "PushEvent" -> "PUSH"
