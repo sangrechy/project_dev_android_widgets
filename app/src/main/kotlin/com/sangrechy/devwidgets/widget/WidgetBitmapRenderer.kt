@@ -107,19 +107,12 @@ object WidgetBitmapRenderer {
         }
         canvas.drawText("SOLVED", center, countY + (sizePx * 0.10f), labelPaint)
 
-        // 4. Open Bottom Area: Free Difficulty Breakdown Columns (Easy, Medium, Hard)
-        val bottomSectionY = sizePx * 0.81f
+        // 4. Open Bottom Area: Color Legend Tags (Teal Easy, Amber Med, Coral Hard)
+        val tagY = sizePx * 0.88f
         val dotRadius = sizePx * 0.016f
 
-        val valPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = COLOR_TEXT_WHITE
-            textSize = sizePx * 0.082f
-            textAlign = Paint.Align.CENTER
-            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-        }
-
         val tagPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            textSize = sizePx * 0.056f
+            textSize = sizePx * 0.060f
             textAlign = Paint.Align.LEFT
             typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
         }
@@ -128,68 +121,39 @@ object WidgetBitmapRenderer {
             style = Paint.Style.FILL
         }
 
-        fun drawDifficultyCol(colCenterX: Float, count: Int, label: String, colorHex: String) {
+        fun drawLegendTag(colCenterX: Float, label: String, colorHex: String) {
             val color = Color.parseColor(colorHex)
-            // Number on top (centered)
-            canvas.drawText(count.toString(), colCenterX, bottomSectionY, valPaint)
-
-            // Dot + Label centered together below
             tagPaint.color = color
             dotPaint.color = color
             val labelWidth = tagPaint.measureText(label)
             val gap = sizePx * 0.016f
             val itemWidth = (dotRadius * 2f) + gap + labelWidth
             val startX = colCenterX - (itemWidth / 2f)
-
-            val tagY = bottomSectionY + (sizePx * 0.095f)
-            val dotCenterY = tagY - (sizePx * 0.018f)
+            val dotCenterY = tagY - (sizePx * 0.020f)
 
             canvas.drawCircle(startX + dotRadius, dotCenterY, dotRadius, dotPaint)
             canvas.drawText(label, startX + (dotRadius * 2f) + gap, tagY, tagPaint)
         }
 
-        drawDifficultyCol(sizePx * 0.20f, stats.easySolved, "Easy", "#00B8A3")
-        drawDifficultyCol(sizePx * 0.50f, stats.mediumSolved, "Med", "#FFA116")
-        drawDifficultyCol(sizePx * 0.80f, stats.hardSolved, "Hard", "#EF4743")
+        drawLegendTag(sizePx * 0.24f, "Easy", "#00B8A3")
+        drawLegendTag(sizePx * 0.50f, "Med", "#FFA116")
+        drawLegendTag(sizePx * 0.76f, "Hard", "#EF4743")
 
         return bitmap
     }
 
-    // 2. Frosted Glass Heatmap Matrix with Gaps Between Months & Authentic GitHub/LeetCode Labels
+    // 2. Frosted Glass Heatmap Matrix with Gaps Between Months & Dynamic 2-Tier Layout (6 Months Top, 6 Months Down)
     fun renderHeatmap(
         countsByDateOrTimestamp: Map<*, Int>,
         isLeetCode: Boolean,
         widthPx: Int = 680,
-        heightPx: Int = 200,
-        weeksCount: Int = 26
+        heightPx: Int = 280,
+        weeksCount: Int = 52
     ): Bitmap {
         val bitmap = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
-        val cornerR = 14f
-
-        // 1. Frosted Translucent Plate Base
-        val plateRect = RectF(4f, 4f, widthPx - 4f, heightPx - 4f)
-        val platePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.FILL
-            shader = LinearGradient(
-                0f, 0f, 0f, heightPx.toFloat(),
-                Color.argb(35, 255, 255, 255),
-                Color.argb(16, 255, 255, 255),
-                Shader.TileMode.CLAMP
-            )
-        }
-        canvas.drawRoundRect(plateRect, cornerR, cornerR, platePaint)
-
-        // Crystalline rim stroke
-        val rimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE
-            this.strokeWidth = 1f
-            color = Color.argb(55, 255, 255, 255)
-        }
-        canvas.drawRoundRect(plateRect, cornerR, cornerR, rimPaint)
-
-        // 2. Pre-calculate month transitions for realistic LeetCode/GitHub month gaps
+        // 1. Pre-calculate month transitions & normalize data
         val calendar = Calendar.getInstance()
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
         val monthSdf = SimpleDateFormat("MMM", Locale.US)
@@ -228,21 +192,6 @@ object WidgetBitmapRenderer {
             }
         }
 
-        // 3. Header Label & Legend (Authentic GitHub / LeetCode style)
-        val headerTitle = if (isLeetCode) {
-            if (totalInPeriod > 0) "$totalInPeriod submissions in 6 months" else "Submissions in 6 months"
-        } else {
-            if (totalInPeriod > 0) "$totalInPeriod contributions in 6 months" else "Contributions in 6 months"
-        }
-
-        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = COLOR_TEXT_SLATE
-            textSize = heightPx * 0.080f
-            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-            textAlign = Paint.Align.LEFT
-        }
-        canvas.drawText(headerTitle, 16f, heightPx * 0.17f, titlePaint)
-
         // Glowing Levels
         val levelColors = if (isLeetCode) {
             intArrayOf(
@@ -262,44 +211,69 @@ object WidgetBitmapRenderer {
             )
         }
 
+        // 2. Dynamic Size & Proportions Calculation
+        val cellRows = 7
+        val halfWeeks = weeksCount / 2 // 26 weeks
+
+        val leftDayMargin = 32f
+        val rightMargin = 12f
+        val availW = (widthPx - leftDayMargin - rightMargin).coerceAtLeast(100f)
+
+        // Give authentic spacing between months as in LeetCode (~1.25x cell size)
+        val maxCellFromW = availW / 37.5f
+        val maxCellFromH = ((heightPx - 44f) / 17.0f).coerceAtLeast(7f)
+        val actualCell = minOf(maxCellFromW, maxCellFromH).coerceIn(8.5f, 24.0f)
+        val cellGap = (actualCell * 0.20f).coerceAtLeast(2.0f)
+        val monthGap = (actualCell * 1.25f).coerceAtLeast(15.0f)
+
+        val totalGridW = halfWeeks * actualCell + (halfWeeks - 1) * cellGap + 5 * monthGap
+        val gridLeft = maxOf(leftDayMargin, (widthPx - totalGridW) / 2f)
+
+        // 3. Header Label & Legend (Authentic GitHub / LeetCode style: 1 Year)
+        val headerTitle = if (isLeetCode) {
+            if (totalInPeriod > 0) "$totalInPeriod submissions in 1 year" else "Submissions in 1 year"
+        } else {
+            if (totalInPeriod > 0) "$totalInPeriod contributions in 1 year" else "Contributions in 1 year"
+        }
+
+        val headerY = (actualCell * 1.4f).coerceIn(16f, 26f)
+
+        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = COLOR_TEXT_SLATE
+            textSize = (actualCell * 0.98f).coerceIn(11f, 15.5f)
+            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+            textAlign = Paint.Align.LEFT
+        }
+        canvas.drawText(headerTitle, gridLeft, headerY, titlePaint)
+
         // Authentic Legend: Less [■][■][■][■][■] More
         val legendTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = COLOR_TEXT_MUTED
-            textSize = heightPx * 0.062f
+            textSize = (actualCell * 0.80f).coerceIn(9f, 12.5f)
             typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
             textAlign = Paint.Align.RIGHT
         }
-        val sqSize = heightPx * 0.052f
-        val sqGap = 3.5f
+        val sqSize = (actualCell * 0.75f).coerceIn(7.5f, 12f)
+        val sqGap = cellGap
         val moreWidth = legendTextPaint.measureText("More")
 
-        val moreX = widthPx - 16f
-        canvas.drawText("More", moreX, heightPx * 0.17f, legendTextPaint)
+        val legendRight = gridLeft + totalGridW
+        canvas.drawText("More", legendRight, headerY, legendTextPaint)
 
-        var sqRight = moreX - moreWidth - 6f
+        var sqRight = legendRight - moreWidth - 5f
         for (lvl in 4 downTo 0) {
             val sqPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 style = Paint.Style.FILL
                 color = levelColors[lvl]
             }
             val sqLeft = sqRight - sqSize
-            val sqTop = (heightPx * 0.17f) - sqSize + 1f
+            val sqTop = headerY - sqSize + 1f
             canvas.drawRoundRect(RectF(sqLeft, sqTop, sqRight, sqTop + sqSize), 2f, 2f, sqPaint)
             sqRight -= (sqSize + sqGap)
         }
-        canvas.drawText("Less", sqRight - 6f, heightPx * 0.17f, legendTextPaint)
+        canvas.drawText("Less", sqRight - 5f, headerY, legendTextPaint)
 
-        // 4. Calculate Grid Layout & Month Transitions
-        val cellRows = 7
-        val gridTop = heightPx * 0.35f
-        val gridBottom = heightPx * 0.94f
-        val availableHeight = gridBottom - gridTop
-
-        val rowUnit = availableHeight / cellRows
-        val cellGap = rowUnit * 0.18f
-        val actualCell = rowUnit - cellGap
-        val monthGap = actualCell * 0.85f
-
+        // 4. Calculate Months for Each Week Column
         val weekMonthList = mutableListOf<Int>()
         val weekMonthNameList = mutableListOf<String>()
         val calScanner = calCopy.clone() as Calendar
@@ -312,64 +286,50 @@ object WidgetBitmapRenderer {
             calScanner.add(Calendar.DAY_OF_YEAR, 7)
         }
 
-        var totalMonthTransitions = 0
-        for (w in 1 until weeksCount) {
-            if (weekMonthList[w] != weekMonthList[w - 1]) {
-                totalMonthTransitions++
-            }
-        }
-
-        val totalGridWidth = (weeksCount * (actualCell + cellGap) - cellGap) + (totalMonthTransitions * monthGap)
-        val gridLeft = maxOf(40f, (widthPx - totalGridWidth) / 2f + 12f)
-
-        // Day of week labels on left (Mon, Wed, Fri as on GitHub/LeetCode)
         val dayTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = COLOR_TEXT_MUTED
-            textSize = heightPx * 0.060f
+            textSize = (actualCell * 0.72f).coerceIn(8.5f, 11.5f)
             typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
-            textAlign = Paint.Align.LEFT
+            textAlign = Paint.Align.RIGHT
         }
-        val dowRows = mapOf(1 to "Mon", 3 to "Wed", 5 to "Fri")
-        for ((r, label) in dowRows) {
-            val y = gridTop + r * (actualCell + cellGap) + actualCell * 0.78f
-            canvas.drawText(label, 14f, y, dayTextPaint)
-        }
-
-        // Month Labels Painter
         val monthTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = COLOR_TEXT_MUTED
-            textSize = heightPx * 0.075f
+            textSize = (actualCell * 0.82f).coerceIn(9.5f, 13f)
             typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
             textAlign = Paint.Align.LEFT
         }
-
         val cellPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.FILL
         }
 
-        // 5. Render Columns with Month Gaps & Labels
-        var currentX = gridLeft
-        var lastLabelMonth = -1
+        val dowRows = mapOf(1 to "Mon", 3 to "Wed", 5 to "Fri")
 
-        for (col in 0 until weeksCount) {
+        // Tier 1: Weeks 0..25 (Top 6 Months)
+        val month1Y = headerY + actualCell * 1.4f
+        val grid1Top = month1Y + actualCell * 0.5f
+
+        for ((r, label) in dowRows) {
+            val y = grid1Top + r * (actualCell + cellGap) + actualCell * 0.82f
+            canvas.drawText(label, gridLeft - 5f, y, dayTextPaint)
+        }
+
+        val calTier1 = calCopy.clone() as Calendar
+        var currentX1 = gridLeft
+        var lastLabelMonth1 = -1
+
+        for (col in 0 until halfWeeks) {
             val colMonth = weekMonthList[col]
             if (col > 0 && colMonth != weekMonthList[col - 1]) {
-                currentX += monthGap // Month Gap as in LeetCode / GitHub
+                currentX1 += monthGap
             }
-
-            // Draw month label at start of each month block (skip orphan tail week 0)
-            if (colMonth != lastLabelMonth) {
-                val isNotCrowdedOrphan = (col > 0) || (col + 1 < weeksCount && weekMonthList[col + 1] == colMonth)
-                if (isNotCrowdedOrphan) {
-                    canvas.drawText(weekMonthNameList[col], currentX, heightPx * 0.28f, monthTextPaint)
-                }
-                lastLabelMonth = colMonth
+            if (colMonth != lastLabelMonth1) {
+                canvas.drawText(weekMonthNameList[col], currentX1, month1Y, monthTextPaint)
+                lastLabelMonth1 = colMonth
             }
 
             for (row in 0 until cellRows) {
-                val dateStr = sdf.format(calCopy.time)
+                val dateStr = sdf.format(calTier1.time)
                 val count = dayCountMap[dateStr] ?: 0
-
                 val level = when {
                     count <= 0 -> 0
                     count == 1 -> 1
@@ -377,28 +337,79 @@ object WidgetBitmapRenderer {
                     count in 4..6 -> 3
                     else -> 4
                 }
-
                 cellPaint.color = levelColors[level]
-                val y = gridTop + row * (actualCell + cellGap)
-                val cellRect = RectF(currentX, y, currentX + actualCell, y + actualCell)
-                canvas.drawRoundRect(cellRect, actualCell * 0.26f, actualCell * 0.26f, cellPaint)
+                val y = grid1Top + row * (actualCell + cellGap)
+                val cellRect = RectF(currentX1, y, currentX1 + actualCell, y + actualCell)
+                canvas.drawRoundRect(cellRect, actualCell * 0.22f, actualCell * 0.22f, cellPaint)
 
-                calCopy.add(Calendar.DAY_OF_YEAR, 1)
+                calTier1.add(Calendar.DAY_OF_YEAR, 1)
+            }
+            currentX1 += (actualCell + cellGap)
+        }
+
+        // Subtle Frosted Tier Divider
+        val tier1Bottom = grid1Top + 7 * actualCell + 6 * cellGap
+        val dividerY = tier1Bottom + actualCell * 0.65f
+        val dividerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.argb(35, 255, 255, 255)
+            strokeWidth = 1f
+        }
+        canvas.drawLine(gridLeft, dividerY, gridLeft + totalGridW, dividerY, dividerPaint)
+
+        // Tier 2: Weeks 26..51 (Bottom 6 Months)
+        val month2Y = dividerY + actualCell * 1.35f
+        val grid2Top = month2Y + actualCell * 0.5f
+        for ((r, label) in dowRows) {
+            val y = grid2Top + r * (actualCell + cellGap) + actualCell * 0.82f
+            canvas.drawText(label, gridLeft - 5f, y, dayTextPaint)
+        }
+
+        val calTier2 = calCopy.clone() as Calendar
+        calTier2.add(Calendar.DAY_OF_YEAR, halfWeeks * 7)
+        var currentX2 = gridLeft
+        var lastLabelMonth2 = -1
+
+        for (col in 0 until (weeksCount - halfWeeks)) {
+            val w = halfWeeks + col
+            val colMonth = weekMonthList[w]
+            if (col > 0 && colMonth != weekMonthList[w - 1]) {
+                currentX2 += monthGap
+            }
+            if (colMonth != lastLabelMonth2) {
+                canvas.drawText(weekMonthNameList[w], currentX2, month2Y, monthTextPaint)
+                lastLabelMonth2 = colMonth
             }
 
-            currentX += (actualCell + cellGap)
+            for (row in 0 until cellRows) {
+                val dateStr = sdf.format(calTier2.time)
+                val count = dayCountMap[dateStr] ?: 0
+                val level = when {
+                    count <= 0 -> 0
+                    count == 1 -> 1
+                    count in 2..3 -> 2
+                    count in 4..6 -> 3
+                    else -> 4
+                }
+                cellPaint.color = levelColors[level]
+                val y = grid2Top + row * (actualCell + cellGap)
+                val cellRect = RectF(currentX2, y, currentX2 + actualCell, y + actualCell)
+                canvas.drawRoundRect(cellRect, actualCell * 0.22f, actualCell * 0.22f, cellPaint)
+
+                calTier2.add(Calendar.DAY_OF_YEAR, 1)
+            }
+            currentX2 += (actualCell + cellGap)
         }
 
         return bitmap
     }
 
-    // 3. Authentic GitHub Activity Overview (4-Quadrant Spider/Radar Chart with Total Hub & Clean Labels)
+    // 3. Authentic GitHub Activity Overview (Large 4-Quadrant Spider/Radar Chart with Total Hub & Clean Labels)
     fun renderGitHubTypeMap(stats: GitHubStats, sizePx: Int = 360): Bitmap {
         val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
         val center = sizePx / 2f
-        val discRadius = sizePx * 0.44f
+        val discRadius = sizePx * 0.485f
 
         // 1. Frosted Translucent Disc Base
         val basePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -421,33 +432,33 @@ object WidgetBitmapRenderer {
         }
         canvas.drawCircle(center, center, discRadius, bevelPaint)
 
-        // 2. Proportions & Axis setup
+        // 2. Proportions & Axis setup (Significantly enlarged "+" graph)
         val commits = stats.commitsCount.coerceAtLeast(0).toFloat()
         val prs = stats.pullRequestsCount.coerceAtLeast(0).toFloat()
         val issues = stats.issuesCount.coerceAtLeast(0).toFloat()
         val reviews = stats.reviewsCount.coerceAtLeast(0).toFloat()
 
-        val maxRadarRadius = sizePx * 0.25f // 90px in 360px
-        val minRadarRadius = sizePx * 0.08f // 28px in 360px
+        val maxRadarRadius = sizePx * 0.36f // 129.6px in 360px (large radar polygon)
+        val minRadarRadius = sizePx * 0.09f // 32.4px in 360px
+        val axisLength = sizePx * 0.38f     // 136.8px cross length
 
-        // Concentric guide rings (33%, 66%, 100%)
+        // Concentric guide rings (50%, 100%)
         val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE
             this.strokeWidth = 1f
             color = Color.argb(35, 255, 255, 255)
         }
-        canvas.drawCircle(center, center, minRadarRadius + (maxRadarRadius - minRadarRadius) * 0.33f, ringPaint)
-        canvas.drawCircle(center, center, minRadarRadius + (maxRadarRadius - minRadarRadius) * 0.66f, ringPaint)
+        canvas.drawCircle(center, center, minRadarRadius + (maxRadarRadius - minRadarRadius) * 0.50f, ringPaint)
         canvas.drawCircle(center, center, maxRadarRadius, ringPaint)
 
-        // Cross coordinate lines
+        // Plus cross coordinate lines
         val axisPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.argb(70, 255, 255, 255)
-            this.strokeWidth = 1.4f
+            color = Color.argb(75, 255, 255, 255)
+            this.strokeWidth = 1.5f
             style = Paint.Style.STROKE
         }
-        canvas.drawLine(center, center - maxRadarRadius, center, center + maxRadarRadius, axisPaint)
-        canvas.drawLine(center - maxRadarRadius, center, center + maxRadarRadius, center, axisPaint)
+        canvas.drawLine(center, center - axisLength, center, center + axisLength, axisPaint)
+        canvas.drawLine(center - axisLength, center, center + axisLength, center, axisPaint)
 
         // 3. Radar Polygon Shape
         val maxVal = maxOf(commits, prs * 2.8f, issues * 4.0f, reviews * 3.0f, 40f)
@@ -469,8 +480,8 @@ object WidgetBitmapRenderer {
             style = Paint.Style.FILL
             shader = LinearGradient(
                 center, center - cNorm, center, center + issueNorm,
-                Color.argb(130, 34, 197, 94),
-                Color.argb(55, 16, 185, 129),
+                Color.argb(135, 34, 197, 94),
+                Color.argb(60, 16, 185, 129),
                 Shader.TileMode.CLAMP
             )
         }
@@ -479,7 +490,7 @@ object WidgetBitmapRenderer {
         // Glowing perimeter stroke
         val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.parseColor("#22C55E")
-            this.strokeWidth = 2.4f
+            this.strokeWidth = 2.6f
             style = Paint.Style.STROKE
         }
         canvas.drawPath(polyPath, strokePaint)
@@ -489,31 +500,31 @@ object WidgetBitmapRenderer {
             style = Paint.Style.FILL
         }
         dotPaint.color = Color.parseColor("#22C55E")
-        canvas.drawCircle(center, center - cNorm, 4.2f, dotPaint)
+        canvas.drawCircle(center, center - cNorm, 4.5f, dotPaint)
         dotPaint.color = Color.parseColor("#A855F7")
-        canvas.drawCircle(center + prNorm, center, 4.2f, dotPaint)
+        canvas.drawCircle(center + prNorm, center, 4.5f, dotPaint)
         dotPaint.color = Color.parseColor("#3B82F6")
-        canvas.drawCircle(center, center + issueNorm, 4.2f, dotPaint)
+        canvas.drawCircle(center, center + issueNorm, 4.5f, dotPaint)
         dotPaint.color = Color.parseColor("#F59E0B")
-        canvas.drawCircle(center - revNorm, center, 4.2f, dotPaint)
+        canvas.drawCircle(center - revNorm, center, 4.5f, dotPaint)
 
         // 4. Center Glass Hub (Total Contributions Count)
-        val hubRadius = sizePx * 0.088f
+        val hubRadius = sizePx * 0.095f
         val hubPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.FILL
-            color = Color.argb(210, 15, 23, 42)
+            color = Color.argb(215, 15, 23, 42)
         }
         canvas.drawCircle(center, center, hubRadius, hubPaint)
         val hubStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE
             this.strokeWidth = 1f
-            color = Color.argb(60, 255, 255, 255)
+            color = Color.argb(65, 255, 255, 255)
         }
         canvas.drawCircle(center, center, hubRadius, hubStrokePaint)
 
         val hubValPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = COLOR_TEXT_WHITE
-            textSize = sizePx * 0.062f
+            textSize = sizePx * 0.065f
             textAlign = Paint.Align.CENTER
             typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
         }
@@ -529,24 +540,23 @@ object WidgetBitmapRenderer {
         }
         canvas.drawText("CONTRIBS", center, hubTextY + (sizePx * 0.040f), hubSubPaint)
 
-        // 5. Four Cardinal Labels with Brand Dots (Clean, non-colliding layout)
+        // 5. Four Cardinal Labels with Brand Colors (Clean, non-colliding layout)
         val labelValPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = COLOR_TEXT_WHITE
             textSize = sizePx * 0.046f
             typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
         }
         val labelTitlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = COLOR_TEXT_MUTED
             textSize = sizePx * 0.038f
             typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
         }
 
-        // Helper to draw clean Pill / Badge
         fun drawBadge(centerX: Float, centerY: Float, title: String, count: Int, colorHex: String, align: Paint.Align) {
             val color = Color.parseColor(colorHex)
             val countStr = count.toString()
             labelValPaint.textAlign = align
             labelTitlePaint.textAlign = align
+            labelTitlePaint.color = color
 
             when (align) {
                 Paint.Align.CENTER -> {
@@ -568,13 +578,13 @@ object WidgetBitmapRenderer {
         }
 
         // Top: Commits (Emerald)
-        drawBadge(center, center - maxRadarRadius - 16f, "Commits", stats.commitsCount, "#22C55E", Paint.Align.CENTER)
+        drawBadge(center, 22f, "Commits", stats.commitsCount, "#22C55E", Paint.Align.CENTER)
         // Bottom: Issues (Blue)
-        drawBadge(center, center + maxRadarRadius + 22f, "Issues", stats.issuesCount, "#3B82F6", Paint.Align.CENTER)
+        drawBadge(center, sizePx - 20f, "Issues", stats.issuesCount, "#3B82F6", Paint.Align.CENTER)
         // Right: PRs (Purple)
-        drawBadge(center + maxRadarRadius + 14f, center + 4f, "PRs", stats.pullRequestsCount, "#A855F7", Paint.Align.LEFT)
+        drawBadge(sizePx - 16f, center + 4f, "PRs", stats.pullRequestsCount, "#A855F7", Paint.Align.RIGHT)
         // Left: Reviews (Amber)
-        drawBadge(center - maxRadarRadius - 14f, center + 4f, "Reviews", stats.reviewsCount, "#F59E0B", Paint.Align.RIGHT)
+        drawBadge(16f, center + 4f, "Reviews", stats.reviewsCount, "#F59E0B", Paint.Align.LEFT)
 
         return bitmap
     }

@@ -175,7 +175,7 @@ class WidgetPreferences(context: Context) {
         val sampleLcCal = mutableMapOf<Long, Int>()
         // Generate realistic 14 weeks of activity
         val secondsInDay = 86400L
-        for (i in 0..182) {
+        for (i in 0..365) {
             val ts = now - (i * secondsInDay)
             val count = when {
                 i % 7 in 1..5 && (i % 3 != 0) -> (1..6).random()
@@ -200,7 +200,7 @@ class WidgetPreferences(context: Context) {
 
         val sampleGhCal = mutableMapOf<String, Int>()
         val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-        for (i in 0..182) {
+        for (i in 0..365) {
             val d = java.util.Date(System.currentTimeMillis() - (i * 86400000L))
             val dateStr = sdf.format(d)
             val count = when {

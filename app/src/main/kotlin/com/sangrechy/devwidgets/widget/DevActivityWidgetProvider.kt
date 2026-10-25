@@ -8,7 +8,9 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.util.SizeF
 import android.view.View
 import android.widget.RemoteViews
 import androidx.work.Constraints
@@ -74,37 +76,51 @@ class DevActivityWidgetProvider : AppWidgetProvider() {
             appWidgetId: Int,
             data: WidgetDashboardData
         ) {
-            val views = RemoteViews(context.packageName, R.layout.widget_dev_activity)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val compactViews = buildRemoteViews(context, data, isExpanded = false)
+                val expandedViews = buildRemoteViews(context, data, isExpanded = true)
+                val viewMapping = mapOf(
+                    SizeF(150f, 120f) to compactViews,
+                    SizeF(220f, 280f) to expandedViews
+                )
+                appWidgetManager.updateAppWidget(appWidgetId, RemoteViews(viewMapping))
+            } else {
+                val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
+                val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
+                val isExpanded = minHeight >= 280
+                val views = buildRemoteViews(context, data, isExpanded = isExpanded)
+                appWidgetManager.updateAppWidget(appWidgetId, views)
+            }
+        }
 
-            // Dynamically detect widget height from options
-            val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
-            val minHeight = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0) ?: 0
+        private fun buildRemoteViews(
+            context: Context,
+            data: WidgetDashboardData,
+            isExpanded: Boolean
+        ): RemoteViews {
+            val layoutId = if (isExpanded) R.layout.widget_dev_activity else R.layout.widget_dev_activity_compact
+            val views = RemoteViews(context.packageName, layoutId)
 
-            // Rule: "show previous atleast a 5-6, or dont show at all"
-            // If user does not allow decent space (minHeight < 340dp), do NOT show recent submissions/commits at all (View.GONE, 0 items).
-            // When showRecentFeeds is true (height >= 340dp or unmeasured initial state 0), show all 6 items.
-            val showRecentFeeds = minHeight >= 340 || minHeight == 0
-            val maxVisibleRows = if (showRecentFeeds) 6 else 0
+            // When expanded, heatmap spans full card width (680x280)
+            // When compact, heatmap sits side-by-side with circle (440x320)
+            val hmWidth = if (isExpanded) 620 else 440
+            val hmHeight = if (isExpanded) 290 else 320
 
-            views.setViewVisibility(R.id.ll_leetcode_submissions, if (showRecentFeeds) View.VISIBLE else View.GONE)
-            views.setViewVisibility(R.id.ll_github_events, if (showRecentFeeds) View.VISIBLE else View.GONE)
-
-            // 1. Render Glassmorphic Bitmaps (6-month heatmap, authentic GitHub Activity Overview)
             val lcCircle = WidgetBitmapRenderer.renderLeetCodeCircle(data.leetCode, sizePx = 360)
             val lcHeatmap = WidgetBitmapRenderer.renderHeatmap(
                 data.leetCode.submissionCalendar,
                 isLeetCode = true,
-                widthPx = 680,
-                heightPx = 200,
-                weeksCount = 26
+                widthPx = hmWidth,
+                heightPx = hmHeight,
+                weeksCount = 52
             )
             val ghTypeMap = WidgetBitmapRenderer.renderGitHubTypeMap(data.gitHub, sizePx = 360)
             val ghHeatmap = WidgetBitmapRenderer.renderHeatmap(
                 data.gitHub.contributionDays,
                 isLeetCode = false,
-                widthPx = 680,
-                heightPx = 200,
-                weeksCount = 26
+                widthPx = hmWidth,
+                heightPx = hmHeight,
+                weeksCount = 52
             )
 
             views.setImageViewBitmap(R.id.iv_leetcode_circle, lcCircle)
@@ -112,97 +128,30 @@ class DevActivityWidgetProvider : AppWidgetProvider() {
             views.setImageViewBitmap(R.id.iv_github_typemap, ghTypeMap)
             views.setImageViewBitmap(R.id.iv_github_heatmap, ghHeatmap)
 
-            // 2. User Tags in Headers
+            // Detailed stat badges for expanded mode
+            if (isExpanded) {
+                views.setTextViewText(R.id.tv_lc_easy_count, data.leetCode.easySolved.toString())
+                views.setTextViewText(R.id.tv_lc_medium_count, data.leetCode.mediumSolved.toString())
+                views.setTextViewText(R.id.tv_lc_hard_count, data.leetCode.hardSolved.toString())
+                views.setTextViewText(R.id.tv_lc_acc_rate, data.leetCode.totalSolved.toString())
+
+                views.setTextViewText(R.id.tv_gh_commits_count, data.gitHub.commitsCount.toString())
+                views.setTextViewText(R.id.tv_gh_prs_count, data.gitHub.pullRequestsCount.toString())
+                views.setTextViewText(R.id.tv_gh_issues_count, data.gitHub.issuesCount.toString())
+                views.setTextViewText(R.id.tv_gh_reviews_count, data.gitHub.reviewsCount.toString())
+            }
+
+            // User tags in headers
             val lcHandle = data.leetCode.username.ifBlank { "dev" }
             val ghHandle = data.gitHub.username.ifBlank { "dev" }
             views.setTextViewText(R.id.tv_lc_user_tag, "@$lcHandle")
             views.setTextViewText(R.id.tv_gh_user_tag, "@$ghHandle")
 
-            // 3. Last Submissions Full-Width Rows (at least 5-6 items or none)
-            val lcRowIds = intArrayOf(
-                R.id.row_lc_1, R.id.row_lc_2, R.id.row_lc_3,
-                R.id.row_lc_4, R.id.row_lc_5, R.id.row_lc_6
-            )
-            val lcBadgeIds = intArrayOf(
-                R.id.badge_lc_1, R.id.badge_lc_2, R.id.badge_lc_3,
-                R.id.badge_lc_4, R.id.badge_lc_5, R.id.badge_lc_6
-            )
-            val lcTitleIds = intArrayOf(
-                R.id.tv_lc_title_1, R.id.tv_lc_title_2, R.id.tv_lc_title_3,
-                R.id.tv_lc_title_4, R.id.tv_lc_title_5, R.id.tv_lc_title_6
-            )
-            val lcSubIds = intArrayOf(
-                R.id.tv_lc_sub_1, R.id.tv_lc_sub_2, R.id.tv_lc_sub_3,
-                R.id.tv_lc_sub_4, R.id.tv_lc_sub_5, R.id.tv_lc_sub_6
-            )
-
-            val subs = data.leetCode.recentSubmissions
-            for (i in 0..5) {
-                if (i < subs.size && i < maxVisibleRows) {
-                    val sub = subs[i]
-                    val isAc = sub.statusDisplay.contains("Accept", ignoreCase = true)
-                    views.setViewVisibility(lcRowIds[i], View.VISIBLE)
-                    views.setTextViewText(lcTitleIds[i], sub.title)
-                    views.setTextViewText(lcSubIds[i], "${sub.lang} • ${formatRelativeTime(sub.timestamp)}")
-                    views.setTextViewText(lcBadgeIds[i], if (isAc) "AC" else "WA")
-                    views.setInt(
-                        lcBadgeIds[i],
-                        "setBackgroundResource",
-                        if (isAc) R.drawable.badge_pill_ac else R.drawable.badge_pill_wa
-                    )
-                    views.setTextColor(
-                        lcBadgeIds[i],
-                        if (isAc) Color.parseColor("#34D399") else Color.parseColor("#F87171")
-                    )
-                } else {
-                    views.setViewVisibility(lcRowIds[i], View.GONE)
-                }
-            }
-
-            // 4. Last Activities Full-Width Rows (at least 5-6 items or none)
-            val ghRowIds = intArrayOf(
-                R.id.row_gh_1, R.id.row_gh_2, R.id.row_gh_3,
-                R.id.row_gh_4, R.id.row_gh_5, R.id.row_gh_6
-            )
-            val ghBadgeIds = intArrayOf(
-                R.id.badge_gh_1, R.id.badge_gh_2, R.id.badge_gh_3,
-                R.id.badge_gh_4, R.id.badge_gh_5, R.id.badge_gh_6
-            )
-            val ghTitleIds = intArrayOf(
-                R.id.tv_gh_title_1, R.id.tv_gh_title_2, R.id.tv_gh_title_3,
-                R.id.tv_gh_title_4, R.id.tv_gh_title_5, R.id.tv_gh_title_6
-            )
-            val ghSubIds = intArrayOf(
-                R.id.tv_gh_sub_1, R.id.tv_gh_sub_2, R.id.tv_gh_sub_3,
-                R.id.tv_gh_sub_4, R.id.tv_gh_sub_5, R.id.tv_gh_sub_6
-            )
-
-            val events = data.gitHub.recentEvents
-            for (i in 0..5) {
-                if (i < events.size && i < maxVisibleRows) {
-                    val ev = events[i]
-                    val badgeTag = when (ev.type) {
-                        "PushEvent" -> "PUSH"
-                        "PullRequestEvent" -> "PR"
-                        "IssuesEvent" -> "ISSUE"
-                        "PullRequestReviewEvent" -> "REV"
-                        else -> "ACT"
-                    }
-                    views.setViewVisibility(ghRowIds[i], View.VISIBLE)
-                    views.setTextViewText(ghBadgeIds[i], badgeTag)
-                    views.setTextColor(ghBadgeIds[i], Color.parseColor("#A5B4FC"))
-                    views.setTextViewText(ghTitleIds[i], ev.repoName)
-                    views.setTextViewText(ghSubIds[i], "${ev.actionSummary} • ${ev.createdAt}")
-                } else {
-                    views.setViewVisibility(ghRowIds[i], View.GONE)
-                }
-            }
-
-            // 5. Sync Timestamp
+            // Sync timestamp
             val timeFmt = SimpleDateFormat("h:mm a", Locale.getDefault())
             views.setTextViewText(R.id.tv_last_updated, "Sync: ${timeFmt.format(Date(data.lastUpdatedMillis))}")
 
-            // 6. Pending Intents
+            // Pending Intents
             val appIntent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
@@ -237,19 +186,7 @@ class DevActivityWidgetProvider : AppWidgetProvider() {
                 views.setOnClickPendingIntent(R.id.section_github, ghPendingIntent)
             }
 
-            appWidgetManager.updateAppWidget(appWidgetId, views)
-        }
-
-        private fun formatRelativeTime(timestampSeconds: Long): String {
-            val nowSec = System.currentTimeMillis() / 1000L
-            val diffSec = (nowSec - timestampSeconds).coerceAtLeast(0)
-            return when {
-                diffSec < 60 -> "just now"
-                diffSec < 3600 -> "${diffSec / 60}m ago"
-                diffSec < 86400 -> "${diffSec / 3600}h ago"
-                diffSec < 604800 -> "${diffSec / 86400}d ago"
-                else -> "${diffSec / 604800}w ago"
-            }
+            return views
         }
 
         fun enqueueImmediateSync(context: Context) {
