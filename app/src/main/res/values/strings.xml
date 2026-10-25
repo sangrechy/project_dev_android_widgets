@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">DevWidgets</string>
+    <string name="widget_description">LeetCode &amp; GitHub Developer Activity Dashboard with Heatmaps</string>
+</resources>

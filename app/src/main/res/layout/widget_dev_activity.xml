@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_background"
+    android:padding="10dp">
+
+    <!-- Top Header Bar -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="6dp"
+        android:paddingHorizontal="4dp">
+
+        <TextView
+            android:id="@+id/tv_widget_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="DEV DASHBOARD • LEETCODE &amp; GITHUB"
+            android:textColor="#8B949E"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.08"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true">
+
+            <TextView
+                android:id="@+id/tv_last_updated"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Updated just now"
+                android:textColor="#6E7681"
+                android:textSize="9sp"
+                android:layout_marginEnd="6dp" />
+
+            <ImageView
+                android:id="@+id/btn_refresh"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_refresh"
+                android:contentDescription="Refresh" />
+        </LinearLayout>
+    </RelativeLayout>
+
+    <!-- Top Section: LeetCode -->
+    <LinearLayout
+        android:id="@+id/section_leetcode"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:background="@drawable/card_section_background"
+        android:padding="6dp"
+        android:gravity="center_vertical">
+
+        <!-- Left: LeetCode Circle / Solved Count -->
+        <ImageView
+            android:id="@+id/iv_leetcode_circle"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1.1"
+            android:scaleType="fitCenter"
+            android:contentDescription="LeetCode Solved Count" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:background="#262D38"
+            android:layout_marginHorizontal="4dp" />
+
+        <!-- Center: Submission Heatmap -->
+        <ImageView
+            android:id="@+id/iv_leetcode_heatmap"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="2.3"
+            android:scaleType="fitCenter"
+            android:contentDescription="LeetCode Submission Heatmap" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:background="#262D38"
+            android:layout_marginHorizontal="4dp" />
+
+        <!-- Right: Last 10 Submissions -->
+        <LinearLayout
+            android:id="@+id/ll_leetcode_submissions"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1.8"
+            android:orientation="vertical"
+            android:paddingHorizontal="4dp"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tv_leetcode_sub_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="LAST 10 SUBMISSIONS"
+                android:textColor="#FFA116"
+                android:textSize="9sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.05"
+                android:layout_marginBottom="2dp" />
+
+            <TextView
+                android:id="@+id/tv_lc_sub_1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="1. Two Sum • Accepted"
+                android:textColor="#E6EDF3"
+                android:textSize="8.5sp"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/tv_lc_sub_2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="2. LRU Cache • Accepted"
+                android:textColor="#8B949E"
+                android:textSize="8.5sp"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/tv_lc_sub_3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="3. Median of Two Sorted... • WA"
+                android:textColor="#8B949E"
+                android:textSize="8.5sp"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/tv_lc_sub_4"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="4. Trapping Rain Water • Accepted"
+                android:textColor="#8B949E"
+                android:textSize="8.5sp"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/tv_lc_sub_5"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="5. Merge k Sorted Lists • Accepted"
+                android:textColor="#8B949E"
+                android:textSize="8.5sp"
+                android:singleLine="true"
+                android:ellipsize="end" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Mid Divider Line -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#2B323D"
+        android:layout_marginVertical="5dp" />
+
+    <!-- Bottom Section: GitHub -->
+    <LinearLayout
+        android:id="@+id/section_github"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:background="@drawable/card_section_background"
+        android:padding="6dp"
+        android:gravity="center_vertical">
+
+        <!-- Left: Contribution Type Map (Cross) -->
+        <ImageView
+            android:id="@+id/iv_github_typemap"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1.1"
+            android:scaleType="fitCenter"
+            android:contentDescription="GitHub Contribution Type Map" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:background="#262D38"
+            android:layout_marginHorizontal="4dp" />
+
+        <!-- Center: GitHub Heatmap -->
+        <ImageView
+            android:id="@+id/iv_github_heatmap"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="2.3"
+            android:scaleType="fitCenter"
+            android:contentDescription="GitHub Contribution Heatmap" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:background="#262D38"
+            android:layout_marginHorizontal="4dp" />
+
+        <!-- Right: Last 10 Activities / Events -->
+        <LinearLayout
+            android:id="@+id/ll_github_events"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1.8"
+            android:orientation="vertical"
+            android:paddingHorizontal="4dp"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tv_github_events_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="LAST 10 ACTIVITIES"
+                android:textColor="#39D353"
+                android:textSize="9sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.05"
+                android:layout_marginBottom="2dp" />
+
+            <TextView
+                android:id="@+id/tv_gh_ev_1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="1. dev-widgets • Pushed 3 commits"
+                android:textColor="#E6EDF3"
+                android:textSize="8.5sp"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/tv_gh_ev_2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="2. android • Opened PR #42"
+                android:textColor="#8B949E"
+                android:textSize="8.5sp"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/tv_gh_ev_3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="3. dev-widgets • 1 commit to main"
+                android:textColor="#8B949E"
+                android:textSize="8.5sp"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/tv_gh_ev_4"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="4. compose-ui • Created issue"
+                android:textColor="#8B949E"
+                android:textSize="8.5sp"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/tv_gh_ev_5"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="5. tools • Approved PR #108"
+                android:textColor="#8B949E"
+                android:textSize="8.5sp"
+                android:singleLine="true"
+                android:ellipsize="end" />
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>
