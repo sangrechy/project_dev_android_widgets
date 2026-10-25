@@ -267,25 +267,27 @@ fun MainScreen(
 @Composable
 fun WidgetVisualPreview(data: WidgetDashboardData) {
     val lcCircle = remember(data.leetCode) {
-        WidgetBitmapRenderer.renderLeetCodeCircle(data.leetCode, sizePx = 240).asImageBitmap()
+        WidgetBitmapRenderer.renderLeetCodeCircle(data.leetCode, sizePx = 320).asImageBitmap()
     }
     val lcHeatmap = remember(data.leetCode.submissionCalendar) {
         WidgetBitmapRenderer.renderHeatmap(
             data.leetCode.submissionCalendar,
             isLeetCode = true,
-            widthPx = 480,
-            heightPx = 220
+            widthPx = 600,
+            heightPx = 220,
+            weeksCount = 18
         ).asImageBitmap()
     }
     val ghTypeMap = remember(data.gitHub) {
-        WidgetBitmapRenderer.renderGitHubTypeMap(data.gitHub, sizePx = 240).asImageBitmap()
+        WidgetBitmapRenderer.renderGitHubTypeMap(data.gitHub, sizePx = 320).asImageBitmap()
     }
     val ghHeatmap = remember(data.gitHub.contributionDays) {
         WidgetBitmapRenderer.renderHeatmap(
             data.gitHub.contributionDays,
             isLeetCode = false,
-            widthPx = 480,
-            heightPx = 220
+            widthPx = 600,
+            heightPx = 220,
+            weeksCount = 18
         ).asImageBitmap()
     }
 
@@ -363,7 +365,7 @@ fun WidgetVisualPreview(data: WidgetDashboardData) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(84.dp),
+                            .height(94.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -371,7 +373,7 @@ fun WidgetVisualPreview(data: WidgetDashboardData) {
                             bitmap = lcCircle,
                             contentDescription = "LeetCode Count",
                             modifier = Modifier
-                                .size(84.dp)
+                                .size(94.dp)
                         )
                         Box(
                             modifier = Modifier
@@ -494,7 +496,7 @@ fun WidgetVisualPreview(data: WidgetDashboardData) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(84.dp),
+                            .height(94.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -502,7 +504,7 @@ fun WidgetVisualPreview(data: WidgetDashboardData) {
                             bitmap = ghTypeMap,
                             contentDescription = "GitHub Type Map",
                             modifier = Modifier
-                                .size(84.dp)
+                                .size(94.dp)
                         )
                         Box(
                             modifier = Modifier

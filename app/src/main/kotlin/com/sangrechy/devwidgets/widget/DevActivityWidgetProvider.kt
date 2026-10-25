@@ -79,23 +79,33 @@ class DevActivityWidgetProvider : AppWidgetProvider() {
             // Dynamically detect widget height from options
             val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
             val minHeight = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0) ?: 0
-            // When widget is very compact (height < 220dp), show 2 rows; when standard, tall, or full screen, show 4 rows
-            val maxVisibleRows = if (minHeight in 1..219) 2 else 4
+
+            // Rule 1: If user does not allow decent space (minHeight < 340dp), do NOT show recent submissions/commits at all.
+            // When showRecentFeeds is true (height >= 340dp or unmeasured initial state 0), show 2 rows if height in 340..440dp, or 4 rows if >= 450dp.
+            val showRecentFeeds = minHeight >= 340 || minHeight == 0
+            val maxVisibleRows = when {
+                !showRecentFeeds -> 0
+                minHeight in 340..440 -> 2
+                else -> 4
+            }
+
+            views.setViewVisibility(R.id.ll_leetcode_submissions, if (showRecentFeeds) View.VISIBLE else View.GONE)
+            views.setViewVisibility(R.id.ll_github_events, if (showRecentFeeds) View.VISIBLE else View.GONE)
 
             // 1. Render Glassmorphic Bitmaps
-            val lcCircle = WidgetBitmapRenderer.renderLeetCodeCircle(data.leetCode, sizePx = 300)
+            val lcCircle = WidgetBitmapRenderer.renderLeetCodeCircle(data.leetCode, sizePx = 360)
             val lcHeatmap = WidgetBitmapRenderer.renderHeatmap(
                 data.leetCode.submissionCalendar,
                 isLeetCode = true,
-                widthPx = 600,
+                widthPx = 640,
                 heightPx = 220,
                 weeksCount = 18
             )
-            val ghTypeMap = WidgetBitmapRenderer.renderGitHubTypeMap(data.gitHub, sizePx = 300)
+            val ghTypeMap = WidgetBitmapRenderer.renderGitHubTypeMap(data.gitHub, sizePx = 360)
             val ghHeatmap = WidgetBitmapRenderer.renderHeatmap(
                 data.gitHub.contributionDays,
                 isLeetCode = false,
-                widthPx = 600,
+                widthPx = 640,
                 heightPx = 220,
                 weeksCount = 18
             )
