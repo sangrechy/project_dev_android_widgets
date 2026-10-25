@@ -22,6 +22,9 @@ import com.sangrechy.devwidgets.MainActivity
 import com.sangrechy.devwidgets.R
 import com.sangrechy.devwidgets.data.WidgetPreferences
 import com.sangrechy.devwidgets.data.model.WidgetDashboardData
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -53,6 +56,25 @@ class DevActivityWidgetProvider : AppWidgetProvider() {
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         if (intent.action == ACTION_FORCE_REFRESH) {
+            val pendingResult = goAsync()
+            val appContext = context.applicationContext
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                try {
+                    val prefs = WidgetPreferences(appContext)
+                    val current = prefs.getDashboardData()
+                    updateAllWidgets(appContext, current.copy(isSyncing = true))
+
+                    val repo = com.sangrechy.devwidgets.data.DefaultDataRepository(appContext)
+                    repo.syncData()
+
+                    val updated = prefs.getDashboardData()
+                    updateAllWidgets(appContext, updated.copy(isSyncing = false))
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                } finally {
+                    pendingResult.finish()
+                }
+            }
             enqueueImmediateSync(context)
         }
     }
@@ -140,14 +162,29 @@ class DevActivityWidgetProvider : AppWidgetProvider() {
             views.setImageViewBitmap(R.id.iv_github_heatmap, ghHeatmap)
 
             // User tags in headers
-            val lcHandle = data.leetCode.username.ifBlank { "dev" }
-            val ghHandle = data.gitHub.username.ifBlank { "dev" }
-            views.setTextViewText(R.id.tv_lc_user_tag, "@$lcHandle")
-            views.setTextViewText(R.id.tv_gh_user_tag, "@$ghHandle")
+            val lcTag = when {
+                data.leetCode.status == com.sangrechy.devwidgets.data.model.AccountStatus.FAILED ->
+                    "@${data.leetCode.username.ifBlank { "dev" }} (Offline)"
+                data.leetCode.username.isNotBlank() -> "@${data.leetCode.username}"
+                else -> "@dev"
+            }
+            val ghTag = when {
+                data.gitHub.status == com.sangrechy.devwidgets.data.model.AccountStatus.FAILED ->
+                    "@${data.gitHub.username.ifBlank { "dev" }} (Offline)"
+                data.gitHub.username.isNotBlank() -> "@${data.gitHub.username}"
+                else -> "@dev"
+            }
+            views.setTextViewText(R.id.tv_lc_user_tag, lcTag)
+            views.setTextViewText(R.id.tv_gh_user_tag, ghTag)
 
-            // Sync timestamp
-            val timeFmt = SimpleDateFormat("h:mm a", Locale.getDefault())
-            views.setTextViewText(R.id.tv_last_updated, "Sync: ${timeFmt.format(Date(data.lastUpdatedMillis))}")
+            // Sync timestamp or syncing animation
+            val syncText = if (data.isSyncing) {
+                "Syncing..."
+            } else {
+                val timeFmt = SimpleDateFormat("h:mm a", Locale.getDefault())
+                "Sync: ${timeFmt.format(Date(data.lastUpdatedMillis))}"
+            }
+            views.setTextViewText(R.id.tv_last_updated, syncText)
 
             // Pending Intents
             val appIntent = Intent(context, MainActivity::class.java).apply {
@@ -157,14 +194,17 @@ class DevActivityWidgetProvider : AppWidgetProvider() {
                 context, 0, appIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             views.setOnClickPendingIntent(R.id.tv_widget_title, appPendingIntent)
+            views.setOnClickPendingIntent(R.id.iv_widget_chibi_logo, appPendingIntent)
 
             val refreshIntent = Intent(context, DevActivityWidgetProvider::class.java).apply {
                 action = ACTION_FORCE_REFRESH
+                setPackage(context.packageName)
             }
             val refreshPendingIntent = PendingIntent.getBroadcast(
                 context, 1, refreshIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             views.setOnClickPendingIntent(R.id.btn_refresh, refreshPendingIntent)
+            views.setOnClickPendingIntent(R.id.header_right_wrap, refreshPendingIntent)
 
             val lcUser = data.leetCode.username
             if (lcUser.isNotBlank()) {

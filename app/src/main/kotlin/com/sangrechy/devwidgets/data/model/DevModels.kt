@@ -1,5 +1,12 @@
 package com.sangrechy.devwidgets.data.model
 
+enum class AccountStatus {
+    NOT_CONFIGURED,
+    CONNECTING,
+    CONNECTED,
+    FAILED
+}
+
 data class LeetCodeSubmission(
     val title: String,
     val titleSlug: String,
@@ -15,7 +22,9 @@ data class LeetCodeStats(
     val mediumSolved: Int = 0,
     val hardSolved: Int = 0,
     val submissionCalendar: Map<Long, Int> = emptyMap(), // epoch seconds -> count
-    val recentSubmissions: List<LeetCodeSubmission> = emptyList()
+    val recentSubmissions: List<LeetCodeSubmission> = emptyList(),
+    val status: AccountStatus = AccountStatus.NOT_CONFIGURED,
+    val statusMessage: String = ""
 )
 
 data class GitHubEvent(
@@ -33,11 +42,14 @@ data class GitHubStats(
     val issuesCount: Int = 0,
     val reviewsCount: Int = 0,
     val contributionDays: Map<String, Int> = emptyMap(), // "YYYY-MM-DD" -> count
-    val recentEvents: List<GitHubEvent> = emptyList()
+    val recentEvents: List<GitHubEvent> = emptyList(),
+    val status: AccountStatus = AccountStatus.NOT_CONFIGURED,
+    val statusMessage: String = ""
 )
 
 data class WidgetDashboardData(
     val leetCode: LeetCodeStats = LeetCodeStats(),
     val gitHub: GitHubStats = GitHubStats(),
-    val lastUpdatedMillis: Long = System.currentTimeMillis()
+    val lastUpdatedMillis: Long = System.currentTimeMillis(),
+    val isSyncing: Boolean = false
 )

@@ -1,5 +1,6 @@
 package com.sangrechy.devwidgets.data.network
 
+import com.sangrechy.devwidgets.data.model.AccountStatus
 import com.sangrechy.devwidgets.data.model.GitHubEvent
 import com.sangrechy.devwidgets.data.model.GitHubStats
 import com.sangrechy.devwidgets.data.model.LeetCodeStats
@@ -26,7 +27,8 @@ class DevApiService(private val okHttpClient: OkHttpClient = defaultClient()) {
     }
 
     suspend fun fetchLeetCodeStats(username: String): LeetCodeStats = withContext(Dispatchers.IO) {
-        if (username.isBlank()) return@withContext LeetCodeStats()
+        val trimmed = username.trim()
+        if (trimmed.isBlank()) return@withContext LeetCodeStats(status = AccountStatus.NOT_CONFIGURED)
 
         val query = """
             query getUserProfile(${'$'}username: String!) {
@@ -50,7 +52,7 @@ class DevApiService(private val okHttpClient: OkHttpClient = defaultClient()) {
 
         val jsonBody = JSONObject().apply {
             put("query", query)
-            put("variables", JSONObject().apply { put("username", username) })
+            put("variables", JSONObject().apply { put("username", trimmed) })
         }
 
         val request = Request.Builder()
@@ -63,20 +65,36 @@ class DevApiService(private val okHttpClient: OkHttpClient = defaultClient()) {
         try {
             val response = okHttpClient.newCall(request).execute()
             if (!response.isSuccessful) {
-                return@withContext LeetCodeStats(username = username)
+                return@withContext LeetCodeStats(
+                    username = trimmed,
+                    status = AccountStatus.FAILED,
+                    statusMessage = "HTTP ${response.code}: Could not connect to LeetCode"
+                )
             }
 
-            val body = response.body?.string() ?: return@withContext LeetCodeStats(username = username)
+            val body = response.body?.string() ?: return@withContext LeetCodeStats(
+                username = trimmed,
+                status = AccountStatus.FAILED,
+                statusMessage = "Empty response from LeetCode"
+            )
             val root = JSONObject(body)
-            val data = root.optJSONObject("data") ?: return@withContext LeetCodeStats(username = username)
-            val matchedUser = data.optJSONObject("matchedUser")
+            val data = root.optJSONObject("data")
+            val matchedUser = data?.optJSONObject("matchedUser")
+
+            if (matchedUser == null) {
+                return@withContext LeetCodeStats(
+                    username = trimmed,
+                    status = AccountStatus.FAILED,
+                    statusMessage = "LeetCode user '$trimmed' not found"
+                )
+            }
 
             var total = 0
             var easy = 0
             var med = 0
             var hard = 0
 
-            matchedUser?.optJSONObject("submitStatsGlobal")?.optJSONArray("acSubmissionNum")?.let { arr ->
+            matchedUser.optJSONObject("submitStatsGlobal")?.optJSONArray("acSubmissionNum")?.let { arr ->
                 for (i in 0 until arr.length()) {
                     val item = arr.getJSONObject(i)
                     val diff = item.optString("difficulty")
@@ -91,7 +109,7 @@ class DevApiService(private val okHttpClient: OkHttpClient = defaultClient()) {
             }
 
             val calendarMap = mutableMapOf<Long, Int>()
-            val rawCalendar = matchedUser?.optString("submissionCalendar", "{}") ?: "{}"
+            val rawCalendar = matchedUser.optString("submissionCalendar", "{}")
             try {
                 val calJson = JSONObject(rawCalendar)
                 calJson.keys().forEach { tsStr ->
@@ -117,37 +135,80 @@ class DevApiService(private val okHttpClient: OkHttpClient = defaultClient()) {
                 }
             }
 
+            val actualUsername = matchedUser.optString("username", trimmed)
             LeetCodeStats(
-                username = username,
+                username = actualUsername,
                 totalSolved = total,
                 easySolved = easy,
                 mediumSolved = med,
                 hardSolved = hard,
                 submissionCalendar = calendarMap,
-                recentSubmissions = subs
+                recentSubmissions = subs,
+                status = AccountStatus.CONNECTED,
+                statusMessage = "Linked successfully ($total solved)"
             )
         } catch (e: Exception) {
             e.printStackTrace()
-            LeetCodeStats(username = username)
+            LeetCodeStats(
+                username = trimmed,
+                status = AccountStatus.FAILED,
+                statusMessage = "Error: ${e.localizedMessage ?: "Connection failed"}"
+            )
         }
     }
 
     suspend fun fetchGitHubStats(username: String, token: String = ""): GitHubStats = withContext(Dispatchers.IO) {
-        if (username.isBlank()) return@withContext GitHubStats()
+        val trimmed = username.trim()
+        if (trimmed.isBlank()) return@withContext GitHubStats(status = AccountStatus.NOT_CONFIGURED)
 
-        val recentEvents = fetchGitHubRecentEvents(username, token)
-        val (calendarMap, totalContribs, commits, prs, issues, reviews) = fetchGitHubContributions(username, token)
+        try {
+            val userCheckReq = Request.Builder()
+                .url("https://api.github.com/users/$trimmed")
+                .header("User-Agent", "DevWidgets-Android")
+                .apply {
+                    if (token.isNotBlank()) header("Authorization", "Bearer $token")
+                }
+                .build()
 
-        GitHubStats(
-            username = username,
-            totalContributions = totalContribs,
-            commitsCount = commits,
-            pullRequestsCount = prs,
-            issuesCount = issues,
-            reviewsCount = reviews,
-            contributionDays = calendarMap,
-            recentEvents = recentEvents
-        )
+            val checkResp = okHttpClient.newCall(userCheckReq).execute()
+            if (checkResp.code == 404) {
+                return@withContext GitHubStats(
+                    username = trimmed,
+                    status = AccountStatus.FAILED,
+                    statusMessage = "GitHub user '$trimmed' not found"
+                )
+            }
+            if (!checkResp.isSuccessful && checkResp.code != 403) {
+                return@withContext GitHubStats(
+                    username = trimmed,
+                    status = AccountStatus.FAILED,
+                    statusMessage = "GitHub returned HTTP ${checkResp.code}"
+                )
+            }
+
+            val recentEvents = fetchGitHubRecentEvents(trimmed, token)
+            val (calendarMap, totalContribs, commits, prs, issues, reviews) = fetchGitHubContributions(trimmed, token)
+
+            GitHubStats(
+                username = trimmed,
+                totalContributions = totalContribs,
+                commitsCount = commits,
+                pullRequestsCount = prs,
+                issuesCount = issues,
+                reviewsCount = reviews,
+                contributionDays = calendarMap,
+                recentEvents = recentEvents,
+                status = AccountStatus.CONNECTED,
+                statusMessage = "Linked successfully ($totalContribs contributions)"
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            GitHubStats(
+                username = trimmed,
+                status = AccountStatus.FAILED,
+                statusMessage = "Error: ${e.localizedMessage ?: "Connection failed"}"
+            )
+        }
     }
 
     private fun fetchGitHubRecentEvents(username: String, token: String): List<GitHubEvent> {

@@ -2,6 +2,7 @@ package com.sangrechy.devwidgets.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.sangrechy.devwidgets.data.model.AccountStatus
 import com.sangrechy.devwidgets.data.model.GitHubEvent
 import com.sangrechy.devwidgets.data.model.GitHubStats
 import com.sangrechy.devwidgets.data.model.LeetCodeSubmission
@@ -36,6 +37,8 @@ class WidgetPreferences(context: Context) {
             put("easySolved", data.leetCode.easySolved)
             put("mediumSolved", data.leetCode.mediumSolved)
             put("hardSolved", data.leetCode.hardSolved)
+            put("status", data.leetCode.status.name)
+            put("statusMessage", data.leetCode.statusMessage)
 
             val calObj = JSONObject()
             data.leetCode.submissionCalendar.forEach { (ts, count) ->
@@ -66,6 +69,8 @@ class WidgetPreferences(context: Context) {
             put("pullRequestsCount", data.gitHub.pullRequestsCount)
             put("issuesCount", data.gitHub.issuesCount)
             put("reviewsCount", data.gitHub.reviewsCount)
+            put("status", data.gitHub.status.name)
+            put("statusMessage", data.gitHub.statusMessage)
 
             val calObj = JSONObject()
             data.gitHub.contributionDays.forEach { (date, count) ->
@@ -91,7 +96,17 @@ class WidgetPreferences(context: Context) {
     }
 
     fun getDashboardData(): WidgetDashboardData {
-        val raw = prefs.getString(KEY_CACHED_DASHBOARD, null) ?: return getSampleDashboardData()
+        val raw = prefs.getString(KEY_CACHED_DASHBOARD, null)
+        if (raw == null) {
+            return if (leetCodeUsername.isNotEmpty() || gitHubUsername.isNotEmpty()) {
+                WidgetDashboardData(
+                    leetCode = LeetCodeStats(username = leetCodeUsername, status = AccountStatus.NOT_CONFIGURED),
+                    gitHub = GitHubStats(username = gitHubUsername, status = AccountStatus.NOT_CONFIGURED)
+                )
+            } else {
+                getSampleDashboardData()
+            }
+        }
         return try {
             val root = JSONObject(raw)
             val updated = root.optLong("lastUpdatedMillis", System.currentTimeMillis())
@@ -118,6 +133,8 @@ class WidgetPreferences(context: Context) {
                     )
                 }
             }
+            val lcStatusStr = lcObj.optString("status", AccountStatus.NOT_CONFIGURED.name)
+            val lcStatus = try { AccountStatus.valueOf(lcStatusStr) } catch (_: Exception) { AccountStatus.NOT_CONFIGURED }
             val lcStats = LeetCodeStats(
                 username = lcObj.optString("username", leetCodeUsername),
                 totalSolved = lcObj.optInt("totalSolved", 0),
@@ -125,7 +142,9 @@ class WidgetPreferences(context: Context) {
                 mediumSolved = lcObj.optInt("mediumSolved", 0),
                 hardSolved = lcObj.optInt("hardSolved", 0),
                 submissionCalendar = lcCal,
-                recentSubmissions = lcSubs
+                recentSubmissions = lcSubs,
+                status = lcStatus,
+                statusMessage = lcObj.optString("statusMessage", "")
             )
 
             val ghObj = root.optJSONObject("gitHub") ?: JSONObject()
@@ -149,6 +168,8 @@ class WidgetPreferences(context: Context) {
                     )
                 }
             }
+            val ghStatusStr = ghObj.optString("status", AccountStatus.NOT_CONFIGURED.name)
+            val ghStatus = try { AccountStatus.valueOf(ghStatusStr) } catch (_: Exception) { AccountStatus.NOT_CONFIGURED }
             val ghStats = GitHubStats(
                 username = ghObj.optString("username", gitHubUsername),
                 totalContributions = ghObj.optInt("totalContributions", 0),
@@ -157,7 +178,9 @@ class WidgetPreferences(context: Context) {
                 issuesCount = ghObj.optInt("issuesCount", 0),
                 reviewsCount = ghObj.optInt("reviewsCount", 0),
                 contributionDays = ghCal,
-                recentEvents = ghEvents
+                recentEvents = ghEvents,
+                status = ghStatus,
+                statusMessage = ghObj.optString("statusMessage", "")
             )
 
             WidgetDashboardData(
@@ -166,7 +189,10 @@ class WidgetPreferences(context: Context) {
                 lastUpdatedMillis = updated
             )
         } catch (e: Exception) {
-            getSampleDashboardData()
+            WidgetDashboardData(
+                leetCode = LeetCodeStats(username = leetCodeUsername, status = AccountStatus.FAILED, statusMessage = "Cache read failed"),
+                gitHub = GitHubStats(username = gitHubUsername, status = AccountStatus.FAILED, statusMessage = "Cache read failed")
+            )
         }
     }
 

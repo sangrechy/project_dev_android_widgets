@@ -42,6 +42,14 @@ private class FakeDataRepository : DataRepository {
 
     override suspend fun saveUsernames(leetCode: String, gitHub: String, token: String) {}
 
+    override suspend fun verifyLeetCode(username: String): com.sangrechy.devwidgets.data.model.LeetCodeStats {
+        return com.sangrechy.devwidgets.data.model.LeetCodeStats(username = username)
+    }
+
+    override suspend fun verifyGitHub(username: String, token: String): com.sangrechy.devwidgets.data.model.GitHubStats {
+        return com.sangrechy.devwidgets.data.model.GitHubStats(username = username)
+    }
+
     override suspend fun syncData(): Result<WidgetDashboardData> {
         return Result.success(WidgetDashboardData())
     }

@@ -230,49 +230,71 @@ object WidgetBitmapRenderer {
             )
         }
 
-        // 3. Collect week months
-        val weekMonthList = mutableListOf<Int>()
-        val weekMonthNameList = mutableListOf<String>()
+        // 3. Group weeks into sequential complete MonthBlocks (Never split a single month)
+        data class MonthBlock(
+            val monthIdx: Int,
+            val monthName: String,
+            val weekIndices: MutableList<Int> = mutableListOf()
+        )
+
+        val monthBlocks = mutableListOf<MonthBlock>()
         val calScanner = calCopy.clone() as Calendar
 
         for (w in 0 until weeksCount) {
             val m = calScanner.get(Calendar.MONTH)
             val mName = monthSdf.format(calScanner.time)
-            weekMonthList.add(m)
-            weekMonthNameList.add(mName)
+            if (monthBlocks.isEmpty() || monthBlocks.last().monthIdx != m) {
+                monthBlocks.add(MonthBlock(monthIdx = m, monthName = mName, weekIndices = mutableListOf(w)))
+            } else {
+                monthBlocks.last().weekIndices.add(w)
+            }
             calScanner.add(Calendar.DAY_OF_YEAR, 7)
         }
 
-        // 4. Calculate layout parameters for the chosen tier count
+        // 4. Partition complete month blocks among tiers - NEVER split a single month
+        val totalMonths = monthBlocks.size
+        val effectiveTiers = minOf(tiers, totalMonths).coerceAtLeast(1)
+        val baseMonthsPerTier = totalMonths / effectiveTiers
+        val remainderMonths = totalMonths % effectiveTiers
+
+        val tierBlocks = mutableListOf<List<MonthBlock>>()
+        var mIdx = 0
+        for (t in 0 until effectiveTiers) {
+            val count = baseMonthsPerTier + if (t < remainderMonths) 1 else 0
+            if (count > 0 && mIdx < totalMonths) {
+                val end = minOf(mIdx + count, totalMonths)
+                tierBlocks.add(monthBlocks.subList(mIdx, end))
+                mIdx = end
+            }
+        }
+
         val cellRows = 7
-        val weeksPerTier = (weeksCount + tiers - 1) / tiers
-        val monthsPerTier = maxOf(1, 12 / tiers)
-        val maxMonthTransitions = maxOf(1, monthsPerTier - 1)
+        val maxTierCols = tierBlocks.maxOfOrNull { tb -> tb.sumOf { it.weekIndices.size } } ?: 18
+        val maxMonthTransitions = tierBlocks.maxOfOrNull { tb -> maxOf(0, tb.size - 1) } ?: 3
 
         val leftDayMargin = 28f
         val rightMargin = 8f
         val availW = (widthPx - leftDayMargin - rightMargin).coerceAtLeast(80f)
 
-        val widthDivisor = weeksPerTier + (weeksPerTier - 1) * 0.18f + maxMonthTransitions * 1.25f
+        val widthDivisor = maxTierCols + (maxTierCols - 1) * 0.18f + maxMonthTransitions * 1.25f
         val maxCellFromW = availW / widthDivisor
 
-        val fixedVerticalH = 20f + tiers * 14f + (tiers - 1) * 12f
+        val fixedVerticalH = 22f + effectiveTiers * 14f + (effectiveTiers - 1) * 12f
         val availCellH = (heightPx - fixedVerticalH).coerceAtLeast(60f)
-        val maxCellFromH = availCellH / (tiers * 8.08f)
+        val maxCellFromH = availCellH / (effectiveTiers * 8.08f)
 
         val actualCell = minOf(maxCellFromW, maxCellFromH).coerceIn(6.5f, 26f)
         val cellGap = (actualCell * 0.18f).coerceAtLeast(1.5f)
         val monthGap = (actualCell * 1.25f).coerceAtLeast(8.0f)
 
-        val maxTierCols = weeksPerTier
         val totalGridW = maxTierCols * actualCell + (maxTierCols - 1) * cellGap + maxMonthTransitions * monthGap
         val gridLeft = maxOf(leftDayMargin, (widthPx - totalGridW) / 2f)
 
         // 5. Header Label & Legend
         val headerTitle = if (isLeetCode) {
-            if (totalInPeriod > 0) "$totalInPeriod submissions in 1 year" else "Submissions in 1 year"
+            if (totalInPeriod > 0) "$totalInPeriod submissions in 1 year" else "0 submissions in 1 year"
         } else {
-            if (totalInPeriod > 0) "$totalInPeriod contributions in 1 year" else "Contributions in 1 year"
+            if (totalInPeriod > 0) "$totalInPeriod contributions in 1 year" else "0 contributions in 1 year"
         }
 
         val headerY = (actualCell * 1.4f).coerceIn(16f, 24f)
@@ -312,7 +334,7 @@ object WidgetBitmapRenderer {
         }
         canvas.drawText("Less", sqRight - 4f, headerY, legendTextPaint)
 
-        // 6. Draw Tiers
+        // 6. Draw Tiers with Complete Months
         val dayTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = COLOR_TEXT_MUTED
             textSize = (actualCell * 0.72f).coerceIn(8f, 11f)
@@ -337,12 +359,8 @@ object WidgetBitmapRenderer {
 
         var currentTierTop = headerY + actualCell * 1.35f
 
-        for (tierIndex in 0 until tiers) {
-            val startWeek = tierIndex * weeksPerTier
-            val endWeek = minOf(startWeek + weeksPerTier, weeksCount)
-            val numCols = endWeek - startWeek
-            if (numCols <= 0) break
-
+        for (tierIndex in 0 until tierBlocks.size) {
+            val monthsInTier = tierBlocks[tierIndex]
             val monthY = currentTierTop
             val gridTop = monthY + actualCell * 0.5f
 
@@ -352,48 +370,47 @@ object WidgetBitmapRenderer {
                 canvas.drawText(label, gridLeft - 4f, y, dayTextPaint)
             }
 
-            val calTier = calCopy.clone() as Calendar
-            calTier.add(Calendar.DAY_OF_YEAR, startWeek * 7)
-
             var currentX = gridLeft
-            var lastMonth = -1
 
-            for (col in 0 until numCols) {
-                val weekIdx = startWeek + col
-                val colMonth = weekMonthList[weekIdx]
+            for (monthBlockIndex in 0 until monthsInTier.size) {
+                val mb = monthsInTier[monthBlockIndex]
 
-                if (col > 0 && colMonth != weekMonthList[weekIdx - 1]) {
+                if (monthBlockIndex > 0) {
                     currentX += monthGap
                 }
-                if (colMonth != lastMonth) {
-                    canvas.drawText(weekMonthNameList[weekIdx], currentX, monthY, monthTextPaint)
-                    lastMonth = colMonth
-                }
 
-                for (row in 0 until cellRows) {
-                    val dateStr = sdf.format(calTier.time)
-                    val count = dayCountMap[dateStr] ?: 0
-                    val level = when {
-                        count <= 0 -> 0
-                        count == 1 -> 1
-                        count in 2..3 -> 2
-                        count in 4..6 -> 3
-                        else -> 4
+                // Draw month label at start of this complete month block
+                canvas.drawText(mb.monthName, currentX, monthY, monthTextPaint)
+
+                for (w in mb.weekIndices) {
+                    val calWeek = calCopy.clone() as Calendar
+                    calWeek.add(Calendar.DAY_OF_YEAR, w * 7)
+
+                    for (row in 0 until cellRows) {
+                        val dateStr = sdf.format(calWeek.time)
+                        val count = dayCountMap[dateStr] ?: 0
+                        val level = when {
+                            count <= 0 -> 0
+                            count == 1 -> 1
+                            count in 2..3 -> 2
+                            count in 4..6 -> 3
+                            else -> 4
+                        }
+                        cellPaint.color = levelColors[level]
+                        val y = gridTop + row * (actualCell + cellGap)
+                        val cellRect = RectF(currentX, y, currentX + actualCell, y + actualCell)
+                        canvas.drawRoundRect(cellRect, actualCell * 0.22f, actualCell * 0.22f, cellPaint)
+
+                        calWeek.add(Calendar.DAY_OF_YEAR, 1)
                     }
-                    cellPaint.color = levelColors[level]
-                    val y = gridTop + row * (actualCell + cellGap)
-                    val cellRect = RectF(currentX, y, currentX + actualCell, y + actualCell)
-                    canvas.drawRoundRect(cellRect, actualCell * 0.22f, actualCell * 0.22f, cellPaint)
-
-                    calTier.add(Calendar.DAY_OF_YEAR, 1)
+                    currentX += (actualCell + cellGap)
                 }
-                currentX += (actualCell + cellGap)
             }
 
             val tierBottom = gridTop + 7 * actualCell + 6 * cellGap
 
             // Divider between tiers
-            if (tierIndex < tiers - 1) {
+            if (tierIndex < tierBlocks.size - 1) {
                 val dividerY = tierBottom + actualCell * 0.6f
                 canvas.drawLine(gridLeft, dividerY, gridLeft + totalGridW, dividerY, dividerPaint)
                 currentTierTop = dividerY + actualCell * 1.35f
