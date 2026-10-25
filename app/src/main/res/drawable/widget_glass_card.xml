@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <!-- Frosted Translucent Inner Card Plate -->
+    <gradient
+        android:angle="135"
+        android:startColor="#26FFFFFF"
+        android:endColor="#14FFFFFF" />
+    <corners android:radius="20dp" />
+    <stroke
+        android:width="1dp"
+        android:color="#38FFFFFF" />
+</shape>

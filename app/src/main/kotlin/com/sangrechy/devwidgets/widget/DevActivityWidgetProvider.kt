@@ -6,9 +6,14 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
+import android.os.Bundle
+import android.view.View
 import android.widget.RemoteViews
+import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.sangrechy.devwidgets.MainActivity
@@ -29,8 +34,18 @@ class DevActivityWidgetProvider : AppWidgetProvider() {
             updateAppWidget(context, appWidgetManager, appWidgetId, data)
         }
 
-        // Trigger background sync
         enqueueImmediateSync(context)
+    }
+
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle
+    ) {
+        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
+        val prefs = WidgetPreferences(context)
+        updateAppWidget(context, appWidgetManager, appWidgetId, prefs.getDashboardData())
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -61,60 +76,102 @@ class DevActivityWidgetProvider : AppWidgetProvider() {
         ) {
             val views = RemoteViews(context.packageName, R.layout.widget_dev_activity)
 
-            // 1. Render Bitmaps
-            val lcCircle = WidgetBitmapRenderer.renderLeetCodeCircle(data.leetCode, sizePx = 280)
-            val lcHeatmap = WidgetBitmapRenderer.renderHeatmap(data.leetCode.submissionCalendar, isLeetCode = true, widthPx = 540, heightPx = 260)
-            val ghTypeMap = WidgetBitmapRenderer.renderGitHubTypeMap(data.gitHub, sizePx = 280)
-            val ghHeatmap = WidgetBitmapRenderer.renderHeatmap(data.gitHub.contributionDays, isLeetCode = false, widthPx = 540, heightPx = 260)
+            // Dynamically detect widget height from options
+            val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
+            val minHeight = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0) ?: 0
+            // When widget is very compact (height < 220dp), show 2 rows; when standard, tall, or full screen, show 4 rows
+            val maxVisibleRows = if (minHeight in 1..219) 2 else 4
+
+            // 1. Render Glassmorphic Bitmaps
+            val lcCircle = WidgetBitmapRenderer.renderLeetCodeCircle(data.leetCode, sizePx = 300)
+            val lcHeatmap = WidgetBitmapRenderer.renderHeatmap(
+                data.leetCode.submissionCalendar,
+                isLeetCode = true,
+                widthPx = 600,
+                heightPx = 220,
+                weeksCount = 18
+            )
+            val ghTypeMap = WidgetBitmapRenderer.renderGitHubTypeMap(data.gitHub, sizePx = 300)
+            val ghHeatmap = WidgetBitmapRenderer.renderHeatmap(
+                data.gitHub.contributionDays,
+                isLeetCode = false,
+                widthPx = 600,
+                heightPx = 220,
+                weeksCount = 18
+            )
 
             views.setImageViewBitmap(R.id.iv_leetcode_circle, lcCircle)
             views.setImageViewBitmap(R.id.iv_leetcode_heatmap, lcHeatmap)
             views.setImageViewBitmap(R.id.iv_github_typemap, ghTypeMap)
             views.setImageViewBitmap(R.id.iv_github_heatmap, ghHeatmap)
 
-            // 2. LeetCode Submissions list
-            val lcSubIds = intArrayOf(
-                R.id.tv_lc_sub_1,
-                R.id.tv_lc_sub_2,
-                R.id.tv_lc_sub_3,
-                R.id.tv_lc_sub_4,
-                R.id.tv_lc_sub_5
-            )
+            // 2. User Tags in Headers
+            val lcHandle = data.leetCode.username.ifBlank { "dev" }
+            val ghHandle = data.gitHub.username.ifBlank { "dev" }
+            views.setTextViewText(R.id.tv_lc_user_tag, "@$lcHandle")
+            views.setTextViewText(R.id.tv_gh_user_tag, "@$ghHandle")
+
+            // 3. Last Submissions Full-Width Rows
+            val lcRowIds = intArrayOf(R.id.row_lc_1, R.id.row_lc_2, R.id.row_lc_3, R.id.row_lc_4)
+            val lcBadgeIds = intArrayOf(R.id.badge_lc_1, R.id.badge_lc_2, R.id.badge_lc_3, R.id.badge_lc_4)
+            val lcTitleIds = intArrayOf(R.id.tv_lc_title_1, R.id.tv_lc_title_2, R.id.tv_lc_title_3, R.id.tv_lc_title_4)
+            val lcSubIds = intArrayOf(R.id.tv_lc_sub_1, R.id.tv_lc_sub_2, R.id.tv_lc_sub_3, R.id.tv_lc_sub_4)
+
             val subs = data.leetCode.recentSubmissions
-            for (i in lcSubIds.indices) {
-                if (i < subs.size) {
+            for (i in 0..3) {
+                if (i < subs.size && i < maxVisibleRows) {
                     val sub = subs[i]
-                    val shortStatus = if (sub.statusDisplay.contains("Accept", ignoreCase = true)) "AC" else "WA"
-                    views.setTextViewText(lcSubIds[i], "${i + 1}. ${sub.title} • $shortStatus")
+                    val isAc = sub.statusDisplay.contains("Accept", ignoreCase = true)
+                    views.setViewVisibility(lcRowIds[i], View.VISIBLE)
+                    views.setTextViewText(lcTitleIds[i], sub.title)
+                    views.setTextViewText(lcSubIds[i], "${sub.lang} • ${formatRelativeTime(sub.timestamp)}")
+                    views.setTextViewText(lcBadgeIds[i], if (isAc) "AC" else "WA")
+                    views.setInt(
+                        lcBadgeIds[i],
+                        "setBackgroundResource",
+                        if (isAc) R.drawable.badge_pill_ac else R.drawable.badge_pill_wa
+                    )
+                    views.setTextColor(
+                        lcBadgeIds[i],
+                        if (isAc) Color.parseColor("#34D399") else Color.parseColor("#F87171")
+                    )
                 } else {
-                    views.setTextViewText(lcSubIds[i], "")
+                    views.setViewVisibility(lcRowIds[i], View.GONE)
                 }
             }
 
-            // 3. GitHub Activities list
-            val ghEvIds = intArrayOf(
-                R.id.tv_gh_ev_1,
-                R.id.tv_gh_ev_2,
-                R.id.tv_gh_ev_3,
-                R.id.tv_gh_ev_4,
-                R.id.tv_gh_ev_5
-            )
+            // 4. Last Activities Full-Width Rows
+            val ghRowIds = intArrayOf(R.id.row_gh_1, R.id.row_gh_2, R.id.row_gh_3, R.id.row_gh_4)
+            val ghBadgeIds = intArrayOf(R.id.badge_gh_1, R.id.badge_gh_2, R.id.badge_gh_3, R.id.badge_gh_4)
+            val ghTitleIds = intArrayOf(R.id.tv_gh_title_1, R.id.tv_gh_title_2, R.id.tv_gh_title_3, R.id.tv_gh_title_4)
+            val ghSubIds = intArrayOf(R.id.tv_gh_sub_1, R.id.tv_gh_sub_2, R.id.tv_gh_sub_3, R.id.tv_gh_sub_4)
+
             val events = data.gitHub.recentEvents
-            for (i in ghEvIds.indices) {
-                if (i < events.size) {
+            for (i in 0..3) {
+                if (i < events.size && i < maxVisibleRows) {
                     val ev = events[i]
-                    views.setTextViewText(ghEvIds[i], "${i + 1}. ${ev.repoName} • ${ev.actionSummary}")
+                    val badgeTag = when (ev.type) {
+                        "PushEvent" -> "PUSH"
+                        "PullRequestEvent" -> "PR"
+                        "IssuesEvent" -> "ISSUE"
+                        "PullRequestReviewEvent" -> "REV"
+                        else -> "ACT"
+                    }
+                    views.setViewVisibility(ghRowIds[i], View.VISIBLE)
+                    views.setTextViewText(ghBadgeIds[i], badgeTag)
+                    views.setTextColor(ghBadgeIds[i], Color.parseColor("#A5B4FC"))
+                    views.setTextViewText(ghTitleIds[i], ev.repoName)
+                    views.setTextViewText(ghSubIds[i], "${ev.actionSummary} • ${ev.createdAt}")
                 } else {
-                    views.setTextViewText(ghEvIds[i], "")
+                    views.setViewVisibility(ghRowIds[i], View.GONE)
                 }
             }
 
-            // 4. Last updated text
+            // 5. Sync Timestamp
             val timeFmt = SimpleDateFormat("h:mm a", Locale.getDefault())
             views.setTextViewText(R.id.tv_last_updated, "Sync: ${timeFmt.format(Date(data.lastUpdatedMillis))}")
 
-            // 5. Pending Intents
-            // Main app intent
+            // 6. Pending Intents
             val appIntent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
@@ -123,7 +180,6 @@ class DevActivityWidgetProvider : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.tv_widget_title, appPendingIntent)
 
-            // Refresh button intent
             val refreshIntent = Intent(context, DevActivityWidgetProvider::class.java).apply {
                 action = ACTION_FORCE_REFRESH
             }
@@ -132,7 +188,6 @@ class DevActivityWidgetProvider : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.btn_refresh, refreshPendingIntent)
 
-            // LeetCode section intent (opens LeetCode profile)
             val lcUser = data.leetCode.username
             if (lcUser.isNotBlank()) {
                 val lcWebIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://leetcode.com/u/$lcUser/"))
@@ -142,7 +197,6 @@ class DevActivityWidgetProvider : AppWidgetProvider() {
                 views.setOnClickPendingIntent(R.id.section_leetcode, lcPendingIntent)
             }
 
-            // GitHub section intent (opens GitHub profile)
             val ghUser = data.gitHub.username
             if (ghUser.isNotBlank()) {
                 val ghWebIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/$ghUser"))
@@ -155,10 +209,29 @@ class DevActivityWidgetProvider : AppWidgetProvider() {
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
 
+        private fun formatRelativeTime(timestampSeconds: Long): String {
+            val nowSec = System.currentTimeMillis() / 1000L
+            val diffSec = (nowSec - timestampSeconds).coerceAtLeast(0)
+            return when {
+                diffSec < 60 -> "just now"
+                diffSec < 3600 -> "${diffSec / 60}m ago"
+                diffSec < 86400 -> "${diffSec / 3600}h ago"
+                diffSec < 604800 -> "${diffSec / 86400}d ago"
+                else -> "${diffSec / 604800}w ago"
+            }
+        }
+
         fun enqueueImmediateSync(context: Context) {
-            val syncRequest = OneTimeWorkRequestBuilder<WidgetSyncWorker>().build()
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+
+            val syncRequest = OneTimeWorkRequestBuilder<WidgetSyncWorker>()
+                .setConstraints(constraints)
+                .build()
+
             WorkManager.getInstance(context).enqueueUniqueWork(
-                "dev_widget_immediate_sync",
+                "ImmediateDevWidgetSync",
                 ExistingWorkPolicy.REPLACE,
                 syncRequest
             )

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -291,12 +292,12 @@ fun WidgetVisualPreview(data: WidgetDashboardData) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(androidx.compose.ui.graphics.Color(0xFF14181F))
+            .clip(RoundedCornerShape(26.dp))
+            .background(androidx.compose.ui.graphics.Color(0xD9101824))
             .border(
-                1.dp,
-                androidx.compose.ui.graphics.Color(0xFF2B323D),
-                RoundedCornerShape(18.dp)
+                1.5.dp,
+                androidx.compose.ui.graphics.Color(0x55FFFFFF),
+                RoundedCornerShape(26.dp)
             )
             .padding(12.dp)
     ) {
@@ -304,83 +305,151 @@ fun WidgetVisualPreview(data: WidgetDashboardData) {
 
             // Header
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "DEV DASHBOARD • LEETCODE & GITHUB",
-                    color = androidx.compose.ui.graphics.Color(0xFF8B949E),
-                    fontSize = 10.sp,
+                    text = "DEV DASHBOARD",
+                    color = androidx.compose.ui.graphics.Color(0xFFFFFFFF),
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.5.sp
+                    letterSpacing = 0.8.sp
                 )
                 Text(
-                    text = "Live Preview",
-                    color = androidx.compose.ui.graphics.Color(0xFF6E7681),
-                    fontSize = 10.sp
+                    text = "Live Glass Preview",
+                    color = androidx.compose.ui.graphics.Color(0xFFCBD5E1),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium
                 )
             }
 
-            // Top Card: LeetCode
+            // Top Card: LeetCode Glass Card
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(androidx.compose.ui.graphics.Color(0xFF1A202A))
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(androidx.compose.ui.graphics.Color(0x26FFFFFF))
                     .border(
                         1.dp,
-                        androidx.compose.ui.graphics.Color(0xFF2D3643),
-                        RoundedCornerShape(12.dp)
+                        androidx.compose.ui.graphics.Color(0x38FFFFFF),
+                        RoundedCornerShape(20.dp)
                     )
-                    .padding(8.dp)
+                    .padding(10.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Image(
-                        bitmap = lcCircle,
-                        contentDescription = "LeetCode Count",
-                        modifier = Modifier
-                            .weight(1.1f)
-                            .height(84.dp)
-                    )
-                    Image(
-                        bitmap = lcHeatmap,
-                        contentDescription = "LeetCode Heatmap",
-                        modifier = Modifier
-                            .weight(2.2f)
-                            .height(84.dp)
-                    )
-                    Column(
-                        modifier = Modifier
-                            .weight(1.8f)
-                            .height(84.dp),
-                        verticalArrangement = Arrangement.SpaceEvenly
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "LAST 10 SUBMISSIONS",
+                            text = "LEETCODE STATS & PROGRESS",
                             color = androidx.compose.ui.graphics.Color(0xFFFFA116),
-                            fontSize = 8.sp,
+                            fontSize = 10.5.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        val subs = data.leetCode.recentSubmissions.take(4)
-                        if (subs.isEmpty()) {
-                            Text(
-                                text = "No recent submissions",
-                                color = androidx.compose.ui.graphics.Color(0xFF8B949E),
-                                fontSize = 8.sp
-                            )
-                        } else {
-                            subs.forEachIndexed { idx, sub ->
+                        Text(
+                            text = "@${data.leetCode.username.ifBlank { "dev" }}",
+                            color = androidx.compose.ui.graphics.Color(0xFF94A3B8),
+                            fontSize = 9.5.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // Top Visual Row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(84.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(
+                            bitmap = lcCircle,
+                            contentDescription = "LeetCode Count",
+                            modifier = Modifier
+                                .size(84.dp)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(1.dp)
+                                .fillMaxHeight()
+                                .background(androidx.compose.ui.graphics.Color(0x26FFFFFF))
+                        )
+                        Image(
+                            bitmap = lcHeatmap,
+                            contentDescription = "LeetCode Heatmap",
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                        )
+                    }
+
+                    // Bottom Submissions Full-Width Rows
+                    val subs = data.leetCode.recentSubmissions.take(3)
+                    subs.forEach { sub ->
+                        val isAc = sub.statusDisplay.contains("Accept", ignoreCase = true)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(androidx.compose.ui.graphics.Color(0x26FFFFFF))
+                                .border(
+                                    0.8.dp,
+                                    androidx.compose.ui.graphics.Color(0x30FFFFFF),
+                                    RoundedCornerShape(10.dp)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(999.dp))
+                                            .background(
+                                                if (isAc) androidx.compose.ui.graphics.Color(0x3310B981)
+                                                else androidx.compose.ui.graphics.Color(0x33EF4444)
+                                            )
+                                            .border(
+                                                1.dp,
+                                                if (isAc) androidx.compose.ui.graphics.Color(0x8034D399)
+                                                else androidx.compose.ui.graphics.Color(0x80F87171),
+                                                RoundedCornerShape(999.dp)
+                                            )
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = if (isAc) "AC" else "WA",
+                                            color = if (isAc) androidx.compose.ui.graphics.Color(0xFF34D399)
+                                            else androidx.compose.ui.graphics.Color(0xFFF87171),
+                                            fontSize = 7.5.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = sub.title,
+                                        color = androidx.compose.ui.graphics.Color(0xFFFFFFFF),
+                                        fontSize = 9.5.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                                 Text(
-                                    text = "${idx + 1}. ${sub.title}",
-                                    color = androidx.compose.ui.graphics.Color(0xFFE6EDF3),
-                                    fontSize = 7.5.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    text = sub.lang,
+                                    color = androidx.compose.ui.graphics.Color(0xFF94A3B8),
+                                    fontSize = 8.5.sp
                                 )
                             }
                         }
@@ -388,65 +457,130 @@ fun WidgetVisualPreview(data: WidgetDashboardData) {
                 }
             }
 
-            // Bottom Card: GitHub
+            // Bottom Card: GitHub Glass Card
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(androidx.compose.ui.graphics.Color(0xFF1A202A))
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(androidx.compose.ui.graphics.Color(0x26FFFFFF))
                     .border(
                         1.dp,
-                        androidx.compose.ui.graphics.Color(0xFF2D3643),
-                        RoundedCornerShape(12.dp)
+                        androidx.compose.ui.graphics.Color(0x38FFFFFF),
+                        RoundedCornerShape(20.dp)
                     )
-                    .padding(8.dp)
+                    .padding(10.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Image(
-                        bitmap = ghTypeMap,
-                        contentDescription = "GitHub Type Map",
-                        modifier = Modifier
-                            .weight(1.1f)
-                            .height(84.dp)
-                    )
-                    Image(
-                        bitmap = ghHeatmap,
-                        contentDescription = "GitHub Heatmap",
-                        modifier = Modifier
-                            .weight(2.2f)
-                            .height(84.dp)
-                    )
-                    Column(
-                        modifier = Modifier
-                            .weight(1.8f)
-                            .height(84.dp),
-                        verticalArrangement = Arrangement.SpaceEvenly
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "LAST 10 ACTIVITIES",
-                            color = androidx.compose.ui.graphics.Color(0xFF39D353),
-                            fontSize = 8.sp,
+                            text = "GITHUB ACTIVITY & CONTRIBUTIONS",
+                            color = androidx.compose.ui.graphics.Color(0xFF3FB950),
+                            fontSize = 10.5.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        val events = data.gitHub.recentEvents.take(4)
-                        if (events.isEmpty()) {
-                            Text(
-                                text = "No recent events",
-                                color = androidx.compose.ui.graphics.Color(0xFF8B949E),
-                                fontSize = 8.sp
-                            )
-                        } else {
-                            events.forEachIndexed { idx, ev ->
+                        Text(
+                            text = "@${data.gitHub.username.ifBlank { "dev" }}",
+                            color = androidx.compose.ui.graphics.Color(0xFF94A3B8),
+                            fontSize = 9.5.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // Top Visual Row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(84.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(
+                            bitmap = ghTypeMap,
+                            contentDescription = "GitHub Type Map",
+                            modifier = Modifier
+                                .size(84.dp)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(1.dp)
+                                .fillMaxHeight()
+                                .background(androidx.compose.ui.graphics.Color(0x26FFFFFF))
+                        )
+                        Image(
+                            bitmap = ghHeatmap,
+                            contentDescription = "GitHub Heatmap",
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                        )
+                    }
+
+                    // Bottom Events Full-Width Rows
+                    val events = data.gitHub.recentEvents.take(3)
+                    events.forEach { ev ->
+                        val tag = when (ev.type) {
+                            "PushEvent" -> "PUSH"
+                            "PullRequestEvent" -> "PR"
+                            "IssuesEvent" -> "ISSUE"
+                            else -> "ACT"
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(androidx.compose.ui.graphics.Color(0x26FFFFFF))
+                                .border(
+                                    0.8.dp,
+                                    androidx.compose.ui.graphics.Color(0x30FFFFFF),
+                                    RoundedCornerShape(10.dp)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(999.dp))
+                                            .background(androidx.compose.ui.graphics.Color(0x336366F1))
+                                            .border(
+                                                1.dp,
+                                                androidx.compose.ui.graphics.Color(0x80818CF8),
+                                                RoundedCornerShape(999.dp)
+                                            )
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = tag,
+                                            color = androidx.compose.ui.graphics.Color(0xFFA5B4FC),
+                                            fontSize = 7.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = ev.repoName,
+                                        color = androidx.compose.ui.graphics.Color(0xFFFFFFFF),
+                                        fontSize = 9.5.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                                 Text(
-                                    text = "${idx + 1}. ${ev.repoName}: ${ev.actionSummary}",
-                                    color = androidx.compose.ui.graphics.Color(0xFFE6EDF3),
-                                    fontSize = 7.5.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    text = ev.actionSummary,
+                                    color = androidx.compose.ui.graphics.Color(0xFF94A3B8),
+                                    fontSize = 8.5.sp
                                 )
                             }
                         }

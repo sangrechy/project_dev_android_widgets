@@ -3,150 +3,241 @@ package com.sangrechy.devwidgets.widget
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
+import android.graphics.Shader
 import android.graphics.Typeface
 import com.sangrechy.devwidgets.data.model.GitHubStats
 import com.sangrechy.devwidgets.data.model.LeetCodeStats
 import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Date
 import java.util.Locale
 
 object WidgetBitmapRenderer {
 
-    // 1. LeetCode Circle Counter & Breakdown
-    fun renderLeetCodeCircle(stats: LeetCodeStats, sizePx: Int = 300): Bitmap {
+    // Frosted Glass Palette Tokens
+    private const val COLOR_TEXT_WHITE = 0xFFFFFFFF.toInt()
+    private const val COLOR_TEXT_SLATE = 0xFFCBD5E1.toInt()
+    private const val COLOR_TEXT_MUTED = 0xFF94A3B8.toInt()
+
+    // 1. Frosted Glass Circular Gauge
+    fun renderLeetCodeCircle(stats: LeetCodeStats, sizePx: Int = 360): Bitmap {
         val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
         val center = sizePx / 2f
-        val strokeWidth = sizePx * 0.09f
-        val radius = center - strokeWidth
+        val outerRadius = sizePx * 0.45f
+        val strokeWidth = sizePx * 0.088f
+        val innerRadius = outerRadius - strokeWidth
 
-        val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        // 1. Translucent Frosted Track Ring
+        val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE
             this.strokeWidth = strokeWidth
-            color = Color.parseColor("#252A30")
+            color = Color.argb(35, 255, 255, 255)
         }
-        canvas.drawCircle(center, center, radius, bgPaint)
+        canvas.drawCircle(center, center, outerRadius - (strokeWidth / 2f), trackPaint)
 
+        // Track subtle specular rim
+        val trackRim = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            this.strokeWidth = 1.2f
+            color = Color.argb(55, 255, 255, 255)
+        }
+        canvas.drawCircle(center, center, outerRadius, trackRim)
+        canvas.drawCircle(center, center, innerRadius, trackRim)
+
+        // 2. Segmented Glowing Arcs (Easy, Medium, Hard)
         val total = stats.totalSolved.coerceAtLeast(1)
         val easyFraction = (stats.easySolved.toFloat() / total).coerceIn(0f, 1f)
         val medFraction = (stats.mediumSolved.toFloat() / total).coerceIn(0f, 1f)
         val hardFraction = (stats.hardSolved.toFloat() / total).coerceIn(0f, 1f)
 
-        val oval = RectF(center - radius, center - radius, center + radius, center + radius)
+        val arcRadius = outerRadius - (strokeWidth / 2f)
+        val arcOval = RectF(center - arcRadius, center - arcRadius, center + arcRadius, center + arcRadius)
+
         val arcPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE
-            this.strokeWidth = strokeWidth
+            this.strokeWidth = strokeWidth - 1.5f
             strokeCap = Paint.Cap.ROUND
         }
 
         var startAngle = -90f
-        // Easy arc (Green)
-        if (easyFraction > 0) {
+        val gapAngle = 4f
+
+        // Easy Arc (Emerald Teal)
+        if (easyFraction > 0.03f) {
             arcPaint.color = Color.parseColor("#00B8A3")
-            val sweep = easyFraction * 360f
-            canvas.drawArc(oval, startAngle, sweep, false, arcPaint)
-            startAngle += sweep
-        }
-        // Medium arc (Yellow/Orange)
-        if (medFraction > 0) {
-            arcPaint.color = Color.parseColor("#FFC01E")
-            val sweep = medFraction * 360f
-            canvas.drawArc(oval, startAngle, sweep, false, arcPaint)
-            startAngle += sweep
-        }
-        // Hard arc (Red)
-        if (hardFraction > 0) {
-            arcPaint.color = Color.parseColor("#EF4743")
-            val sweep = hardFraction * 360f
-            canvas.drawArc(oval, startAngle, sweep, false, arcPaint)
+            val sweep = (easyFraction * 360f) - gapAngle
+            if (sweep > 0) canvas.drawArc(arcOval, startAngle, sweep, false, arcPaint)
+            startAngle += (easyFraction * 360f)
         }
 
-        // Inner text: Total count
+        // Medium Arc (Warm Amber)
+        if (medFraction > 0.03f) {
+            arcPaint.color = Color.parseColor("#FFA116")
+            val sweep = (medFraction * 360f) - gapAngle
+            if (sweep > 0) canvas.drawArc(arcOval, startAngle, sweep, false, arcPaint)
+            startAngle += (medFraction * 360f)
+        }
+
+        // Hard Arc (Rose Coral)
+        if (hardFraction > 0.03f) {
+            arcPaint.color = Color.parseColor("#EF4743")
+            val sweep = (hardFraction * 360f) - gapAngle
+            if (sweep > 0) canvas.drawArc(arcOval, startAngle, sweep, false, arcPaint)
+        }
+
+        // 3. Center Disc (Frosted Translucent Glass Core)
+        val coreRadius = innerRadius - 3f
+        val corePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+            shader = LinearGradient(
+                center - coreRadius, center - coreRadius,
+                center + coreRadius, center + coreRadius,
+                Color.argb(45, 255, 255, 255),
+                Color.argb(20, 255, 255, 255),
+                Shader.TileMode.CLAMP
+            )
+        }
+        canvas.drawCircle(center, center, coreRadius, corePaint)
+
+        // Crystalline rim on center core
+        val coreRim = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            this.strokeWidth = 1.2f
+            color = Color.argb(90, 255, 255, 255)
+        }
+        canvas.drawCircle(center, center, coreRadius, coreRim)
+
+        // 4. Typography: Bold White Solved Count
         val countPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.WHITE
+            color = COLOR_TEXT_WHITE
             textSize = sizePx * 0.22f
             textAlign = Paint.Align.CENTER
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
         }
-        val countY = center - ((countPaint.descent() + countPaint.ascent()) / 2f) - (sizePx * 0.05f)
+        val countY = center - ((countPaint.descent() + countPaint.ascent()) / 2f) - (sizePx * 0.055f)
         canvas.drawText(stats.totalSolved.toString(), center, countY, countPaint)
 
         // Subtitle: "SOLVED"
         val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#8A939E")
-            textSize = sizePx * 0.09f
-            textAlign = Paint.Align.CENTER
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
-            letterSpacing = 0.15f
-        }
-        canvas.drawText("SOLVED", center, countY + (sizePx * 0.16f), labelPaint)
-
-        // Sub-counter at bottom: E: M: H:
-        val subPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#D0D7DE")
+            color = COLOR_TEXT_SLATE
             textSize = sizePx * 0.075f
             textAlign = Paint.Align.CENTER
+            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+            letterSpacing = 0.16f
         }
-        val breakdownText = "${stats.easySolved} / ${stats.mediumSolved} / ${stats.hardSolved}"
-        canvas.drawText(breakdownText, center, countY + (sizePx * 0.28f), subPaint)
+        canvas.drawText("SOLVED", center, countY + (sizePx * 0.12f), labelPaint)
+
+        // 5. Tactile Glass Capsule for E / M / H breakdown
+        val pillWidth = sizePx * 0.54f
+        val pillHeight = sizePx * 0.11f
+        val pillTop = countY + (sizePx * 0.17f)
+        val pillRect = RectF(center - (pillWidth / 2f), pillTop, center + (pillWidth / 2f), pillTop + pillHeight)
+
+        val pillBg = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+            color = Color.argb(45, 255, 255, 255)
+        }
+        canvas.drawRoundRect(pillRect, pillHeight / 2f, pillHeight / 2f, pillBg)
+
+        val pillRim = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            this.strokeWidth = 0.8f
+            color = Color.argb(70, 255, 255, 255)
+        }
+        canvas.drawRoundRect(pillRect, pillHeight / 2f, pillHeight / 2f, pillRim)
+
+        val subTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = COLOR_TEXT_WHITE
+            textSize = sizePx * 0.062f
+            textAlign = Paint.Align.CENTER
+            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+        }
+        val breakdownText = "${stats.easySolved}  •  ${stats.mediumSolved}  •  ${stats.hardSolved}"
+        val pillTextY = pillTop + (pillHeight / 2f) - ((subTextPaint.descent() + subTextPaint.ascent()) / 2f)
+        canvas.drawText(breakdownText, center, pillTextY, subTextPaint)
 
         return bitmap
     }
 
-    // 2. Submission Activity Heatmap (7 rows x N weeks)
+    // 2. Frosted Glass Heatmap Matrix
     fun renderHeatmap(
         countsByDateOrTimestamp: Map<*, Int>,
         isLeetCode: Boolean,
         widthPx: Int = 600,
-        heightPx: Int = 300,
+        heightPx: Int = 220,
         weeksCount: Int = 18
     ): Bitmap {
         val bitmap = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
-        // Title: "heatmap." (as in mockup)
-        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#9AA4B2")
-            textSize = heightPx * 0.10f
-            typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
-            textAlign = Paint.Align.CENTER
-        }
-        canvas.drawText("heatmap.", widthPx / 2f, heightPx * 0.12f, titlePaint)
+        val cornerR = 14f
 
-        val gridTop = heightPx * 0.22f
-        val gridBottom = heightPx * 0.94f
+        // 1. Frosted Translucent Plate Base
+        val plateRect = RectF(4f, 4f, widthPx - 4f, heightPx - 4f)
+        val platePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+            shader = LinearGradient(
+                0f, 0f, 0f, heightPx.toFloat(),
+                Color.argb(35, 255, 255, 255),
+                Color.argb(16, 255, 255, 255),
+                Shader.TileMode.CLAMP
+            )
+        }
+        canvas.drawRoundRect(plateRect, cornerR, cornerR, platePaint)
+
+        // Crystalline rim stroke
+        val rimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = 1f
+            color = Color.argb(55, 255, 255, 255)
+        }
+        canvas.drawRoundRect(plateRect, cornerR, cornerR, rimPaint)
+
+        // 2. Header: "heatmap." in monospace
+        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = COLOR_TEXT_SLATE
+            textSize = heightPx * 0.095f
+            typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+            textAlign = Paint.Align.LEFT
+            letterSpacing = 0.10f
+        }
+        canvas.drawText("heatmap.", 18f, heightPx * 0.17f, titlePaint)
+
+        // 3. Grid Coordinates
+        val gridTop = heightPx * 0.25f
+        val gridBottom = heightPx * 0.90f
         val availableHeight = gridBottom - gridTop
         val cellRows = 7
         val cellCols = weeksCount
 
         val cellSize = (availableHeight / cellRows).coerceAtMost((widthPx * 0.92f) / cellCols)
-        val cellGap = cellSize * 0.18f
+        val cellGap = cellSize * 0.20f
         val actualCell = cellSize - cellGap
 
         val totalGridWidth = (actualCell + cellGap) * cellCols - cellGap
         val gridLeft = (widthPx - totalGridWidth) / 2f
 
-        val emptyColor = if (isLeetCode) Color.parseColor("#262B32") else Color.parseColor("#161B22")
+        // Glowing Glass Levels
         val levelColors = if (isLeetCode) {
             intArrayOf(
-                emptyColor,
-                Color.parseColor("#1F6F3A"),
-                Color.parseColor("#2DB55D"),
-                Color.parseColor("#44D677"),
-                Color.parseColor("#66FF99")
+                Color.argb(35, 255, 255, 255),   // Translucent empty cell
+                Color.argb(150, 45, 212, 191),   // Level 1: Soft teal
+                Color.argb(210, 20, 184, 166),   // Level 2: Vibrant teal
+                Color.parseColor("#00B8A3"),     // Level 3: Deep teal
+                Color.parseColor("#14B8A6")      // Level 4: Glowing teal
             )
         } else {
             intArrayOf(
-                emptyColor,
-                Color.parseColor("#0E4429"),
-                Color.parseColor("#006D32"),
-                Color.parseColor("#26A641"),
-                Color.parseColor("#39D353")
+                Color.argb(35, 255, 255, 255),   // Translucent empty cell
+                Color.argb(150, 74, 222, 128),   // Level 1: Soft green
+                Color.argb(210, 34, 197, 94),    // Level 2: Vibrant green
+                Color.parseColor("#22C55E"),     // Level 3: Emerald
+                Color.parseColor("#39D353")      // Level 4: Glowing lime
             )
         }
 
@@ -157,8 +248,7 @@ object WidgetBitmapRenderer {
         val calendar = Calendar.getInstance()
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
-        // Build 2D matrix backwards from current week
-        val todayDow = calendar.get(Calendar.DAY_OF_WEEK) - 1 // 0=Sun .. 6=Sat
+        val todayDow = calendar.get(Calendar.DAY_OF_WEEK) - 1
         val daysBackTotal = (weeksCount - 1) * 7 + todayDow
 
         val calCopy = Calendar.getInstance()
@@ -171,11 +261,10 @@ object WidgetBitmapRenderer {
                 val dateStr = sdf.format(calCopy.time)
 
                 val count = if (isLeetCode) {
-                    // Try approximate epoch day matching
                     var matched = 0
                     for ((k, v) in countsByDateOrTimestamp) {
                         val ts = (k as? Long) ?: (k as? Number)?.toLong() ?: continue
-                        if (Math.abs(ts - epochSec) < 43200) { // within 12 hours
+                        if (Math.abs(ts - epochSec) < 43200) {
                             matched += v
                         }
                     }
@@ -195,8 +284,8 @@ object WidgetBitmapRenderer {
                 cellPaint.color = levelColors[level]
                 val x = gridLeft + col * (actualCell + cellGap)
                 val y = gridTop + row * (actualCell + cellGap)
-                val rect = RectF(x, y, x + actualCell, y + actualCell)
-                canvas.drawRoundRect(rect, actualCell * 0.25f, actualCell * 0.25f, cellPaint)
+                val cellRect = RectF(x, y, x + actualCell, y + actualCell)
+                canvas.drawRoundRect(cellRect, actualCell * 0.32f, actualCell * 0.32f, cellPaint)
 
                 calCopy.add(Calendar.DAY_OF_YEAR, 1)
             }
@@ -205,38 +294,66 @@ object WidgetBitmapRenderer {
         return bitmap
     }
 
-    // 3. GitHub Contribution Type Map (Cross / 4-Quadrant Radar Chart)
-    fun renderGitHubTypeMap(stats: GitHubStats, sizePx: Int = 300): Bitmap {
+    // 3. Frosted Glass 4-Quadrant Contribution Type Map
+    fun renderGitHubTypeMap(stats: GitHubStats, sizePx: Int = 360): Bitmap {
         val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
         val center = sizePx / 2f
-        val axisLength = sizePx * 0.36f
+        val discRadius = sizePx * 0.45f
 
-        // Draw cross axes (as drawn in mockup: a prominent cross)
+        // 1. Frosted Translucent Disc Base
+        val basePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+            shader = LinearGradient(
+                center - discRadius, center - discRadius,
+                center + discRadius, center + discRadius,
+                Color.argb(40, 255, 255, 255),
+                Color.argb(18, 255, 255, 255),
+                Shader.TileMode.CLAMP
+            )
+        }
+        canvas.drawCircle(center, center, discRadius, basePaint)
+
+        // Crystalline rim stroke
+        val bevelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = 1.2f
+            color = Color.argb(70, 255, 255, 255)
+        }
+        canvas.drawCircle(center, center, discRadius, bevelPaint)
+
+        // 2. Concentric guide rings
+        val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = 1f
+            color = Color.argb(45, 255, 255, 255)
+        }
+        canvas.drawCircle(center, center, discRadius * 0.35f, ringPaint)
+        canvas.drawCircle(center, center, discRadius * 0.70f, ringPaint)
+
+        // 3. Cross Axes (White translucent coordinate lines)
+        val axisLength = discRadius * 0.76f
         val axisPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#444C56")
-            strokeWidth = sizePx * 0.015f
+            color = Color.argb(90, 255, 255, 255)
+            strokeWidth = 1.8f
             style = Paint.Style.STROKE
         }
-        // Horizontal line
-        canvas.drawLine(center - axisLength - (sizePx * 0.05f), center, center + axisLength + (sizePx * 0.05f), center, axisPaint)
-        // Vertical line
-        canvas.drawLine(center, center - axisLength - (sizePx * 0.05f), center, center + axisLength + (sizePx * 0.05f), axisPaint)
+        canvas.drawLine(center - axisLength, center, center + axisLength, center, axisPaint)
+        canvas.drawLine(center, center - axisLength, center, center + axisLength, axisPaint)
 
-        // Normalization values for radar shape
+        // 4. Radar Polygon Shape
         val commits = stats.commitsCount.coerceAtLeast(1).toFloat()
         val prs = stats.pullRequestsCount.coerceAtLeast(0).toFloat()
         val issues = stats.issuesCount.coerceAtLeast(0).toFloat()
         val reviews = stats.reviewsCount.coerceAtLeast(0).toFloat()
 
-        val maxVal = maxOf(commits, prs * 3f, issues * 4f, reviews * 3f, 50f)
-        val cNorm = (commits / maxVal).coerceIn(0.2f, 1f) * axisLength
-        val prNorm = ((prs * 3f) / maxVal).coerceIn(0.15f, 1f) * axisLength
-        val issueNorm = ((issues * 4f) / maxVal).coerceIn(0.15f, 1f) * axisLength
-        val revNorm = ((reviews * 3f) / maxVal).coerceIn(0.15f, 1f) * axisLength
+        val maxVal = maxOf(commits, prs * 3.5f, issues * 4.5f, reviews * 3.5f, 60f)
+        val cNorm = (commits / maxVal).coerceIn(0.25f, 1f) * axisLength
+        val prNorm = ((prs * 3.5f) / maxVal).coerceIn(0.20f, 1f) * axisLength
+        val issueNorm = ((issues * 4.5f) / maxVal).coerceIn(0.20f, 1f) * axisLength
+        val revNorm = ((reviews * 3.5f) / maxVal).coerceIn(0.20f, 1f) * axisLength
 
-        // Polygon path
         val polyPath = Path().apply {
             moveTo(center, center - cNorm)          // Top: Commits
             lineTo(center + prNorm, center)         // Right: PRs
@@ -245,46 +362,64 @@ object WidgetBitmapRenderer {
             close()
         }
 
+        // Glowing green gradient fill
         val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#4026A641") // Translucent green
             style = Paint.Style.FILL
+            shader = LinearGradient(
+                center, center - cNorm, center, center + issueNorm,
+                Color.argb(140, 34, 197, 94),
+                Color.argb(60, 16, 185, 129),
+                Shader.TileMode.CLAMP
+            )
         }
         canvas.drawPath(polyPath, fillPaint)
 
-        val polyStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#39D353")
-            strokeWidth = sizePx * 0.022f
+        // Glowing perimeter stroke
+        val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.parseColor("#22C55E")
+            strokeWidth = 2.8f
             style = Paint.Style.STROKE
         }
-        canvas.drawPath(polyPath, polyStrokePaint)
+        canvas.drawPath(polyPath, strokePaint)
 
-        // Labels on 4 directions
+        // 5. Directional Vertex Dots
+        val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.parseColor("#39D353")
+            style = Paint.Style.FILL
+        }
+        canvas.drawCircle(center, center - cNorm, 4.5f, dotPaint)
+        canvas.drawCircle(center + prNorm, center, 4.5f, dotPaint)
+        canvas.drawCircle(center, center + issueNorm, 4.5f, dotPaint)
+        canvas.drawCircle(center - revNorm, center, 4.5f, dotPaint)
+
+        // 6. Bold White Labels on 4 Axes
         val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#C9D1D9")
-            textSize = sizePx * 0.072f
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            color = COLOR_TEXT_WHITE
+            textSize = sizePx * 0.065f
+            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
             textAlign = Paint.Align.CENTER
         }
 
         // Top: Commits
-        canvas.drawText("${stats.commitsCount} Commits", center, center - axisLength - (sizePx * 0.07f), labelPaint)
+        canvas.drawText("${stats.commitsCount} Commits", center, center - axisLength - 8f, labelPaint)
         // Bottom: Issues
-        canvas.drawText("${stats.issuesCount} Issues", center, center + axisLength + (sizePx * 0.12f), labelPaint)
+        canvas.drawText("${stats.issuesCount} Issues", center, center + axisLength + 20f, labelPaint)
         // Right: PRs
         labelPaint.textAlign = Paint.Align.LEFT
-        canvas.drawText("${stats.pullRequestsCount} PRs", center + axisLength + (sizePx * 0.04f), center + (sizePx * 0.025f), labelPaint)
+        canvas.drawText("${stats.pullRequestsCount} PRs", center + axisLength + 8f, center + 6f, labelPaint)
         // Left: Reviews
         labelPaint.textAlign = Paint.Align.RIGHT
-        canvas.drawText("${stats.reviewsCount} Rev", center - axisLength - (sizePx * 0.04f), center + (sizePx * 0.025f), labelPaint)
+        canvas.drawText("${stats.reviewsCount} Rev", center - axisLength - 8f, center + 6f, labelPaint)
 
-        // Top title: "contrib type map"
-        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#8B949E")
-            textSize = sizePx * 0.065f
+        // Top Header
+        val headerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = COLOR_TEXT_SLATE
+            textSize = sizePx * 0.060f
             textAlign = Paint.Align.CENTER
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+            typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+            letterSpacing = 0.08f
         }
-        canvas.drawText("type breakdown", center, sizePx * 0.10f, titlePaint)
+        canvas.drawText("type map.", center, sizePx * 0.12f, headerPaint)
 
         return bitmap
     }

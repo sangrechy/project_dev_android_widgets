@@ -4,29 +4,18 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@drawable/widget_background"
-    android:padding="10dp">
+    android:background="@drawable/widget_glass_chassis"
+    android:padding="12dp">
 
     <!-- Top Header Bar -->
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="6dp"
+        android:layout_marginBottom="8dp"
         android:paddingHorizontal="4dp">
 
-        <TextView
-            android:id="@+id/tv_widget_title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="DEV DASHBOARD • LEETCODE &amp; GITHUB"
-            android:textColor="#8B949E"
-            android:textSize="10sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.08"
-            android:layout_alignParentStart="true"
-            android:layout_centerVertical="true" />
-
         <LinearLayout
+            android:id="@+id/header_right_wrap"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
@@ -38,253 +27,596 @@
                 android:id="@+id/tv_last_updated"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Updated just now"
-                android:textColor="#6E7681"
-                android:textSize="9sp"
-                android:layout_marginEnd="6dp" />
+                android:text="Sync: Just now"
+                android:textColor="#CBD5E1"
+                android:textSize="10.5sp"
+                android:layout_marginEnd="8dp" />
 
             <ImageView
                 android:id="@+id/btn_refresh"
-                android:layout_width="16dp"
-                android:layout_height="16dp"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:background="@drawable/widget_icon_button_glass"
+                android:padding="4dp"
                 android:src="@drawable/ic_refresh"
                 android:contentDescription="Refresh" />
         </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_alignParentStart="true"
+            android:layout_toStartOf="@id/header_right_wrap"
+            android:layout_marginEnd="8dp"
+            android:layout_centerVertical="true">
+
+            <TextView
+                android:id="@+id/tv_widget_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="DEV DASHBOARD"
+                android:textColor="#FFFFFF"
+                android:textSize="12.5sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.08"
+                android:singleLine="true" />
+        </LinearLayout>
     </RelativeLayout>
 
-    <!-- Top Section: LeetCode -->
+    <!-- SECTION 1: LEETCODE GLASS CARD -->
     <LinearLayout
         android:id="@+id/section_leetcode"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:orientation="horizontal"
-        android:background="@drawable/card_section_background"
-        android:padding="6dp"
-        android:gravity="center_vertical">
+        android:orientation="vertical"
+        android:background="@drawable/widget_glass_card"
+        android:padding="10dp"
+        android:layout_marginBottom="8dp">
 
-        <!-- Left: LeetCode Circle / Solved Count -->
-        <ImageView
-            android:id="@+id/iv_leetcode_circle"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1.1"
-            android:scaleType="fitCenter"
-            android:contentDescription="LeetCode Solved Count" />
+        <!-- Card Section Header -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            android:paddingHorizontal="2dp">
 
-        <FrameLayout
-            android:layout_width="1dp"
-            android:layout_height="match_parent"
-            android:background="#262D38"
-            android:layout_marginHorizontal="4dp" />
+            <TextView
+                android:id="@+id/tv_lc_user_tag"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@dev"
+                android:textColor="#94A3B8"
+                android:textSize="10.5sp"
+                android:textStyle="bold"
+                android:layout_alignParentEnd="true" />
 
-        <!-- Center: Submission Heatmap -->
-        <ImageView
-            android:id="@+id/iv_leetcode_heatmap"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="2.3"
-            android:scaleType="fitCenter"
-            android:contentDescription="LeetCode Submission Heatmap" />
+            <TextView
+                android:id="@+id/tv_lc_section_header"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="LEETCODE STATS &amp; PROGRESS"
+                android:textColor="#FFA116"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.06"
+                android:layout_alignParentStart="true"
+                android:layout_toStartOf="@id/tv_lc_user_tag"
+                android:layout_marginEnd="6dp"
+                android:singleLine="true"
+                android:ellipsize="end" />
+        </RelativeLayout>
 
-        <FrameLayout
-            android:layout_width="1dp"
-            android:layout_height="match_parent"
-            android:background="#262D38"
-            android:layout_marginHorizontal="4dp" />
+        <!-- Top Visual Row: Gauge + Heatmap side-by-side -->
+        <LinearLayout
+            android:id="@+id/ll_lc_visual_row"
+            android:layout_width="match_parent"
+            android:layout_height="90dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="6dp">
 
-        <!-- Right: Last 10 Submissions -->
+            <!-- Donut Gauge -->
+            <ImageView
+                android:id="@+id/iv_leetcode_circle"
+                android:layout_width="90dp"
+                android:layout_height="90dp"
+                android:scaleType="fitCenter"
+                android:contentDescription="LeetCode Solved Count" />
+
+            <FrameLayout
+                android:layout_width="1dp"
+                android:layout_height="match_parent"
+                android:background="#26FFFFFF"
+                android:layout_marginHorizontal="6dp" />
+
+            <!-- Heatmap Matrix spanning rest of width -->
+            <ImageView
+                android:id="@+id/iv_leetcode_heatmap"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:scaleType="fitXY"
+                android:contentDescription="LeetCode Submission Heatmap" />
+        </LinearLayout>
+
+        <!-- Bottom Submissions Feed: Full-Width Tactile Glass Rows -->
         <LinearLayout
             android:id="@+id/ll_leetcode_submissions"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1.8"
-            android:orientation="vertical"
-            android:paddingHorizontal="4dp"
-            android:gravity="center_vertical">
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/tv_leetcode_sub_title"
+            <!-- Row 1 -->
+            <LinearLayout
+                android:id="@+id/row_lc_1"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="LAST 10 SUBMISSIONS"
-                android:textColor="#FFA116"
-                android:textSize="9sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.05"
-                android:layout_marginBottom="2dp" />
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:background="@drawable/widget_row_plate"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:layout_marginBottom="3dp"
+                android:gravity="center_vertical">
 
-            <TextView
-                android:id="@+id/tv_lc_sub_1"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="1. Two Sum • AC"
-                android:textColor="#E6EDF3"
-                android:textSize="8.5sp"
-                android:singleLine="true"
-                android:ellipsize="end" />
+                <TextView
+                    android:id="@+id/badge_lc_1"
+                    android:layout_width="26dp"
+                    android:layout_height="17dp"
+                    android:background="@drawable/badge_pill_ac"
+                    android:gravity="center"
+                    android:text="AC"
+                    android:textColor="#34D399"
+                    android:textSize="8sp"
+                    android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/tv_lc_sub_2"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="2. LRU Cache • AC"
-                android:textColor="#8B949E"
-                android:textSize="8.5sp"
-                android:singleLine="true"
-                android:ellipsize="end" />
+                <TextView
+                    android:id="@+id/tv_lc_title_1"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:text="Two Sum"
+                    android:textColor="#FFFFFF"
+                    android:textSize="10.5sp"
+                    android:textStyle="bold"
+                    android:singleLine="true"
+                    android:ellipsize="end" />
 
-            <TextView
-                android:id="@+id/tv_lc_sub_3"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="3. Median of Two Sorted... • WA"
-                android:textColor="#8B949E"
-                android:textSize="8.5sp"
-                android:singleLine="true"
-                android:ellipsize="end" />
+                <TextView
+                    android:id="@+id/tv_lc_sub_1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="Kotlin • 1h ago"
+                    android:textColor="#94A3B8"
+                    android:textSize="9sp"
+                    android:singleLine="true" />
+            </LinearLayout>
 
-            <TextView
-                android:id="@+id/tv_lc_sub_4"
+            <!-- Row 2 -->
+            <LinearLayout
+                android:id="@+id/row_lc_2"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="4. Trapping Rain Water • AC"
-                android:textColor="#8B949E"
-                android:textSize="8.5sp"
-                android:singleLine="true"
-                android:ellipsize="end" />
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:background="@drawable/widget_row_plate"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:layout_marginBottom="3dp"
+                android:gravity="center_vertical">
 
-            <TextView
-                android:id="@+id/tv_lc_sub_5"
+                <TextView
+                    android:id="@+id/badge_lc_2"
+                    android:layout_width="26dp"
+                    android:layout_height="17dp"
+                    android:background="@drawable/badge_pill_ac"
+                    android:gravity="center"
+                    android:text="AC"
+                    android:textColor="#34D399"
+                    android:textSize="8sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_lc_title_2"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:text="LRU Cache"
+                    android:textColor="#FFFFFF"
+                    android:textSize="10.5sp"
+                    android:textStyle="bold"
+                    android:singleLine="true"
+                    android:ellipsize="end" />
+
+                <TextView
+                    android:id="@+id/tv_lc_sub_2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="Kotlin • 2h ago"
+                    android:textColor="#94A3B8"
+                    android:textSize="9sp"
+                    android:singleLine="true" />
+            </LinearLayout>
+
+            <!-- Row 3 -->
+            <LinearLayout
+                android:id="@+id/row_lc_3"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="5. Merge k Sorted Lists • AC"
-                android:textColor="#8B949E"
-                android:textSize="8.5sp"
-                android:singleLine="true"
-                android:ellipsize="end" />
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:background="@drawable/widget_row_plate"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:layout_marginBottom="3dp"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/badge_lc_3"
+                    android:layout_width="26dp"
+                    android:layout_height="17dp"
+                    android:background="@drawable/badge_pill_wa"
+                    android:gravity="center"
+                    android:text="WA"
+                    android:textColor="#F87171"
+                    android:textSize="8sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_lc_title_3"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:text="Median of Two Sorted Arrays"
+                    android:textColor="#FFFFFF"
+                    android:textSize="10.5sp"
+                    android:textStyle="bold"
+                    android:singleLine="true"
+                    android:ellipsize="end" />
+
+                <TextView
+                    android:id="@+id/tv_lc_sub_3"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="Java • 5h ago"
+                    android:textColor="#94A3B8"
+                    android:textSize="9sp"
+                    android:singleLine="true" />
+            </LinearLayout>
+
+            <!-- Row 4 -->
+            <LinearLayout
+                android:id="@+id/row_lc_4"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:background="@drawable/widget_row_plate"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/badge_lc_4"
+                    android:layout_width="26dp"
+                    android:layout_height="17dp"
+                    android:background="@drawable/badge_pill_ac"
+                    android:gravity="center"
+                    android:text="AC"
+                    android:textColor="#34D399"
+                    android:textSize="8sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_lc_title_4"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:text="Trapping Rain Water"
+                    android:textColor="#FFFFFF"
+                    android:textSize="10.5sp"
+                    android:textStyle="bold"
+                    android:singleLine="true"
+                    android:ellipsize="end" />
+
+                <TextView
+                    android:id="@+id/tv_lc_sub_4"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="Kotlin • 1d ago"
+                    android:textColor="#94A3B8"
+                    android:textSize="9sp"
+                    android:singleLine="true" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Mid Divider Line -->
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="#2B323D"
-        android:layout_marginVertical="5dp" />
-
-    <!-- Bottom Section: GitHub -->
+    <!-- SECTION 2: GITHUB GLASS CARD -->
     <LinearLayout
         android:id="@+id/section_github"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:orientation="horizontal"
-        android:background="@drawable/card_section_background"
-        android:padding="6dp"
-        android:gravity="center_vertical">
+        android:orientation="vertical"
+        android:background="@drawable/widget_glass_card"
+        android:padding="10dp">
 
-        <!-- Left: Contribution Type Map (Cross) -->
-        <ImageView
-            android:id="@+id/iv_github_typemap"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1.1"
-            android:scaleType="fitCenter"
-            android:contentDescription="GitHub Contribution Type Map" />
+        <!-- Card Section Header -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            android:paddingHorizontal="2dp">
 
-        <FrameLayout
-            android:layout_width="1dp"
-            android:layout_height="match_parent"
-            android:background="#262D38"
-            android:layout_marginHorizontal="4dp" />
+            <TextView
+                android:id="@+id/tv_gh_user_tag"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@dev"
+                android:textColor="#94A3B8"
+                android:textSize="10.5sp"
+                android:textStyle="bold"
+                android:layout_alignParentEnd="true" />
 
-        <!-- Center: GitHub Heatmap -->
-        <ImageView
-            android:id="@+id/iv_github_heatmap"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="2.3"
-            android:scaleType="fitCenter"
-            android:contentDescription="GitHub Contribution Heatmap" />
+            <TextView
+                android:id="@+id/tv_gh_section_header"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="GITHUB ACTIVITY &amp; CONTRIBUTIONS"
+                android:textColor="#3FB950"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.06"
+                android:layout_alignParentStart="true"
+                android:layout_toStartOf="@id/tv_gh_user_tag"
+                android:layout_marginEnd="6dp"
+                android:singleLine="true"
+                android:ellipsize="end" />
+        </RelativeLayout>
 
-        <FrameLayout
-            android:layout_width="1dp"
-            android:layout_height="match_parent"
-            android:background="#262D38"
-            android:layout_marginHorizontal="4dp" />
+        <!-- Top Visual Row: Radar + Heatmap side-by-side -->
+        <LinearLayout
+            android:id="@+id/ll_gh_visual_row"
+            android:layout_width="match_parent"
+            android:layout_height="90dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="6dp">
 
-        <!-- Right: Last 10 Activities / Events -->
+            <!-- Radar / Type Map -->
+            <ImageView
+                android:id="@+id/iv_github_typemap"
+                android:layout_width="90dp"
+                android:layout_height="90dp"
+                android:scaleType="fitCenter"
+                android:contentDescription="GitHub Contribution Type Map" />
+
+            <FrameLayout
+                android:layout_width="1dp"
+                android:layout_height="match_parent"
+                android:background="#26FFFFFF"
+                android:layout_marginHorizontal="6dp" />
+
+            <!-- Heatmap Matrix spanning rest of width -->
+            <ImageView
+                android:id="@+id/iv_github_heatmap"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:scaleType="fitXY"
+                android:contentDescription="GitHub Contribution Heatmap" />
+        </LinearLayout>
+
+        <!-- Bottom Events Feed: Full-Width Tactile Glass Rows -->
         <LinearLayout
             android:id="@+id/ll_github_events"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1.8"
-            android:orientation="vertical"
-            android:paddingHorizontal="4dp"
-            android:gravity="center_vertical">
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/tv_github_events_title"
+            <!-- Row 1 -->
+            <LinearLayout
+                android:id="@+id/row_gh_1"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="LAST 10 ACTIVITIES"
-                android:textColor="#39D353"
-                android:textSize="9sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.05"
-                android:layout_marginBottom="2dp" />
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:background="@drawable/widget_row_plate"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:layout_marginBottom="3dp"
+                android:gravity="center_vertical">
 
-            <TextView
-                android:id="@+id/tv_gh_ev_1"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="1. dev-widgets • Pushed 3 commits"
-                android:textColor="#E6EDF3"
-                android:textSize="8.5sp"
-                android:singleLine="true"
-                android:ellipsize="end" />
+                <TextView
+                    android:id="@+id/badge_gh_1"
+                    android:layout_width="32dp"
+                    android:layout_height="17dp"
+                    android:background="@drawable/badge_pill_gh"
+                    android:gravity="center"
+                    android:text="PUSH"
+                    android:textColor="#A5B4FC"
+                    android:textSize="7.5sp"
+                    android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/tv_gh_ev_2"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="2. android • Opened PR #42"
-                android:textColor="#8B949E"
-                android:textSize="8.5sp"
-                android:singleLine="true"
-                android:ellipsize="end" />
+                <TextView
+                    android:id="@+id/tv_gh_title_1"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:text="project_dev_android_widgets"
+                    android:textColor="#FFFFFF"
+                    android:textSize="10.5sp"
+                    android:textStyle="bold"
+                    android:singleLine="true"
+                    android:ellipsize="end" />
 
-            <TextView
-                android:id="@+id/tv_gh_ev_3"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="3. dev-widgets • 1 commit to main"
-                android:textColor="#8B949E"
-                android:textSize="8.5sp"
-                android:singleLine="true"
-                android:ellipsize="end" />
+                <TextView
+                    android:id="@+id/tv_gh_sub_1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="Pushed 3 commits • 1h ago"
+                    android:textColor="#94A3B8"
+                    android:textSize="9sp"
+                    android:singleLine="true" />
+            </LinearLayout>
 
-            <TextView
-                android:id="@+id/tv_gh_ev_4"
+            <!-- Row 2 -->
+            <LinearLayout
+                android:id="@+id/row_gh_2"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="4. compose-ui • Created issue"
-                android:textColor="#8B949E"
-                android:textSize="8.5sp"
-                android:singleLine="true"
-                android:ellipsize="end" />
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:background="@drawable/widget_row_plate"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:layout_marginBottom="3dp"
+                android:gravity="center_vertical">
 
-            <TextView
-                android:id="@+id/tv_gh_ev_5"
+                <TextView
+                    android:id="@+id/badge_gh_2"
+                    android:layout_width="32dp"
+                    android:layout_height="17dp"
+                    android:background="@drawable/badge_pill_gh"
+                    android:gravity="center"
+                    android:text="PR"
+                    android:textColor="#A5B4FC"
+                    android:textSize="7.5sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_gh_title_2"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:text="awesome-android-ui"
+                    android:textColor="#FFFFFF"
+                    android:textSize="10.5sp"
+                    android:textStyle="bold"
+                    android:singleLine="true"
+                    android:ellipsize="end" />
+
+                <TextView
+                    android:id="@+id/tv_gh_sub_2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="Opened PR #42 • 3h ago"
+                    android:textColor="#94A3B8"
+                    android:textSize="9sp"
+                    android:singleLine="true" />
+            </LinearLayout>
+
+            <!-- Row 3 -->
+            <LinearLayout
+                android:id="@+id/row_gh_3"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="5. tools • Approved PR #108"
-                android:textColor="#8B949E"
-                android:textSize="8.5sp"
-                android:singleLine="true"
-                android:ellipsize="end" />
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:background="@drawable/widget_row_plate"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:layout_marginBottom="3dp"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/badge_gh_3"
+                    android:layout_width="32dp"
+                    android:layout_height="17dp"
+                    android:background="@drawable/badge_pill_gh"
+                    android:gravity="center"
+                    android:text="PUSH"
+                    android:textColor="#A5B4FC"
+                    android:textSize="7.5sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_gh_title_3"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:text="leetcode-solutions"
+                    android:textColor="#FFFFFF"
+                    android:textSize="10.5sp"
+                    android:textStyle="bold"
+                    android:singleLine="true"
+                    android:ellipsize="end" />
+
+                <TextView
+                    android:id="@+id/tv_gh_sub_3"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="Pushed 1 commit • 5h ago"
+                    android:textColor="#94A3B8"
+                    android:textSize="9sp"
+                    android:singleLine="true" />
+            </LinearLayout>
+
+            <!-- Row 4 -->
+            <LinearLayout
+                android:id="@+id/row_gh_4"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:background="@drawable/widget_row_plate"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/badge_gh_4"
+                    android:layout_width="32dp"
+                    android:layout_height="17dp"
+                    android:background="@drawable/badge_pill_gh"
+                    android:gravity="center"
+                    android:text="ISSUE"
+                    android:textColor="#A5B4FC"
+                    android:textSize="7.5sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_gh_title_4"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:text="antigravity-toolkit"
+                    android:textColor="#FFFFFF"
+                    android:textSize="10.5sp"
+                    android:textStyle="bold"
+                    android:singleLine="true"
+                    android:ellipsize="end" />
+
+                <TextView
+                    android:id="@+id/tv_gh_sub_4"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="Closed issue #12 • 1d ago"
+                    android:textColor="#94A3B8"
+                    android:textSize="9sp"
+                    android:singleLine="true" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
-
 </LinearLayout>
