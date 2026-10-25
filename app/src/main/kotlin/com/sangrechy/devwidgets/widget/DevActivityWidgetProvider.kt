@@ -76,19 +76,22 @@ class DevActivityWidgetProvider : AppWidgetProvider() {
             appWidgetId: Int,
             data: WidgetDashboardData
         ) {
+            val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
+            val minWidthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 260)
+            val minHeightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 280)
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val compactViews = buildRemoteViews(context, data, isExpanded = false)
-                val expandedViews = buildRemoteViews(context, data, isExpanded = true)
+                val compactViews = buildRemoteViews(context, data, widthDp = 240, heightDp = 180)
+                val standardViews = buildRemoteViews(context, data, widthDp = 300, heightDp = 300)
+                val tallViews = buildRemoteViews(context, data, widthDp = 340, heightDp = 500)
                 val viewMapping = mapOf(
                     SizeF(150f, 120f) to compactViews,
-                    SizeF(220f, 280f) to expandedViews
+                    SizeF(240f, 220f) to standardViews,
+                    SizeF(280f, 380f) to tallViews
                 )
                 appWidgetManager.updateAppWidget(appWidgetId, RemoteViews(viewMapping))
             } else {
-                val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
-                val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
-                val isExpanded = minHeight >= 280
-                val views = buildRemoteViews(context, data, isExpanded = isExpanded)
+                val views = buildRemoteViews(context, data, widthDp = minWidthDp, heightDp = minHeightDp)
                 appWidgetManager.updateAppWidget(appWidgetId, views)
             }
         }
@@ -96,30 +99,38 @@ class DevActivityWidgetProvider : AppWidgetProvider() {
         private fun buildRemoteViews(
             context: Context,
             data: WidgetDashboardData,
-            isExpanded: Boolean
+            widthDp: Int,
+            heightDp: Int
         ): RemoteViews {
-            val layoutId = if (isExpanded) R.layout.widget_dev_activity else R.layout.widget_dev_activity_compact
+            val layoutId = if (heightDp < 220) R.layout.widget_dev_activity_compact else R.layout.widget_dev_activity
             val views = RemoteViews(context.packageName, layoutId)
 
-            // When expanded, heatmap spans full card width (680x280)
-            // When compact, heatmap sits side-by-side with circle (440x320)
-            val hmWidth = if (isExpanded) 620 else 440
-            val hmHeight = if (isExpanded) 290 else 320
+            val sectionHeightDp = ((heightDp - 56) / 2).coerceAtLeast(80)
+            val visualRowHeightDp = (sectionHeightDp - 36).coerceAtLeast(60)
 
-            val lcCircle = WidgetBitmapRenderer.renderLeetCodeCircle(data.leetCode, sizePx = 360)
+            val cardWidthDp = (widthDp - 24).coerceAtLeast(140)
+            val heatmapWidthDp = (cardWidthDp * 0.58f).coerceAtLeast(100f)
+            val circleSizeDp = minOf(cardWidthDp * 0.42f, visualRowHeightDp.toFloat()).coerceAtLeast(60f)
+
+            val scale = 2.5f
+            val hmWidthPx = (heatmapWidthDp * scale).toInt().coerceIn(240, 960)
+            val hmHeightPx = (visualRowHeightDp * scale).toInt().coerceIn(160, 960)
+            val circleSizePx = (circleSizeDp * scale).toInt().coerceIn(200, 600)
+
+            val lcCircle = WidgetBitmapRenderer.renderLeetCodeCircle(data.leetCode, sizePx = circleSizePx)
             val lcHeatmap = WidgetBitmapRenderer.renderHeatmap(
                 data.leetCode.submissionCalendar,
                 isLeetCode = true,
-                widthPx = hmWidth,
-                heightPx = hmHeight,
+                widthPx = hmWidthPx,
+                heightPx = hmHeightPx,
                 weeksCount = 52
             )
-            val ghTypeMap = WidgetBitmapRenderer.renderGitHubTypeMap(data.gitHub, sizePx = 360)
+            val ghTypeMap = WidgetBitmapRenderer.renderGitHubTypeMap(data.gitHub, sizePx = circleSizePx)
             val ghHeatmap = WidgetBitmapRenderer.renderHeatmap(
                 data.gitHub.contributionDays,
                 isLeetCode = false,
-                widthPx = hmWidth,
-                heightPx = hmHeight,
+                widthPx = hmWidthPx,
+                heightPx = hmHeightPx,
                 weeksCount = 52
             )
 
@@ -127,19 +138,6 @@ class DevActivityWidgetProvider : AppWidgetProvider() {
             views.setImageViewBitmap(R.id.iv_leetcode_heatmap, lcHeatmap)
             views.setImageViewBitmap(R.id.iv_github_typemap, ghTypeMap)
             views.setImageViewBitmap(R.id.iv_github_heatmap, ghHeatmap)
-
-            // Detailed stat badges for expanded mode
-            if (isExpanded) {
-                views.setTextViewText(R.id.tv_lc_easy_count, data.leetCode.easySolved.toString())
-                views.setTextViewText(R.id.tv_lc_medium_count, data.leetCode.mediumSolved.toString())
-                views.setTextViewText(R.id.tv_lc_hard_count, data.leetCode.hardSolved.toString())
-                views.setTextViewText(R.id.tv_lc_acc_rate, data.leetCode.totalSolved.toString())
-
-                views.setTextViewText(R.id.tv_gh_commits_count, data.gitHub.commitsCount.toString())
-                views.setTextViewText(R.id.tv_gh_prs_count, data.gitHub.pullRequestsCount.toString())
-                views.setTextViewText(R.id.tv_gh_issues_count, data.gitHub.issuesCount.toString())
-                views.setTextViewText(R.id.tv_gh_reviews_count, data.gitHub.reviewsCount.toString())
-            }
 
             // User tags in headers
             val lcHandle = data.leetCode.username.ifBlank { "dev" }

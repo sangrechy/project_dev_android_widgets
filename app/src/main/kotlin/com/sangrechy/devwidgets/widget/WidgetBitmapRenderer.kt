@@ -107,12 +107,19 @@ object WidgetBitmapRenderer {
         }
         canvas.drawText("SOLVED", center, countY + (sizePx * 0.10f), labelPaint)
 
-        // 4. Open Bottom Area: Color Legend Tags (Teal Easy, Amber Med, Coral Hard)
-        val tagY = sizePx * 0.88f
+        // 4. Open Bottom Area: Difficulty Breakdown Columns (Easy, Medium, Hard)
+        val bottomSectionY = sizePx * 0.81f
         val dotRadius = sizePx * 0.016f
 
+        val valPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = COLOR_TEXT_WHITE
+            textSize = sizePx * 0.082f
+            textAlign = Paint.Align.CENTER
+            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+        }
+
         val tagPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            textSize = sizePx * 0.060f
+            textSize = sizePx * 0.056f
             textAlign = Paint.Align.LEFT
             typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
         }
@@ -121,39 +128,52 @@ object WidgetBitmapRenderer {
             style = Paint.Style.FILL
         }
 
-        fun drawLegendTag(colCenterX: Float, label: String, colorHex: String) {
+        fun drawDifficultyCol(colCenterX: Float, count: Int, label: String, colorHex: String) {
             val color = Color.parseColor(colorHex)
+            canvas.drawText(count.toString(), colCenterX, bottomSectionY, valPaint)
+
             tagPaint.color = color
             dotPaint.color = color
             val labelWidth = tagPaint.measureText(label)
             val gap = sizePx * 0.016f
             val itemWidth = (dotRadius * 2f) + gap + labelWidth
             val startX = colCenterX - (itemWidth / 2f)
-            val dotCenterY = tagY - (sizePx * 0.020f)
+
+            val tagY = bottomSectionY + (sizePx * 0.095f)
+            val dotCenterY = tagY - (sizePx * 0.018f)
 
             canvas.drawCircle(startX + dotRadius, dotCenterY, dotRadius, dotPaint)
             canvas.drawText(label, startX + (dotRadius * 2f) + gap, tagY, tagPaint)
         }
 
-        drawLegendTag(sizePx * 0.24f, "Easy", "#00B8A3")
-        drawLegendTag(sizePx * 0.50f, "Med", "#FFA116")
-        drawLegendTag(sizePx * 0.76f, "Hard", "#EF4743")
+        drawDifficultyCol(sizePx * 0.20f, stats.easySolved, "Easy", "#00B8A3")
+        drawDifficultyCol(sizePx * 0.50f, stats.mediumSolved, "Med", "#FFA116")
+        drawDifficultyCol(sizePx * 0.80f, stats.hardSolved, "Hard", "#EF4743")
 
         return bitmap
     }
 
-    // 2. Frosted Glass Heatmap Matrix with Gaps Between Months & Dynamic 2-Tier Layout (6 Months Top, 6 Months Down)
+    // 2. Frosted Glass Heatmap Matrix with Gaps Between Months & Dynamic Tiers (1 line, 2 lines as 6 6, 3 lines as 4 4 4, or more)
     fun renderHeatmap(
         countsByDateOrTimestamp: Map<*, Int>,
         isLeetCode: Boolean,
-        widthPx: Int = 680,
-        heightPx: Int = 280,
+        widthPx: Int = 360,
+        heightPx: Int = 410,
         weeksCount: Int = 52
     ): Bitmap {
         val bitmap = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
-        // 1. Pre-calculate month transitions & normalize data
+        // 1. Determine optimal tier count based on aspect ratio
+        val ratio = widthPx.toFloat() / heightPx.toFloat()
+        val tiers = when {
+            ratio >= 3.5f -> 1 // 1 line (12 months)
+            ratio >= 1.55f -> 2 // 2 lines (6 6)
+            ratio >= 0.70f -> 3 // 3 lines (4 4 4)
+            else -> 4 // 4 lines (3 3 3 3)
+        }
+
+        // 2. Pre-calculate month transitions & normalize data
         val calendar = Calendar.getInstance()
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
         val monthSdf = SimpleDateFormat("MMM", Locale.US)
@@ -169,7 +189,6 @@ object WidgetBitmapRenderer {
         }
         calCopy.add(Calendar.DAY_OF_YEAR, -daysBackTotal)
 
-        // Pre-normalize all counts to "yyyy-MM-dd" for O(1) matching
         val dayCountMap = mutableMapOf<String, Int>()
         var totalInPeriod = 0
         for ((k, v) in countsByDateOrTimestamp) {
@@ -211,69 +230,7 @@ object WidgetBitmapRenderer {
             )
         }
 
-        // 2. Dynamic Size & Proportions Calculation
-        val cellRows = 7
-        val halfWeeks = weeksCount / 2 // 26 weeks
-
-        val leftDayMargin = 32f
-        val rightMargin = 12f
-        val availW = (widthPx - leftDayMargin - rightMargin).coerceAtLeast(100f)
-
-        // Give authentic spacing between months as in LeetCode (~1.25x cell size)
-        val maxCellFromW = availW / 37.5f
-        val maxCellFromH = ((heightPx - 44f) / 17.0f).coerceAtLeast(7f)
-        val actualCell = minOf(maxCellFromW, maxCellFromH).coerceIn(8.5f, 24.0f)
-        val cellGap = (actualCell * 0.20f).coerceAtLeast(2.0f)
-        val monthGap = (actualCell * 1.25f).coerceAtLeast(15.0f)
-
-        val totalGridW = halfWeeks * actualCell + (halfWeeks - 1) * cellGap + 5 * monthGap
-        val gridLeft = maxOf(leftDayMargin, (widthPx - totalGridW) / 2f)
-
-        // 3. Header Label & Legend (Authentic GitHub / LeetCode style: 1 Year)
-        val headerTitle = if (isLeetCode) {
-            if (totalInPeriod > 0) "$totalInPeriod submissions in 1 year" else "Submissions in 1 year"
-        } else {
-            if (totalInPeriod > 0) "$totalInPeriod contributions in 1 year" else "Contributions in 1 year"
-        }
-
-        val headerY = (actualCell * 1.4f).coerceIn(16f, 26f)
-
-        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = COLOR_TEXT_SLATE
-            textSize = (actualCell * 0.98f).coerceIn(11f, 15.5f)
-            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-            textAlign = Paint.Align.LEFT
-        }
-        canvas.drawText(headerTitle, gridLeft, headerY, titlePaint)
-
-        // Authentic Legend: Less [■][■][■][■][■] More
-        val legendTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = COLOR_TEXT_MUTED
-            textSize = (actualCell * 0.80f).coerceIn(9f, 12.5f)
-            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
-            textAlign = Paint.Align.RIGHT
-        }
-        val sqSize = (actualCell * 0.75f).coerceIn(7.5f, 12f)
-        val sqGap = cellGap
-        val moreWidth = legendTextPaint.measureText("More")
-
-        val legendRight = gridLeft + totalGridW
-        canvas.drawText("More", legendRight, headerY, legendTextPaint)
-
-        var sqRight = legendRight - moreWidth - 5f
-        for (lvl in 4 downTo 0) {
-            val sqPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                style = Paint.Style.FILL
-                color = levelColors[lvl]
-            }
-            val sqLeft = sqRight - sqSize
-            val sqTop = headerY - sqSize + 1f
-            canvas.drawRoundRect(RectF(sqLeft, sqTop, sqRight, sqTop + sqSize), 2f, 2f, sqPaint)
-            sqRight -= (sqSize + sqGap)
-        }
-        canvas.drawText("Less", sqRight - 5f, headerY, legendTextPaint)
-
-        // 4. Calculate Months for Each Week Column
+        // 3. Collect week months
         val weekMonthList = mutableListOf<Int>()
         val weekMonthNameList = mutableListOf<String>()
         val calScanner = calCopy.clone() as Calendar
@@ -286,118 +243,161 @@ object WidgetBitmapRenderer {
             calScanner.add(Calendar.DAY_OF_YEAR, 7)
         }
 
+        // 4. Calculate layout parameters for the chosen tier count
+        val cellRows = 7
+        val weeksPerTier = (weeksCount + tiers - 1) / tiers
+        val monthsPerTier = maxOf(1, 12 / tiers)
+        val maxMonthTransitions = maxOf(1, monthsPerTier - 1)
+
+        val leftDayMargin = 28f
+        val rightMargin = 8f
+        val availW = (widthPx - leftDayMargin - rightMargin).coerceAtLeast(80f)
+
+        val widthDivisor = weeksPerTier + (weeksPerTier - 1) * 0.18f + maxMonthTransitions * 1.25f
+        val maxCellFromW = availW / widthDivisor
+
+        val fixedVerticalH = 20f + tiers * 14f + (tiers - 1) * 12f
+        val availCellH = (heightPx - fixedVerticalH).coerceAtLeast(60f)
+        val maxCellFromH = availCellH / (tiers * 8.08f)
+
+        val actualCell = minOf(maxCellFromW, maxCellFromH).coerceIn(6.5f, 26f)
+        val cellGap = (actualCell * 0.18f).coerceAtLeast(1.5f)
+        val monthGap = (actualCell * 1.25f).coerceAtLeast(8.0f)
+
+        val maxTierCols = weeksPerTier
+        val totalGridW = maxTierCols * actualCell + (maxTierCols - 1) * cellGap + maxMonthTransitions * monthGap
+        val gridLeft = maxOf(leftDayMargin, (widthPx - totalGridW) / 2f)
+
+        // 5. Header Label & Legend
+        val headerTitle = if (isLeetCode) {
+            if (totalInPeriod > 0) "$totalInPeriod submissions in 1 year" else "Submissions in 1 year"
+        } else {
+            if (totalInPeriod > 0) "$totalInPeriod contributions in 1 year" else "Contributions in 1 year"
+        }
+
+        val headerY = (actualCell * 1.4f).coerceIn(16f, 24f)
+
+        val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = COLOR_TEXT_SLATE
+            textSize = (actualCell * 1.0f).coerceIn(10.5f, 15f)
+            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+            textAlign = Paint.Align.LEFT
+        }
+        canvas.drawText(headerTitle, gridLeft, headerY, titlePaint)
+
+        // Legend: Less [■][■][■][■][■] More
+        val legendTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = COLOR_TEXT_MUTED
+            textSize = (actualCell * 0.82f).coerceIn(8.5f, 12f)
+            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+            textAlign = Paint.Align.RIGHT
+        }
+        val sqSize = (actualCell * 0.75f).coerceIn(6.5f, 11f)
+        val sqGap = cellGap
+        val moreWidth = legendTextPaint.measureText("More")
+
+        val legendRight = (gridLeft + totalGridW).coerceAtMost(widthPx - 6f)
+        canvas.drawText("More", legendRight, headerY, legendTextPaint)
+
+        var sqRight = legendRight - moreWidth - 4f
+        for (lvl in 4 downTo 0) {
+            val sqPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.FILL
+                color = levelColors[lvl]
+            }
+            val sqLeft = sqRight - sqSize
+            val sqTop = headerY - sqSize + 1f
+            canvas.drawRoundRect(RectF(sqLeft, sqTop, sqRight, sqTop + sqSize), 1.5f, 1.5f, sqPaint)
+            sqRight -= (sqSize + sqGap)
+        }
+        canvas.drawText("Less", sqRight - 4f, headerY, legendTextPaint)
+
+        // 6. Draw Tiers
         val dayTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = COLOR_TEXT_MUTED
-            textSize = (actualCell * 0.72f).coerceIn(8.5f, 11.5f)
+            textSize = (actualCell * 0.72f).coerceIn(8f, 11f)
             typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
             textAlign = Paint.Align.RIGHT
         }
         val monthTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = COLOR_TEXT_MUTED
-            textSize = (actualCell * 0.82f).coerceIn(9.5f, 13f)
+            textSize = (actualCell * 0.82f).coerceIn(9f, 12.5f)
             typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
             textAlign = Paint.Align.LEFT
         }
         val cellPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.FILL
         }
-
-        val dowRows = mapOf(1 to "Mon", 3 to "Wed", 5 to "Fri")
-
-        // Tier 1: Weeks 0..25 (Top 6 Months)
-        val month1Y = headerY + actualCell * 1.4f
-        val grid1Top = month1Y + actualCell * 0.5f
-
-        for ((r, label) in dowRows) {
-            val y = grid1Top + r * (actualCell + cellGap) + actualCell * 0.82f
-            canvas.drawText(label, gridLeft - 5f, y, dayTextPaint)
-        }
-
-        val calTier1 = calCopy.clone() as Calendar
-        var currentX1 = gridLeft
-        var lastLabelMonth1 = -1
-
-        for (col in 0 until halfWeeks) {
-            val colMonth = weekMonthList[col]
-            if (col > 0 && colMonth != weekMonthList[col - 1]) {
-                currentX1 += monthGap
-            }
-            if (colMonth != lastLabelMonth1) {
-                canvas.drawText(weekMonthNameList[col], currentX1, month1Y, monthTextPaint)
-                lastLabelMonth1 = colMonth
-            }
-
-            for (row in 0 until cellRows) {
-                val dateStr = sdf.format(calTier1.time)
-                val count = dayCountMap[dateStr] ?: 0
-                val level = when {
-                    count <= 0 -> 0
-                    count == 1 -> 1
-                    count in 2..3 -> 2
-                    count in 4..6 -> 3
-                    else -> 4
-                }
-                cellPaint.color = levelColors[level]
-                val y = grid1Top + row * (actualCell + cellGap)
-                val cellRect = RectF(currentX1, y, currentX1 + actualCell, y + actualCell)
-                canvas.drawRoundRect(cellRect, actualCell * 0.22f, actualCell * 0.22f, cellPaint)
-
-                calTier1.add(Calendar.DAY_OF_YEAR, 1)
-            }
-            currentX1 += (actualCell + cellGap)
-        }
-
-        // Subtle Frosted Tier Divider
-        val tier1Bottom = grid1Top + 7 * actualCell + 6 * cellGap
-        val dividerY = tier1Bottom + actualCell * 0.65f
         val dividerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.argb(35, 255, 255, 255)
             strokeWidth = 1f
         }
-        canvas.drawLine(gridLeft, dividerY, gridLeft + totalGridW, dividerY, dividerPaint)
 
-        // Tier 2: Weeks 26..51 (Bottom 6 Months)
-        val month2Y = dividerY + actualCell * 1.35f
-        val grid2Top = month2Y + actualCell * 0.5f
-        for ((r, label) in dowRows) {
-            val y = grid2Top + r * (actualCell + cellGap) + actualCell * 0.82f
-            canvas.drawText(label, gridLeft - 5f, y, dayTextPaint)
-        }
+        val dowRows = mapOf(1 to "Mon", 3 to "Wed", 5 to "Fri")
 
-        val calTier2 = calCopy.clone() as Calendar
-        calTier2.add(Calendar.DAY_OF_YEAR, halfWeeks * 7)
-        var currentX2 = gridLeft
-        var lastLabelMonth2 = -1
+        var currentTierTop = headerY + actualCell * 1.35f
 
-        for (col in 0 until (weeksCount - halfWeeks)) {
-            val w = halfWeeks + col
-            val colMonth = weekMonthList[w]
-            if (col > 0 && colMonth != weekMonthList[w - 1]) {
-                currentX2 += monthGap
-            }
-            if (colMonth != lastLabelMonth2) {
-                canvas.drawText(weekMonthNameList[w], currentX2, month2Y, monthTextPaint)
-                lastLabelMonth2 = colMonth
+        for (tierIndex in 0 until tiers) {
+            val startWeek = tierIndex * weeksPerTier
+            val endWeek = minOf(startWeek + weeksPerTier, weeksCount)
+            val numCols = endWeek - startWeek
+            if (numCols <= 0) break
+
+            val monthY = currentTierTop
+            val gridTop = monthY + actualCell * 0.5f
+
+            // Day-of-week labels
+            for ((r, label) in dowRows) {
+                val y = gridTop + r * (actualCell + cellGap) + actualCell * 0.82f
+                canvas.drawText(label, gridLeft - 4f, y, dayTextPaint)
             }
 
-            for (row in 0 until cellRows) {
-                val dateStr = sdf.format(calTier2.time)
-                val count = dayCountMap[dateStr] ?: 0
-                val level = when {
-                    count <= 0 -> 0
-                    count == 1 -> 1
-                    count in 2..3 -> 2
-                    count in 4..6 -> 3
-                    else -> 4
+            val calTier = calCopy.clone() as Calendar
+            calTier.add(Calendar.DAY_OF_YEAR, startWeek * 7)
+
+            var currentX = gridLeft
+            var lastMonth = -1
+
+            for (col in 0 until numCols) {
+                val weekIdx = startWeek + col
+                val colMonth = weekMonthList[weekIdx]
+
+                if (col > 0 && colMonth != weekMonthList[weekIdx - 1]) {
+                    currentX += monthGap
                 }
-                cellPaint.color = levelColors[level]
-                val y = grid2Top + row * (actualCell + cellGap)
-                val cellRect = RectF(currentX2, y, currentX2 + actualCell, y + actualCell)
-                canvas.drawRoundRect(cellRect, actualCell * 0.22f, actualCell * 0.22f, cellPaint)
+                if (colMonth != lastMonth) {
+                    canvas.drawText(weekMonthNameList[weekIdx], currentX, monthY, monthTextPaint)
+                    lastMonth = colMonth
+                }
 
-                calTier2.add(Calendar.DAY_OF_YEAR, 1)
+                for (row in 0 until cellRows) {
+                    val dateStr = sdf.format(calTier.time)
+                    val count = dayCountMap[dateStr] ?: 0
+                    val level = when {
+                        count <= 0 -> 0
+                        count == 1 -> 1
+                        count in 2..3 -> 2
+                        count in 4..6 -> 3
+                        else -> 4
+                    }
+                    cellPaint.color = levelColors[level]
+                    val y = gridTop + row * (actualCell + cellGap)
+                    val cellRect = RectF(currentX, y, currentX + actualCell, y + actualCell)
+                    canvas.drawRoundRect(cellRect, actualCell * 0.22f, actualCell * 0.22f, cellPaint)
+
+                    calTier.add(Calendar.DAY_OF_YEAR, 1)
+                }
+                currentX += (actualCell + cellGap)
             }
-            currentX2 += (actualCell + cellGap)
+
+            val tierBottom = gridTop + 7 * actualCell + 6 * cellGap
+
+            // Divider between tiers
+            if (tierIndex < tiers - 1) {
+                val dividerY = tierBottom + actualCell * 0.6f
+                canvas.drawLine(gridLeft, dividerY, gridLeft + totalGridW, dividerY, dividerPaint)
+                currentTierTop = dividerY + actualCell * 1.35f
+            }
         }
 
         return bitmap
