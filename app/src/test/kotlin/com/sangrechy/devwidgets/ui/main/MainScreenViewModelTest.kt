@@ -144,6 +144,21 @@ class MainScreenViewModelTest {
         assertEquals(AppScreen.HOME, viewModel.currentScreen.value)
         assertTrue(fakeRepo.isLoggedOut)
     }
+
+    @Test
+    fun usernameInputs_stripLeadingAtSymbolOnVerify() = runTest {
+        val fakeRepo = FakeDataRepository()
+        val viewModel = MainScreenViewModel(fakeRepo)
+
+        viewModel.onLeetCodeInputChanged("@sangrechy")
+        viewModel.onGitHubInputChanged("@sangrechy")
+
+        viewModel.verifyLeetCode()
+        assertEquals("sangrechy", fakeRepo.lastVerifiedLeetCode)
+
+        viewModel.verifyGitHub()
+        assertEquals("sangrechy", fakeRepo.lastVerifiedGitHub)
+    }
 }
 
 private class FakeDataRepository : DataRepository {
@@ -159,11 +174,16 @@ private class FakeDataRepository : DataRepository {
 
     override suspend fun saveUsernames(leetCode: String, gitHub: String, token: String) {}
 
+    var lastVerifiedLeetCode: String? = null
+    var lastVerifiedGitHub: String? = null
+
     override suspend fun verifyLeetCode(username: String): LeetCodeStats {
+        lastVerifiedLeetCode = username
         return LeetCodeStats(username = username)
     }
 
     override suspend fun verifyGitHub(username: String, token: String): GitHubStats {
+        lastVerifiedGitHub = username
         return GitHubStats(username = username)
     }
 

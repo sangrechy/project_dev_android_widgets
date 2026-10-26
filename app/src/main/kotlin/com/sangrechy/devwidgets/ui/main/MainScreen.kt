@@ -451,7 +451,8 @@ fun MainScreen(
                             currentTab = currentHomeTab,
                             feedLimit = feedLimit,
                             onTabSelected = viewModel::setHomeTab,
-                            onFeedLimitSelected = viewModel::setFeedLimit
+                            onFeedLimitSelected = viewModel::setFeedLimit,
+                            onNavigateToSettings = { viewModel.setScreen(AppScreen.SETTINGS) }
                         )
 
                         AppScreen.WIDGETS -> WidgetsScreenContent(
@@ -475,14 +476,8 @@ fun MainScreen(
                             onLeetCodeChanged = viewModel::onLeetCodeInputChanged,
                             onGitHubChanged = viewModel::onGitHubInputChanged,
                             onTokenChanged = viewModel::onGitHubTokenChanged,
-                            onVerifyLeetCode = {
-                                viewModel.verifyLeetCode()
-                                WidgetManagerHelper.updateAll(context, dashboardData)
-                            },
-                            onVerifyGitHub = {
-                                viewModel.verifyGitHub()
-                                WidgetManagerHelper.updateAll(context, dashboardData)
-                            },
+                            onVerifyLeetCode = viewModel::verifyLeetCode,
+                            onVerifyGitHub = viewModel::verifyGitHub,
                             onSyncAll = {
                                 viewModel.saveAndSync()
                                 DevActivityWidgetProvider.enqueueImmediateSync(context)
@@ -628,7 +623,8 @@ private fun HomeScreenContent(
     currentTab: HomeTab,
     feedLimit: FeedLimit,
     onTabSelected: (HomeTab) -> Unit,
-    onFeedLimitSelected: (FeedLimit) -> Unit
+    onFeedLimitSelected: (FeedLimit) -> Unit,
+    onNavigateToSettings: () -> Unit = {}
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         // Top Segmented Switcher [ LeetCode | GitHub ]
@@ -719,12 +715,14 @@ private fun HomeScreenContent(
             HomeTab.LEETCODE -> LeetCodeDetailView(
                 stats = dashboardData.leetCode,
                 feedLimit = feedLimit,
-                onFeedLimitSelected = onFeedLimitSelected
+                onFeedLimitSelected = onFeedLimitSelected,
+                onNavigateToSettings = onNavigateToSettings
             )
             HomeTab.GITHUB -> GitHubDetailView(
                 stats = dashboardData.gitHub,
                 feedLimit = feedLimit,
-                onFeedLimitSelected = onFeedLimitSelected
+                onFeedLimitSelected = onFeedLimitSelected,
+                onNavigateToSettings = onNavigateToSettings
             )
         }
     }
@@ -734,7 +732,8 @@ private fun HomeScreenContent(
 private fun LeetCodeDetailView(
     stats: LeetCodeStats,
     feedLimit: FeedLimit,
-    onFeedLimitSelected: (FeedLimit) -> Unit
+    onFeedLimitSelected: (FeedLimit) -> Unit,
+    onNavigateToSettings: () -> Unit = {}
 ) {
     val lcCircleBitmap = remember(stats) {
         WidgetBitmapRenderer.renderLeetCodeCircle(stats, sizePx = 420).asImageBitmap()
@@ -775,6 +774,7 @@ private fun LeetCodeDetailView(
                         .clip(RoundedCornerShape(14.dp))
                         .background(Color(0x1AFFFFFF))
                         .border(1.dp, Color(0x28FFFFFF), RoundedCornerShape(14.dp))
+                        .clickable { onNavigateToSettings() }
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
                     Row(
@@ -809,6 +809,7 @@ private fun LeetCodeDetailView(
                             if (stats.status == AccountStatus.CONNECTED) Color(0x4D22C55E) else Color(0x4DEF4444),
                             RoundedCornerShape(14.dp)
                         )
+                        .clickable { onNavigateToSettings() }
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     AccountStatusBadge(
@@ -817,6 +818,54 @@ private fun LeetCodeDetailView(
                         connectedText = "Connected",
                         failedText = "Offline"
                     )
+                }
+            }
+        }
+
+        // Setup Banner when Not Connected
+        if (stats.status != AccountStatus.CONNECTED) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color(0x22FFA116))
+                    .border(1.dp, Color(0x55FFA116), RoundedCornerShape(18.dp))
+                    .clickable { onNavigateToSettings() }
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Link your LeetCode Account",
+                            color = Color(0xFFFFA116),
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Tap here to set your username in Settings & view live solved problems & heatmap.",
+                            color = Color(0xFFCBD5E1),
+                            fontSize = 11.5.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFFFFA116))
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = "Setup →",
+                            color = Color.Black,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
@@ -1222,7 +1271,8 @@ private fun RecentSubmissionsCard(
 private fun GitHubDetailView(
     stats: GitHubStats,
     feedLimit: FeedLimit,
-    onFeedLimitSelected: (FeedLimit) -> Unit
+    onFeedLimitSelected: (FeedLimit) -> Unit,
+    onNavigateToSettings: () -> Unit = {}
 ) {
     val ghTypeMapBitmap = remember(stats) {
         WidgetBitmapRenderer.renderGitHubTypeMap(stats, sizePx = 420).asImageBitmap()
@@ -1263,6 +1313,7 @@ private fun GitHubDetailView(
                         .clip(RoundedCornerShape(14.dp))
                         .background(Color(0x1AFFFFFF))
                         .border(1.dp, Color(0x28FFFFFF), RoundedCornerShape(14.dp))
+                        .clickable { onNavigateToSettings() }
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
                     Row(
@@ -1297,6 +1348,7 @@ private fun GitHubDetailView(
                             if (stats.status == AccountStatus.CONNECTED) Color(0x4D22C55E) else Color(0x4DEF4444),
                             RoundedCornerShape(14.dp)
                         )
+                        .clickable { onNavigateToSettings() }
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     AccountStatusBadge(
@@ -1305,6 +1357,54 @@ private fun GitHubDetailView(
                         connectedText = "Connected",
                         failedText = "Offline"
                     )
+                }
+            }
+        }
+
+        // Setup Banner when Not Connected
+        if (stats.status != AccountStatus.CONNECTED) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color(0x2222C55E))
+                    .border(1.dp, Color(0x5522C55E), RoundedCornerShape(18.dp))
+                    .clickable { onNavigateToSettings() }
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Link your GitHub Account",
+                            color = Color(0xFF4ADE80),
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Tap here to configure your username & token in Settings to view radar & commits.",
+                            color = Color(0xFFCBD5E1),
+                            fontSize = 11.5.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFF22C55E))
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = "Setup →",
+                            color = Color.Black,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
@@ -2224,6 +2324,18 @@ private fun SettingsScreenContent(
                         onValueChange = onLeetCodeChanged,
                         label = { Text("username", color = Color(0xFF94A3B8)) },
                         placeholder = { Text("e.g. sangrechy", color = Color(0xFF64748B)) },
+                        trailingIcon = {
+                            if (leetCodeInput.isNotEmpty()) {
+                                IconButton(onClick = { onLeetCodeChanged("") }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Clear",
+                                        tint = Color(0xFF94A3B8),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -2308,6 +2420,18 @@ private fun SettingsScreenContent(
                         onValueChange = onGitHubChanged,
                         label = { Text("username", color = Color(0xFF94A3B8)) },
                         placeholder = { Text("e.g. sangrechy", color = Color(0xFF64748B)) },
+                        trailingIcon = {
+                            if (gitHubInput.isNotEmpty()) {
+                                IconButton(onClick = { onGitHubChanged("") }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Clear",
+                                        tint = Color(0xFF94A3B8),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -2324,6 +2448,18 @@ private fun SettingsScreenContent(
                         onValueChange = onTokenChanged,
                         label = { Text("token (optional)", color = Color(0xFF94A3B8)) },
                         placeholder = { Text("ghp_... for private contributions", color = Color(0xFF64748B)) },
+                        trailingIcon = {
+                            if (tokenInput.isNotEmpty()) {
+                                IconButton(onClick = { onTokenChanged("") }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Clear",
+                                        tint = Color(0xFF94A3B8),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         visualTransformation = PasswordVisualTransformation(),

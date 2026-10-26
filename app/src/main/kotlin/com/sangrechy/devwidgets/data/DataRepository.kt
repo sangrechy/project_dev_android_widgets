@@ -63,6 +63,7 @@ class DefaultDataRepository(private val context: Context) : DataRepository {
         )
         prefs.saveDashboardData(updated)
         _dashboardData.value = updated
+        com.sangrechy.devwidgets.widget.WidgetManagerHelper.updateAll(context, updated)
         stats
     }
 
@@ -79,6 +80,7 @@ class DefaultDataRepository(private val context: Context) : DataRepository {
         )
         prefs.saveDashboardData(updated)
         _dashboardData.value = updated
+        com.sangrechy.devwidgets.widget.WidgetManagerHelper.updateAll(context, updated)
         stats
     }
 

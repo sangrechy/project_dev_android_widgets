@@ -112,7 +112,7 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
     }
 
     fun verifyLeetCode() {
-        val user = _leetCodeInput.value.trim()
+        val user = _leetCodeInput.value.trim().removePrefix("@")
         if (user.isBlank()) {
             _syncMessage.value = "Please enter a LeetCode username"
             return
@@ -130,7 +130,7 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
     }
 
     fun verifyGitHub() {
-        val user = _gitHubInput.value.trim()
+        val user = _gitHubInput.value.trim().removePrefix("@")
         if (user.isBlank()) {
             _syncMessage.value = "Please enter a GitHub username"
             return
@@ -152,8 +152,8 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
             _isSyncing.value = true
             _syncMessage.value = "Saving settings and syncing profiles..."
             repository.saveUsernames(
-                leetCode = _leetCodeInput.value.trim(),
-                gitHub = _gitHubInput.value.trim(),
+                leetCode = _leetCodeInput.value.trim().removePrefix("@"),
+                gitHub = _gitHubInput.value.trim().removePrefix("@"),
                 token = _gitHubTokenInput.value.trim()
             )
             val result = repository.syncData()

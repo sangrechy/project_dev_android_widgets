@@ -2,6 +2,7 @@ package com.sangrechy.devwidgets.ui.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -14,14 +15,22 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +41,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -44,11 +54,18 @@ fun ContinuousCalendarHeatmap(
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
     var selectedInfo by remember { mutableStateOf<String?>(null) }
 
-    // Scroll to end (current month) on initial load
-    LaunchedEffect(Unit) {
-        scrollState.scrollTo(scrollState.maxValue)
+    val density = LocalDensity.current
+    var hasInitiallyScrolled by remember { mutableStateOf(false) }
+
+    // Scroll to end (current month) once layout width is known
+    LaunchedEffect(scrollState.maxValue) {
+        if (!hasInitiallyScrolled && scrollState.maxValue > 0) {
+            scrollState.scrollTo(scrollState.maxValue)
+            hasInitiallyScrolled = true
+        }
     }
 
     val sdf = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US) }
@@ -129,10 +146,13 @@ fun ContinuousCalendarHeatmap(
         rawDaysMap.values.count { it > 0 }
     }
 
-    val cellSize = 13.dp
+    val cellSize = 12.dp
     val cellSpacing = 3.dp
-    val uniformGridWidth = (6 * 13 + 5 * 3).dp // 93.dp
-    val leftLabelWidth = 24.dp
+    val dayLabelWidth = 11.dp
+    val uniformGridWidth = (6 * 12 + 5 * 3).dp // 87.dp
+    val monthContentWidth = uniformGridWidth + dayLabelWidth + 4.dp // 102.dp
+    // Card width (102.dp + 20.dp padding) + 10.dp inter-card spacing = 132.dp per step
+    val monthStepPx = with(density) { (monthContentWidth + 30.dp).toPx() }
 
     Column(modifier = modifier.fillMaxWidth()) {
         // Summary Header Row in Glass Container
@@ -156,29 +176,78 @@ fun ContinuousCalendarHeatmap(
                 )
             }
 
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(if (isLeetCode) Color(0x2EFFA116) else Color(0x2E22C55E))
-                    .border(
-                        1.dp,
-                        if (isLeetCode) Color(0x66FFA116) else Color(0x6622C55E),
-                        RoundedCornerShape(10.dp)
-                    )
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text(
-                    text = "$totalSubmissions in 1 yr • $activeDays days",
-                    color = if (isLeetCode) Color(0xFFFFA116) else Color(0xFF4ADE80),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                // Scroll Left / Previous Month
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0x1FFFFFFF))
+                        .border(1.dp, Color(0x28FFFFFF), RoundedCornerShape(8.dp))
+                        .clickable {
+                            coroutineScope.launch {
+                                scrollState.animateScrollBy(-monthStepPx)
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Scroll Left",
+                        tint = Color(0xFFCBD5E1),
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+
+                // Scroll Right / Next Month
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0x1FFFFFFF))
+                        .border(1.dp, Color(0x28FFFFFF), RoundedCornerShape(8.dp))
+                        .clickable {
+                            coroutineScope.launch {
+                                scrollState.animateScrollBy(monthStepPx)
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = "Scroll Right",
+                        tint = Color(0xFFCBD5E1),
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isLeetCode) Color(0x2EFFA116) else Color(0x2E22C55E))
+                        .border(
+                            1.dp,
+                            if (isLeetCode) Color(0x66FFA116) else Color(0x6622C55E),
+                            RoundedCornerShape(10.dp)
+                        )
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "$totalSubmissions in 1 yr • $activeDays days",
+                        color = if (isLeetCode) Color(0xFFFFA116) else Color(0xFF4ADE80),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Selected Cell Info Banner
+        // Selected Cell Info Banner with Dismiss button
         selectedInfo?.let { info ->
             Box(
                 modifier = Modifier
@@ -188,98 +257,110 @@ fun ContinuousCalendarHeatmap(
                     .border(1.dp, Color(0x5560A5FA), RoundedCornerShape(10.dp))
                     .padding(horizontal = 12.dp, vertical = 7.dp)
             ) {
-                Text(
-                    text = info,
-                    color = Color(0xFF93C5FD),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = info,
+                        color = Color(0xFF93C5FD),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Dismiss",
+                        tint = Color(0xFF93C5FD),
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clickable { selectedInfo = null }
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(8.dp))
         }
 
         // Horizontally Scrollable Heatmap with Distinct Separated Month Cards
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(scrollState),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.Top
         ) {
-            // Day-of-week labels column on left (Mon, Wed, Fri)
-            Column(
-                modifier = Modifier
-                    .width(leftLabelWidth)
-                    .padding(top = 34.dp), // Align with day grid (below month header)
-                verticalArrangement = Arrangement.spacedBy(cellSpacing)
-            ) {
-                val dowShort = listOf("M", "T", "W", "T", "F", "S", "S")
-                dowShort.forEachIndexed { idx, label ->
-                    Box(
-                        modifier = Modifier.size(width = leftLabelWidth, height = cellSize),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        if (idx == 0 || idx == 2 || idx == 4) { // Mon, Wed, Fri
+            monthBlocks.forEach { month ->
+                // Individual Month Glass Div Box
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0x241E293B))
+                        .border(
+                            1.dp,
+                            Brush.verticalGradient(
+                                listOf(Color(0x38FFFFFF), Color(0x14FFFFFF))
+                            ),
+                            RoundedCornerShape(16.dp)
+                        )
+                        .padding(10.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // Month Header
+                        Row(
+                            modifier = Modifier.width(monthContentWidth),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
-                                text = label,
-                                color = Color(0xFF94A3B8),
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold
+                                text = month.monthName,
+                                color = Color(0xFFCBD5E1),
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
                             )
-                        }
-                    }
-                }
-            }
 
-            // Scrollable 12 Month Blocks
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(scrollState),
-                horizontalArrangement = Arrangement.spacedBy(12.dp), // Clear visual separation between each month!
-                verticalAlignment = Alignment.Top
-            ) {
-                monthBlocks.forEach { month ->
-                    // Individual Month Glass Div Box
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0x241E293B))
-                            .border(
-                                1.dp,
-                                Brush.verticalGradient(
-                                    listOf(Color(0x38FFFFFF), Color(0x14FFFFFF))
-                                ),
-                                RoundedCornerShape(16.dp)
-                            )
-                            .padding(10.dp)
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            // Month Header
-                            Row(
-                                modifier = Modifier.width(uniformGridWidth),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = month.monthName,
-                                    color = Color(0xFFCBD5E1),
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-
-                                if (month.totalCount > 0) {
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(
-                                                if (isLeetCode) Color(0x33FFA116) else Color(0x3322C55E)
-                                            )
-                                            .padding(horizontal = 5.dp, vertical = 1.dp)
-                                    ) {
-                                        Text(
-                                            text = "${month.totalCount}",
-                                            color = if (isLeetCode) Color(0xFFFFA116) else Color(0xFF4ADE80),
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Bold
+                            if (month.totalCount > 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(
+                                            if (isLeetCode) Color(0x33FFA116) else Color(0x3322C55E)
                                         )
+                                        .padding(horizontal = 5.dp, vertical = 1.dp)
+                                ) {
+                                    Text(
+                                        text = "${month.totalCount}",
+                                        color = if (isLeetCode) Color(0xFFFFA116) else Color(0xFF4ADE80),
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+
+                        // Day Matrix Row: Day Labels Column + 6 Week Columns
+                        Row(
+                            modifier = Modifier.width(monthContentWidth),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Mon, Wed, Fri Day labels on the left of this month
+                            Column(verticalArrangement = Arrangement.spacedBy(cellSpacing)) {
+                                val dowShort = listOf("M", "T", "W", "T", "F", "S", "S")
+                                dowShort.forEachIndexed { idx, label ->
+                                    Box(
+                                        modifier = Modifier.size(width = dayLabelWidth, height = cellSize),
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        if (idx == 0 || idx == 2 || idx == 4) {
+                                            Text(
+                                                text = label,
+                                                color = Color(0xFF94A3B8),
+                                                fontSize = 8.5.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -338,12 +419,18 @@ fun ContinuousCalendarHeatmap(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Legend at bottom in Frosted Pill
+        // Legend and Swipe hint at bottom in Frosted Pill
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Text(
+                text = "Swipe horizontally for 12 months",
+                color = Color(0xFF64748B),
+                fontSize = 10.sp
+            )
+
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
