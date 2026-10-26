@@ -1,6 +1,5 @@
 package com.sangrechy.devwidgets.ui.component
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -27,12 +26,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -51,56 +46,80 @@ fun ContinuousCalendarHeatmap(
     val scrollState = rememberScrollState()
     var selectedInfo by remember { mutableStateOf<String?>(null) }
 
-    // Scroll to end (today's date) on initial display
+    // Scroll to end (current month) on initial load
     LaunchedEffect(Unit) {
         scrollState.scrollTo(scrollState.maxValue)
     }
 
-    val weeksCount = 52
     val sdf = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US) }
     val displaySdf = remember { SimpleDateFormat("MMM d, yyyy", Locale.US) }
-    val monthFmt = remember { SimpleDateFormat("MMM", Locale.US) }
+    val monthFmt = remember { SimpleDateFormat("MMM yyyy", Locale.US) }
 
-    // Precompute 52 weeks x 7 days grid dates
-    val gridDays = remember(rawDaysMap) {
-        val daysList = mutableListOf<List<HeatmapDayInfo>>()
-        val cal = Calendar.getInstance()
-        val todayDow = cal.get(Calendar.DAY_OF_WEEK) // 1 (Sun) to 7 (Sat)
-        
-        // Align to the start of 52 weeks ago
-        val totalDays = (weeksCount - 1) * 7 + todayDow
-        cal.add(Calendar.DAY_OF_YEAR, -(totalDays - 1))
-
-        var lastMonth = -1
-        for (w in 0 until weeksCount) {
-            val weekDays = mutableListOf<HeatmapDayInfo>()
-            var monthLabel: String? = null
-
-            for (d in 0 until 7) {
-                val date = cal.time
-                val dateStr = sdf.format(date)
-                val count = rawDaysMap[dateStr] ?: 0
-                val curMonth = cal.get(Calendar.MONTH)
-
-                if (curMonth != lastMonth && d == 0) {
-                    monthLabel = monthFmt.format(date)
-                    lastMonth = curMonth
-                }
-
-                weekDays.add(
-                    HeatmapDayInfo(
-                        dateStr = dateStr,
-                        displayDate = displaySdf.format(date),
-                        count = count,
-                        dayOfWeek = d,
-                        weekIndex = w
-                    )
-                )
-                cal.add(Calendar.DAY_OF_YEAR, 1)
-            }
-            daysList.add(weekDays)
+    // Precompute 12 individual, separated Month Blocks with uniform 6-week x 7-day shapes
+    val monthBlocks = remember(rawDaysMap) {
+        val calIter = Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
         }
-        daysList
+        calIter.add(Calendar.MONTH, -11)
+
+        val blocks = mutableListOf<MonthBlockData>()
+
+        for (m in 0 until 12) {
+            val y = calIter.get(Calendar.YEAR)
+            val mIdx = calIter.get(Calendar.MONTH)
+            val mName = monthFmt.format(calIter.time)
+            val daysCount = calIter.getActualMaximum(Calendar.DAY_OF_MONTH)
+            val calDow = calIter.get(Calendar.DAY_OF_WEEK)
+            val firstDowMondayBased = (calDow + 5) % 7 // Mon=0, Tue=1, ..., Sun=6
+
+            var monthTotal = 0
+            val daysList = MutableList<HeatmapDayInfo?>(42) { null } // 6 weeks x 7 days = 42 slots
+
+            for (dayNum in 1..daysCount) {
+                val slot = firstDowMondayBased + (dayNum - 1)
+                val col = slot / 7 // Week column (0..5)
+                val row = slot % 7 // Day row (0..6)
+                val slotIdx = col * 7 + row
+
+                val dateCal = Calendar.getInstance().apply {
+                    set(Calendar.YEAR, y)
+                    set(Calendar.MONTH, mIdx)
+                    set(Calendar.DAY_OF_MONTH, dayNum)
+                }
+                val dateStr = sdf.format(dateCal.time)
+                val count = rawDaysMap[dateStr] ?: 0
+                monthTotal += count
+
+                if (slotIdx in 0 until 42) {
+                    daysList[slotIdx] = HeatmapDayInfo(
+                        dateStr = dateStr,
+                        displayDate = displaySdf.format(dateCal.time),
+                        count = count,
+                        dayOfWeek = row,
+                        weekIndex = col
+                    )
+                }
+            }
+
+            blocks.add(
+                MonthBlockData(
+                    year = y,
+                    monthIdx = mIdx,
+                    monthName = mName,
+                    totalCount = monthTotal,
+                    daysInMonth = daysCount,
+                    firstDowMondayBased = firstDowMondayBased,
+                    days = daysList
+                )
+            )
+
+            calIter.add(Calendar.MONTH, 1)
+        }
+        blocks
     }
 
     val totalSubmissions = remember(rawDaysMap) {
@@ -111,29 +130,50 @@ fun ContinuousCalendarHeatmap(
     }
 
     val cellSize = 13.dp
-    val cellSpacing = 3.5.dp
-    val headerHeight = 20.dp
-    val leftLabelWidth = 26.dp
+    val cellSpacing = 3.dp
+    val uniformGridWidth = (6 * 13 + 5 * 3).dp // 93.dp
+    val leftLabelWidth = 24.dp
 
     Column(modifier = modifier.fillMaxWidth()) {
-        // Summary Header Row
+        // Summary Header Row in Glass Container
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = if (isLeetCode) "Submission Heatmap" else "Contribution Heatmap",
-                color = Color.White,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "$totalSubmissions ${if (isLeetCode) "submissions" else "contributions"} • $activeDays active days",
-                color = if (isLeetCode) Color(0xFFFFA116) else Color(0xFF3FB950),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold
-            )
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0x1EFFFFFF))
+                    .border(1.dp, Color(0x28FFFFFF), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = if (isLeetCode) "Submission Heatmap" else "Contribution Heatmap",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (isLeetCode) Color(0x2EFFA116) else Color(0x2E22C55E))
+                    .border(
+                        1.dp,
+                        if (isLeetCode) Color(0x66FFA116) else Color(0x6622C55E),
+                        RoundedCornerShape(10.dp)
+                    )
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = "$totalSubmissions in 1 yr • $activeDays days",
+                    color = if (isLeetCode) Color(0xFFFFA116) else Color(0xFF4ADE80),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -143,104 +183,153 @@ fun ContinuousCalendarHeatmap(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0x333B82F6))
-                    .border(1.dp, Color(0x6660A5FA), RoundedCornerShape(8.dp))
-                    .padding(horizontal = 10.dp, vertical = 5.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0x263B82F6))
+                    .border(1.dp, Color(0x5560A5FA), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 12.dp, vertical = 7.dp)
             ) {
                 Text(
                     text = info,
                     color = Color(0xFF93C5FD),
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        // Horizontally Scrollable Heatmap Body
+        // Horizontally Scrollable Heatmap with Distinct Separated Month Cards
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(scrollState),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Top
         ) {
-            // Day-of-week labels column on left
+            // Day-of-week labels column on left (Mon, Wed, Fri)
             Column(
                 modifier = Modifier
                     .width(leftLabelWidth)
-                    .padding(top = headerHeight),
+                    .padding(top = 34.dp), // Align with day grid (below month header)
                 verticalArrangement = Arrangement.spacedBy(cellSpacing)
             ) {
-                val dowLabels = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
-                dowLabels.forEachIndexed { idx, label ->
+                val dowShort = listOf("M", "T", "W", "T", "F", "S", "S")
+                dowShort.forEachIndexed { idx, label ->
                     Box(
                         modifier = Modifier.size(width = leftLabelWidth, height = cellSize),
                         contentAlignment = Alignment.CenterStart
                     ) {
-                        if (idx % 2 != 0) { // Mon, Wed, Fri
+                        if (idx == 0 || idx == 2 || idx == 4) { // Mon, Wed, Fri
                             Text(
-                                text = label.take(1),
-                                color = Color(0xFF64748B),
+                                text = label,
+                                color = Color(0xFF94A3B8),
                                 fontSize = 9.sp,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
                 }
             }
 
-            // 52 Weeks Grid
-            Row(horizontalArrangement = Arrangement.spacedBy(cellSpacing)) {
-                gridDays.forEachIndexed { weekIdx, weekDays ->
-                    Column(verticalArrangement = Arrangement.spacedBy(cellSpacing)) {
-                        // Month label over first day of month or spacer
-                        val firstDayDate = weekDays.firstOrNull()?.dateStr ?: ""
-                        val isMonthStart = firstDayDate.endsWith("-01") ||
-                                firstDayDate.endsWith("-02") ||
-                                firstDayDate.endsWith("-03") ||
-                                firstDayDate.endsWith("-04") ||
-                                firstDayDate.endsWith("-05") ||
-                                firstDayDate.endsWith("-06") ||
-                                firstDayDate.endsWith("-07")
-
-                        Box(
-                            modifier = Modifier.size(width = cellSize, height = headerHeight),
-                            contentAlignment = Alignment.BottomStart
-                        ) {
-                            if (isMonthStart) {
-                                val monthName = try {
-                                    monthFmt.format(sdf.parse(firstDayDate) ?: Date())
-                                } catch (_: Exception) { "" }
+            // Scrollable 12 Month Blocks
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(scrollState),
+                horizontalArrangement = Arrangement.spacedBy(12.dp), // Clear visual separation between each month!
+                verticalAlignment = Alignment.Top
+            ) {
+                monthBlocks.forEach { month ->
+                    // Individual Month Glass Div Box
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0x241E293B))
+                            .border(
+                                1.dp,
+                                Brush.verticalGradient(
+                                    listOf(Color(0x38FFFFFF), Color(0x14FFFFFF))
+                                ),
+                                RoundedCornerShape(16.dp)
+                            )
+                            .padding(10.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            // Month Header
+                            Row(
+                                modifier = Modifier.width(uniformGridWidth),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Text(
-                                    text = monthName,
-                                    color = Color(0xFF94A3B8),
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1
+                                    text = month.monthName,
+                                    color = Color(0xFFCBD5E1),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
                                 )
-                            }
-                        }
 
-                        // 7 Days
-                        weekDays.forEach { day ->
-                            val cellColor = getCellColor(day.count, isLeetCode)
-                            Box(
-                                modifier = Modifier
-                                    .size(cellSize)
-                                    .clip(RoundedCornerShape(2.5.dp))
-                                    .background(cellColor)
-                                    .border(
-                                        0.5.dp,
-                                        if (day.count > 0) Color(0x33FFFFFF) else Color(0x15FFFFFF),
-                                        RoundedCornerShape(2.5.dp)
-                                    )
-                                    .pointerInput(day) {
-                                        detectTapGestures {
-                                            selectedInfo = "${day.displayDate}: ${day.count} ${if (isLeetCode) "submission(s)" else "contribution(s)"}"
+                                if (month.totalCount > 0) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(
+                                                if (isLeetCode) Color(0x33FFA116) else Color(0x3322C55E)
+                                            )
+                                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                                    ) {
+                                        Text(
+                                            text = "${month.totalCount}",
+                                            color = if (isLeetCode) Color(0xFFFFA116) else Color(0xFF4ADE80),
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+
+                            // 6 Columns (Weeks) x 7 Rows (Days) Matrix
+                            Row(
+                                modifier = Modifier.width(uniformGridWidth),
+                                horizontalArrangement = Arrangement.spacedBy(cellSpacing)
+                            ) {
+                                for (col in 0 until 6) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(cellSpacing)) {
+                                        for (row in 0 until 7) {
+                                            val slotIdx = col * 7 + row
+                                            val day = month.days.getOrNull(slotIdx)
+                                            if (day != null) {
+                                                val cellColor = getCellColor(day.count, isLeetCode)
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(cellSize)
+                                                        .clip(RoundedCornerShape(3.dp))
+                                                        .background(cellColor)
+                                                        .border(
+                                                            0.5.dp,
+                                                            if (day.count > 0) Color(0x40FFFFFF) else Color(0x18FFFFFF),
+                                                            RoundedCornerShape(3.dp)
+                                                        )
+                                                        .pointerInput(day) {
+                                                            detectTapGestures {
+                                                                selectedInfo = "${day.displayDate}: ${day.count} ${if (isLeetCode) "submission(s)" else "contribution(s)"}"
+                                                            }
+                                                        }
+                                                )
+                                            } else {
+                                                // Subtle placeholder dot to guarantee identical month shapes
+                                                Box(
+                                                    modifier = Modifier.size(cellSize),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(2.dp)
+                                                            .clip(RoundedCornerShape(1.dp))
+                                                            .background(Color(0x12FFFFFF))
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
-                            )
+                                }
+                            }
                         }
                     }
                 }
@@ -249,29 +338,49 @@ fun ContinuousCalendarHeatmap(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Legend at bottom
+        // Legend at bottom in Frosted Pill
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "Less", color = Color(0xFF64748B), fontSize = 10.sp)
-            Spacer(modifier = Modifier.width(4.dp))
-            val levels = listOf(0, 1, 3, 6, 10)
-            levels.forEach { lvl ->
-                Box(
-                    modifier = Modifier
-                        .size(10.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(getCellColor(lvl, isLeetCode))
-                        .border(0.5.dp, Color(0x20FFFFFF), RoundedCornerShape(2.dp))
-                )
-                Spacer(modifier = Modifier.width(3.dp))
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0x1AFFFFFF))
+                    .border(0.5.dp, Color(0x20FFFFFF), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "Less", color = Color(0xFF94A3B8), fontSize = 10.sp)
+                    Spacer(modifier = Modifier.width(5.dp))
+                    val levels = listOf(0, 1, 3, 6, 10)
+                    levels.forEach { lvl ->
+                        Box(
+                            modifier = Modifier
+                                .size(9.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(getCellColor(lvl, isLeetCode))
+                                .border(0.5.dp, Color(0x20FFFFFF), RoundedCornerShape(2.dp))
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
+                    }
+                    Text(text = "More", color = Color(0xFF94A3B8), fontSize = 10.sp)
+                }
             }
-            Text(text = "More", color = Color(0xFF64748B), fontSize = 10.sp)
         }
     }
 }
+
+private data class MonthBlockData(
+    val year: Int,
+    val monthIdx: Int,
+    val monthName: String,
+    val totalCount: Int,
+    val daysInMonth: Int,
+    val firstDowMondayBased: Int,
+    val days: List<HeatmapDayInfo?>
+)
 
 private data class HeatmapDayInfo(
     val dateStr: String,
@@ -284,19 +393,19 @@ private data class HeatmapDayInfo(
 private fun getCellColor(count: Int, isLeetCode: Boolean): Color {
     return if (isLeetCode) {
         when {
-            count <= 0 -> Color(0xFF1E293B)
-            count in 1..2 -> Color(0xFF5A320A)
-            count in 3..5 -> Color(0xFF9A550F)
-            count in 6..9 -> Color(0xFFD97706)
+            count <= 0 -> Color(0x261E293B)
+            count in 1..2 -> Color(0xFF7C2D12)
+            count in 3..5 -> Color(0xFFC2410C)
+            count in 6..9 -> Color(0xFFEA580C)
             else -> Color(0xFFFFA116)
         }
     } else {
         when {
-            count <= 0 -> Color(0xFF161B22)
-            count in 1..2 -> Color(0xFF0E4429)
-            count in 3..5 -> Color(0xFF006D32)
-            count in 6..9 -> Color(0xFF26A641)
-            else -> Color(0xFF39D353)
+            count <= 0 -> Color(0x261E293B)
+            count in 1..2 -> Color(0xFF064E3B)
+            count in 3..5 -> Color(0xFF047857)
+            count in 6..9 -> Color(0xFF10B981)
+            else -> Color(0xFF22C55E)
         }
     }
 }

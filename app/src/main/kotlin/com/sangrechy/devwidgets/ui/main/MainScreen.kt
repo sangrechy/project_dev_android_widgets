@@ -128,6 +128,7 @@ fun MainScreen(
     val currentHomeTab by viewModel.currentHomeTab.collectAsStateWithLifecycle()
     val feedLimit by viewModel.feedLimit.collectAsStateWithLifecycle()
     val selectedInterval by viewModel.selectedInterval.collectAsStateWithLifecycle()
+    val heatmapOrientation by viewModel.heatmapOrientation.collectAsStateWithLifecycle()
 
     val leetCodeInput by viewModel.leetCodeInput.collectAsStateWithLifecycle()
     val gitHubInput by viewModel.gitHubInput.collectAsStateWithLifecycle()
@@ -167,9 +168,9 @@ fun MainScreen(
     val bgGradient = remember {
         Brush.verticalGradient(
             listOf(
-                Color(0xFF090D16),
-                Color(0xFF0F172A),
-                Color(0xFF090D16)
+                Color(0xFF060A12),
+                Color(0xFF0F1A2E),
+                Color(0xFF080D18)
             )
         )
     }
@@ -329,8 +330,12 @@ fun MainScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0xD9101824))
-                            .border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(20.dp))
+                            .background(Color(0x28182438))
+                            .border(
+                                1.dp,
+                                Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                                RoundedCornerShape(20.dp)
+                            )
                             .padding(horizontal = 8.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -452,7 +457,9 @@ fun MainScreen(
                         AppScreen.WIDGETS -> WidgetsScreenContent(
                             dashboardData = dashboardData,
                             selectedInterval = selectedInterval,
+                            heatmapOrientation = heatmapOrientation,
                             onIntervalSelected = viewModel::setRefreshInterval,
+                            onOrientationSelected = viewModel::setHeatmapOrientation,
                             onPinWidget = { providerClass -> pinWidgetToHomeScreen(context, providerClass) }
                         )
 
@@ -629,8 +636,12 @@ private fun HomeScreenContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xD9101824))
-                .border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(16.dp))
+                .background(Color(0x28182438))
+                .border(
+                    1.dp,
+                    Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                    RoundedCornerShape(16.dp)
+                )
                 .padding(4.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
@@ -739,46 +750,74 @@ private fun LeetCodeDetailView(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        // User Profile & Status Card (Responsive & Collision Free)
+        // User Profile & Status Card (Responsive & Collision Free with Dedicated Div Boxes)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(22.dp))
-                .background(Color(0xD9101824))
-                .border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(22.dp))
-                .padding(16.dp)
+                .background(Color(0x28182438))
+                .border(
+                    1.dp,
+                    Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                    RoundedCornerShape(22.dp)
+                )
+                .padding(14.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.weight(1f, fill = false),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                // Div Box 1: User Handle Container
+                Box(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color(0x1AFFFFFF))
+                        .border(1.dp, Color(0x28FFFFFF), RoundedCornerShape(14.dp))
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
-                    Image(
-                        painter = painterResource(R.drawable.ic_leetcode_logo),
-                        contentDescription = null,
-                        modifier = Modifier.size(26.dp)
-                    )
-                    Text(
-                        text = if (stats.username.isNotBlank()) "@${stats.username}" else "@not_linked",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Image(
+                            painter = painterResource(R.drawable.ic_leetcode_logo),
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Text(
+                            text = if (stats.username.isNotBlank()) "@${stats.username}" else "@not_linked",
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
-                AccountStatusBadge(
-                    status = stats.status,
-                    isVerifying = false,
-                    connectedText = "Connected",
-                    failedText = "Offline"
-                )
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // Div Box 2: Connection Status Badge Container
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color(0x1AFFFFFF))
+                        .border(
+                            1.dp,
+                            if (stats.status == AccountStatus.CONNECTED) Color(0x4D22C55E) else Color(0x4DEF4444),
+                            RoundedCornerShape(14.dp)
+                        )
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    AccountStatusBadge(
+                        status = stats.status,
+                        isVerifying = false,
+                        connectedText = "Connected",
+                        failedText = "Offline"
+                    )
+                }
             }
         }
 
@@ -787,8 +826,12 @@ private fun LeetCodeDetailView(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(22.dp))
-                .background(Color(0xD9101824))
-                .border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(22.dp))
+                .background(Color(0x28182438))
+                .border(
+                    1.dp,
+                    Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                    RoundedCornerShape(22.dp)
+                )
                 .padding(16.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -828,8 +871,12 @@ private fun LeetCodeDetailView(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(22.dp))
-                .background(Color(0xD9101824))
-                .border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(22.dp))
+                .background(Color(0x28182438))
+                .border(
+                    1.dp,
+                    Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                    RoundedCornerShape(22.dp)
+                )
                 .padding(16.dp)
         ) {
             ContinuousCalendarHeatmap(
@@ -852,30 +899,51 @@ private fun LeetCodeDetailView(
 
 @Composable
 private fun DifficultyPill(label: String, solved: Int, max: Int, color: Color) {
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(text = label, color = color, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            Text(text = "$solved solved", color = Color(0xFFCBD5E1), fontSize = 11.sp)
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-        val fraction = if (max > 0) (solved.toFloat() / max.toFloat()).coerceIn(0f, 1f) else 0f
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(6.dp)
-                .clip(CircleShape)
-                .background(Color(0x33FFFFFF))
-        ) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0x16FFFFFF))
+            .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(12.dp))
+            .padding(horizontal = 10.dp, vertical = 7.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(color)
+                    )
+                    Text(text = label, color = color, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+                Text(text = "$solved", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+            Spacer(modifier = Modifier.height(5.dp))
+            val fraction = if (max > 0) (solved.toFloat() / max.toFloat()).coerceIn(0f, 1f) else 0f
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(fraction)
-                    .fillMaxHeight()
+                    .fillMaxWidth()
+                    .height(5.dp)
                     .clip(CircleShape)
-                    .background(color)
-            )
+                    .background(Color(0x26FFFFFF))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(fraction)
+                        .fillMaxHeight()
+                        .clip(CircleShape)
+                        .background(color)
+                )
+            }
         }
     }
 }
@@ -895,8 +963,12 @@ private fun LeetCodeBubbleMapCard(topicTags: List<ProblemTopicTag>) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
-            .background(Color(0xD9101824))
-            .border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(22.dp))
+            .background(Color(0x28182438))
+            .border(
+                1.dp,
+                Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                RoundedCornerShape(22.dp)
+            )
             .padding(16.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1027,8 +1099,12 @@ private fun RecentSubmissionsCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
-            .background(Color(0xD9101824))
-            .border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(22.dp))
+            .background(Color(0x28182438))
+            .border(
+                1.dp,
+                Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                RoundedCornerShape(22.dp)
+            )
             .padding(16.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1093,8 +1169,9 @@ private fun RecentSubmissionsCard(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0x1AFFFFFF))
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                .background(Color(0x16FFFFFF))
+                                .border(1.dp, Color(0x20FFFFFF), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 12.dp, vertical = 9.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -1114,11 +1191,12 @@ private fun RecentSubmissionsCard(
                                     fontSize = 10.5.sp
                                 )
                             }
+                            Spacer(modifier = Modifier.width(8.dp))
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
                                     .background(Color(0x3322C55E))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    .padding(horizontal = 7.dp, vertical = 3.dp)
                             ) {
                                 Text(
                                     text = sub.statusDisplay.ifBlank { "Accepted" },
@@ -1134,6 +1212,7 @@ private fun RecentSubmissionsCard(
         }
     }
 }
+
 
 // -------------------------------------------------------------------------
 // GitHub Detail Screen
@@ -1159,46 +1238,74 @@ private fun GitHubDetailView(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        // User Profile & Status Card (Responsive & Collision Free)
+        // User Profile & Status Card (Responsive & Collision Free with Dedicated Div Boxes)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(22.dp))
-                .background(Color(0xD9101824))
-                .border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(22.dp))
-                .padding(16.dp)
+                .background(Color(0x28182438))
+                .border(
+                    1.dp,
+                    Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                    RoundedCornerShape(22.dp)
+                )
+                .padding(14.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.weight(1f, fill = false),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                // Div Box 1: User Handle Container
+                Box(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color(0x1AFFFFFF))
+                        .border(1.dp, Color(0x28FFFFFF), RoundedCornerShape(14.dp))
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
-                    Image(
-                        painter = painterResource(R.drawable.ic_github_logo),
-                        contentDescription = null,
-                        modifier = Modifier.size(26.dp)
-                    )
-                    Text(
-                        text = if (stats.username.isNotBlank()) "@${stats.username}" else "@not_linked",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Image(
+                            painter = painterResource(R.drawable.ic_github_logo),
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Text(
+                            text = if (stats.username.isNotBlank()) "@${stats.username}" else "@not_linked",
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
-                AccountStatusBadge(
-                    status = stats.status,
-                    isVerifying = false,
-                    connectedText = "Connected",
-                    failedText = "Offline"
-                )
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // Div Box 2: Connection Status Badge Container
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color(0x1AFFFFFF))
+                        .border(
+                            1.dp,
+                            if (stats.status == AccountStatus.CONNECTED) Color(0x4D22C55E) else Color(0x4DEF4444),
+                            RoundedCornerShape(14.dp)
+                        )
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    AccountStatusBadge(
+                        status = stats.status,
+                        isVerifying = false,
+                        connectedText = "Connected",
+                        failedText = "Offline"
+                    )
+                }
             }
         }
 
@@ -1207,8 +1314,12 @@ private fun GitHubDetailView(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(22.dp))
-                .background(Color(0xD9101824))
-                .border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(22.dp))
+                .background(Color(0x28182438))
+                .border(
+                    1.dp,
+                    Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                    RoundedCornerShape(22.dp)
+                )
                 .padding(16.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1248,8 +1359,12 @@ private fun GitHubDetailView(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(22.dp))
-                .background(Color(0xD9101824))
-                .border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(22.dp))
+                .background(Color(0x28182438))
+                .border(
+                    1.dp,
+                    Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                    RoundedCornerShape(22.dp)
+                )
                 .padding(16.dp)
         ) {
             ContinuousCalendarHeatmap(
@@ -1272,21 +1387,30 @@ private fun GitHubDetailView(
 
 @Composable
 private fun ContribMetricItem(label: String, count: Int, color: Color) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0x16FFFFFF))
+            .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(12.dp))
+            .padding(horizontal = 10.dp, vertical = 7.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(color)
-            )
-            Text(text = label, color = Color(0xFFCBD5E1), fontSize = 12.sp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(color)
+                )
+                Text(text = label, color = Color(0xFFCBD5E1), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            }
+            Text(text = "$count", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
-        Text(text = "$count", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -1297,8 +1421,12 @@ private fun GitHubLanguagesCard(languages: List<GitHubLanguageStat>) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
-            .background(Color(0xD9101824))
-            .border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(22.dp))
+            .background(Color(0x28182438))
+            .border(
+                1.dp,
+                Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                RoundedCornerShape(22.dp)
+            )
             .padding(16.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1367,7 +1495,7 @@ private fun GitHubLanguagesCard(languages: List<GitHubLanguageStat>) {
                                         .clip(CircleShape)
                                         .background(parsedColor.copy(alpha = 0.25f))
                                         .padding(horizontal = 6.dp, vertical = 1.dp)
-                                ) {
+                                    ) {
                                     Text(
                                         text = "${lang.repoCount} repos",
                                         color = parsedColor,
@@ -1398,8 +1526,12 @@ private fun RecentGitHubEventsCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
-            .background(Color(0xD9101824))
-            .border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(22.dp))
+            .background(Color(0x28182438))
+            .border(
+                1.dp,
+                Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                RoundedCornerShape(22.dp)
+            )
             .padding(16.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1464,8 +1596,9 @@ private fun RecentGitHubEventsCard(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0x1AFFFFFF))
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                .background(Color(0x16FFFFFF))
+                                .border(1.dp, Color(0x20FFFFFF), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 12.dp, vertical = 9.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -1487,11 +1620,12 @@ private fun RecentGitHubEventsCard(
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
+                            Spacer(modifier = Modifier.width(8.dp))
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
                                     .background(Color(0x263FB950))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    .padding(horizontal = 7.dp, vertical = 3.dp)
                             ) {
                                 Text(
                                     text = event.type.replace("Event", ""),
@@ -1517,17 +1651,23 @@ private fun RecentGitHubEventsCard(
 private fun WidgetsScreenContent(
     dashboardData: WidgetDashboardData,
     selectedInterval: String,
+    heatmapOrientation: String,
     onIntervalSelected: (String) -> Unit,
+    onOrientationSelected: (String) -> Unit,
     onPinWidget: (Class<out AppWidgetProvider>) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        // 1. Auto-Refresh Frequency Box (15 options: 1s to 1d)
+        // 1. Heatmap Orientation Selector Box (Horizontal vs Vertical 90°)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(22.dp))
-                .background(Color(0xD9101824))
-                .border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(22.dp))
+                .background(Color(0x28182438))
+                .border(
+                    1.dp,
+                    Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                    RoundedCornerShape(22.dp)
+                )
                 .padding(16.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1536,7 +1676,116 @@ private fun WidgetsScreenContent(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Heatmap Orientation",
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Horizontal calendar grid or vertical 90° LeetCode style",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 11.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0x333B82F6))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = if (heatmapOrientation == "vertical") "Vertical (90°)" else "Horizontal",
+                            color = Color(0xFF93C5FD),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
+                    }
+                }
+
+                // Toggle Selector Pills: [ Horizontal ] | [ Vertical (90°) ]
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    val isHoriz = (heatmapOrientation == "horizontal")
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isHoriz) Color(0xFF2563EB) else Color(0x1AFFFFFF))
+                            .border(
+                                1.dp,
+                                if (isHoriz) Color(0xFF60A5FA) else Color(0x28FFFFFF),
+                                RoundedCornerShape(12.dp)
+                            )
+                            .clickable { onOrientationSelected("horizontal") }
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "⊞ Horizontal",
+                            color = if (isHoriz) Color.White else Color(0xFFCBD5E1),
+                            fontSize = 13.sp,
+                            fontWeight = if (isHoriz) FontWeight.Bold else FontWeight.Medium
+                        )
+                    }
+
+                    val isVert = (heatmapOrientation == "vertical")
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isVert) Color(0xFF2563EB) else Color(0x1AFFFFFF))
+                            .border(
+                                1.dp,
+                                if (isVert) Color(0xFF60A5FA) else Color(0x28FFFFFF),
+                                RoundedCornerShape(12.dp)
+                            )
+                            .clickable { onOrientationSelected("vertical") }
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "⊟ Vertical (90°)",
+                            color = if (isVert) Color.White else Color(0xFFCBD5E1),
+                            fontSize = 13.sp,
+                            fontWeight = if (isVert) FontWeight.Bold else FontWeight.Medium
+                        )
+                    }
+                }
+
+                Text(
+                    text = "Controls launcher widgets and gallery previews instantly.",
+                    color = Color(0xFF64748B),
+                    fontSize = 11.sp
+                )
+            }
+        }
+
+        // 2. Auto-Refresh Frequency Box (15 options: 1s to 1d)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(22.dp))
+                .background(Color(0x28182438))
+                .border(
+                    1.dp,
+                    Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                    RoundedCornerShape(22.dp)
+                )
+                .padding(16.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Auto-Refresh Frequency",
                             color = Color.White,
@@ -1549,7 +1798,7 @@ private fun WidgetsScreenContent(
                             fontSize = 11.sp
                         )
                     }
-
+                    Spacer(modifier = Modifier.width(10.dp))
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
@@ -1560,7 +1809,8 @@ private fun WidgetsScreenContent(
                             text = "Current: $selectedInterval",
                             color = Color(0xFF93C5FD),
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
                         )
                     }
                 }
@@ -1603,7 +1853,7 @@ private fun WidgetsScreenContent(
             }
         }
 
-        // 2. Widget Gallery Header
+        // 3. Widget Gallery Header
         Text(
             text = "Multiple Widget Styles (Click to Pin)",
             color = Color.White,
@@ -1617,7 +1867,7 @@ private fun WidgetsScreenContent(
             subtitle = "Combined LeetCode gauge + GitHub radar + dual 12-month uniform heatmaps",
             tag = "Combined Hub",
             onClick = { onPinWidget(DevActivityWidgetProvider::class.java) },
-            content = { WidgetVisualPreview(data = dashboardData) }
+            content = { WidgetVisualPreview(data = dashboardData, orientation = heatmapOrientation) }
         )
 
         // 2. LeetCode Dedicated
@@ -1630,13 +1880,14 @@ private fun WidgetsScreenContent(
                 val lcCircle = remember(dashboardData.leetCode) {
                     WidgetBitmapRenderer.renderLeetCodeCircle(dashboardData.leetCode, sizePx = 320).asImageBitmap()
                 }
-                val lcHeatmap = remember(dashboardData.leetCode.submissionCalendar) {
+                val lcHeatmap = remember(dashboardData.leetCode.submissionCalendar, heatmapOrientation) {
                     WidgetBitmapRenderer.renderHeatmap(
                         dashboardData.leetCode.submissionCalendar,
                         isLeetCode = true,
                         widthPx = 450,
                         heightPx = 420,
-                        weeksCount = 52
+                        weeksCount = 52,
+                        orientation = heatmapOrientation
                     ).asImageBitmap()
                 }
                 Row(
@@ -1663,13 +1914,14 @@ private fun WidgetsScreenContent(
                 val ghRadar = remember(dashboardData.gitHub) {
                     WidgetBitmapRenderer.renderGitHubTypeMap(dashboardData.gitHub, sizePx = 320).asImageBitmap()
                 }
-                val ghHeatmap = remember(dashboardData.gitHub.contributionDays) {
+                val ghHeatmap = remember(dashboardData.gitHub.contributionDays, heatmapOrientation) {
                     WidgetBitmapRenderer.renderHeatmap(
                         dashboardData.gitHub.contributionDays,
                         isLeetCode = false,
                         widthPx = 450,
                         heightPx = 420,
-                        weeksCount = 52
+                        weeksCount = 52,
+                        orientation = heatmapOrientation
                     ).asImageBitmap()
                 }
                 Row(
@@ -1693,13 +1945,14 @@ private fun WidgetsScreenContent(
             tag = "LC Heatmap",
             onClick = { onPinWidget(LeetCodeHeatmapWidgetProvider::class.java) },
             content = {
-                val lcHeatmap = remember(dashboardData.leetCode.submissionCalendar) {
+                val lcHeatmap = remember(dashboardData.leetCode.submissionCalendar, heatmapOrientation) {
                     WidgetBitmapRenderer.renderHeatmap(
                         dashboardData.leetCode.submissionCalendar,
                         isLeetCode = true,
                         widthPx = 680,
                         heightPx = 340,
-                        weeksCount = 52
+                        weeksCount = 52,
+                        orientation = heatmapOrientation
                     ).asImageBitmap()
                 }
                 Image(
@@ -1717,13 +1970,14 @@ private fun WidgetsScreenContent(
             tag = "GH Heatmap",
             onClick = { onPinWidget(GitHubHeatmapWidgetProvider::class.java) },
             content = {
-                val ghHeatmap = remember(dashboardData.gitHub.contributionDays) {
+                val ghHeatmap = remember(dashboardData.gitHub.contributionDays, heatmapOrientation) {
                     WidgetBitmapRenderer.renderHeatmap(
                         dashboardData.gitHub.contributionDays,
                         isLeetCode = false,
                         widthPx = 680,
                         heightPx = 340,
-                        weeksCount = 52
+                        weeksCount = 52,
+                        orientation = heatmapOrientation
                     ).asImageBitmap()
                 }
                 Image(
@@ -1741,22 +1995,24 @@ private fun WidgetsScreenContent(
             tag = "Dual Heatmap",
             onClick = { onPinWidget(CombinedHeatmapWidgetProvider::class.java) },
             content = {
-                val lcHeatmap = remember(dashboardData.leetCode.submissionCalendar) {
+                val lcHeatmap = remember(dashboardData.leetCode.submissionCalendar, heatmapOrientation) {
                     WidgetBitmapRenderer.renderHeatmap(
                         dashboardData.leetCode.submissionCalendar,
                         isLeetCode = true,
                         widthPx = 680,
                         heightPx = 220,
-                        weeksCount = 52
+                        weeksCount = 52,
+                        orientation = heatmapOrientation
                     ).asImageBitmap()
                 }
-                val ghHeatmap = remember(dashboardData.gitHub.contributionDays) {
+                val ghHeatmap = remember(dashboardData.gitHub.contributionDays, heatmapOrientation) {
                     WidgetBitmapRenderer.renderHeatmap(
                         dashboardData.gitHub.contributionDays,
                         isLeetCode = false,
                         widthPx = 680,
                         heightPx = 220,
-                        weeksCount = 52
+                        weeksCount = 52,
+                        orientation = heatmapOrientation
                     ).asImageBitmap()
                 }
                 Column(
@@ -1784,8 +2040,12 @@ private fun WidgetGalleryCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
-            .background(Color(0xD9101824))
-            .border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(22.dp))
+            .background(Color(0x28182438))
+            .border(
+                1.dp,
+                Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                RoundedCornerShape(22.dp)
+            )
             .clickable(onClick = onClick)
             .padding(14.dp)
     ) {
@@ -1881,8 +2141,12 @@ private fun SettingsScreenContent(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
-            .background(Color(0xD9101824))
-            .border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(22.dp))
+            .background(Color(0x28182438))
+            .border(
+                1.dp,
+                Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                RoundedCornerShape(22.dp)
+            )
             .padding(16.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -2255,29 +2519,31 @@ private fun AccountStatusBadge(
 private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 
 @Composable
-fun WidgetVisualPreview(data: WidgetDashboardData) {
+fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizontal") {
     val lcCircle = remember(data.leetCode) {
         WidgetBitmapRenderer.renderLeetCodeCircle(data.leetCode, sizePx = 360).asImageBitmap()
     }
-    val lcHeatmap = remember(data.leetCode.submissionCalendar) {
+    val lcHeatmap = remember(data.leetCode.submissionCalendar, orientation) {
         WidgetBitmapRenderer.renderHeatmap(
             data.leetCode.submissionCalendar,
             isLeetCode = true,
             widthPx = 450,
             heightPx = 480,
-            weeksCount = 52
+            weeksCount = 52,
+            orientation = orientation
         ).asImageBitmap()
     }
     val ghTypeMap = remember(data.gitHub) {
         WidgetBitmapRenderer.renderGitHubTypeMap(data.gitHub, sizePx = 360).asImageBitmap()
     }
-    val ghHeatmap = remember(data.gitHub.contributionDays) {
+    val ghHeatmap = remember(data.gitHub.contributionDays, orientation) {
         WidgetBitmapRenderer.renderHeatmap(
             data.gitHub.contributionDays,
             isLeetCode = false,
             widthPx = 450,
             heightPx = 480,
-            weeksCount = 52
+            weeksCount = 52,
+            orientation = orientation
         ).asImageBitmap()
     }
 
@@ -2285,10 +2551,10 @@ fun WidgetVisualPreview(data: WidgetDashboardData) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(26.dp))
-            .background(Color(0xD9101824))
+            .background(Color(0x28182438))
             .border(
                 1.5.dp,
-                Color(0x55FFFFFF),
+                Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
                 RoundedCornerShape(26.dp)
             )
             .padding(12.dp)

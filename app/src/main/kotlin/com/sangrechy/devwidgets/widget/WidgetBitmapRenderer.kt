@@ -154,13 +154,14 @@ object WidgetBitmapRenderer {
         return bitmap
     }
 
-    // 2. Frosted Glass Heatmap Matrix with Gaps Between Months & Dynamic Tiers (1 line, 2 lines as 6 6, 3 lines as 4 4 4, or more)
+    // 2. Frosted Glass Heatmap Matrix with Gaps Between Months & Dynamic Tiers (Horizontal or Vertical 90°)
     fun renderHeatmap(
         countsByDateOrTimestamp: Map<*, Int>,
         isLeetCode: Boolean,
         widthPx: Int = 360,
         heightPx: Int = 410,
-        weeksCount: Int = 52
+        weeksCount: Int = 52,
+        orientation: String = "horizontal"
     ): Bitmap {
         val safeW = widthPx.coerceAtLeast(80)
         val safeH = heightPx.coerceAtLeast(80)
@@ -168,12 +169,23 @@ object WidgetBitmapRenderer {
         val bitmap = Bitmap.createBitmap(safeW, safeH, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
-        // 1. Determine optimal tier count based on aspect ratio
+        val isVertical = (orientation == "vertical")
+
+        // 1. Determine optimal tier count based on aspect ratio and orientation
         val ratio = safeW.toFloat() / safeH.toFloat()
-        val tiers = when {
-            ratio >= 4.0f -> 1 // 1 line (12 months)
-            ratio >= 2.1f -> 2 // 2 lines (6 6)
-            else -> 3 // 3 lines (4 4 4)
+        val tiers = if (isVertical) {
+            when {
+                ratio >= 3.6f -> 1 // 1 line of 12 (wide strip)
+                ratio >= 1.8f -> 2 // 2 lines of 6 6
+                ratio >= 1.0f -> 3 // 3 lines of 4 4 4
+                else -> 4 // 4 lines of 3 3 3 3 for taller widgets
+            }
+        } else {
+            when {
+                ratio >= 4.0f -> 1 // 1 line (12 months)
+                ratio >= 2.1f -> 2 // 2 lines (6 6)
+                else -> 3 // 3 lines (4 4 4)
+            }
         }
 
         // 2. Normalize submission / contribution data
@@ -255,16 +267,19 @@ object WidgetBitmapRenderer {
         val monthsPerRow = when (tiers) {
             1 -> 12
             2 -> 6
-            else -> 4
+            3 -> 4
+            else -> 3
         }
         val effectiveTiers = (12 + monthsPerRow - 1) / monthsPerRow
 
         val marginX = 12f
         val availW = (safeW - 2 * marginX).coerceAtLeast(80f)
 
-        // Inside each month: 7 columns (days of week), 6 rows (weeks)
-        val daysCols = 7
-        val weekRows = 6
+        // Inside each month:
+        // Horizontal: 7 columns (days of week: Mon..Sun), 6 rows (weeks)
+        // Vertical (90° rotated as in LeetCode): 6 columns (weeks), 7 rows (days: Mon..Sun)
+        val monthCols = if (isVertical) 6 else 7
+        val monthRows = if (isVertical) 7 else 6
 
         // Layout sizing
         val monthGap = (availW / (monthsPerRow * 10f)).coerceIn(4f, 14f)
@@ -274,17 +289,17 @@ object WidgetBitmapRenderer {
         val availWForMonths = (availW - totalMonthGaps).coerceAtLeast(60f)
         val maxMonthW = availWForMonths / monthsPerRow
 
-        val cellFromW = maxMonthW / (daysCols + (daysCols - 1) * cellGapRatio)
+        val cellFromW = maxMonthW / (monthCols + (monthCols - 1) * cellGapRatio)
 
         val fixedH = 22f + effectiveTiers * 14f + (effectiveTiers - 1) * 8f
         val availHForMonths = (safeH - fixedH).coerceAtLeast(60f)
         val maxMonthH = availHForMonths / effectiveTiers
-        val cellFromH = maxMonthH / (weekRows + (weekRows - 1) * cellGapRatio)
+        val cellFromH = maxMonthH / (monthRows + (monthRows - 1) * cellGapRatio)
 
         val actualCell = minOf(cellFromW, cellFromH).coerceIn(4.5f, 22f)
         val cellGap = (actualCell * cellGapRatio).coerceAtLeast(1.0f)
-        val uniformMonthW = daysCols * actualCell + (daysCols - 1) * cellGap
-        val uniformMonthH = weekRows * actualCell + (weekRows - 1) * cellGap
+        val uniformMonthW = monthCols * actualCell + (monthCols - 1) * cellGap
+        val uniformMonthH = monthRows * actualCell + (monthRows - 1) * cellGap
 
         val totalGridW = monthsPerRow * uniformMonthW + (monthsPerRow - 1) * monthGap
         val gridLeft = maxOf(marginX, (safeW - totalGridW) / 2f)
@@ -331,7 +346,7 @@ object WidgetBitmapRenderer {
         }
         canvas.drawText("Less", sqRight - 3f, headerY, legendTextPaint)
 
-        // 6. Draw Tiers with Uniform 7x6 Month Shapes
+        // 6. Draw Tiers with Uniform Month Shapes
         val monthTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = COLOR_TEXT_MUTED
             textSize = (actualCell * 0.92f).coerceIn(8.5f, 12f)
@@ -367,12 +382,12 @@ object WidgetBitmapRenderer {
                 val monthCenterX = monthLeft + uniformMonthW / 2f
                 canvas.drawText(mb.monthName, monthCenterX, monthY, monthTextPaint)
 
-                // Draw uniform 7 days (horizontal) x 6 weeks (vertical)
+                // Draw month cells
                 for (dayNum in 1..mb.daysInMonth) {
                     val slot = mb.firstDowMondayBased + (dayNum - 1)
-                    val c = slot % daysCols
-                    val r = slot / daysCols
-                    if (r < weekRows) {
+                    val c = if (isVertical) (slot / 7) else (slot % 7)
+                    val r = if (isVertical) (slot % 7) else (slot / 7)
+                    if (c < monthCols && r < monthRows) {
                         val dateStr = String.format(Locale.US, "%04d-%02d-%02d", mb.year, mb.monthIdx + 1, dayNum)
                         val count = dayCountMap[dateStr] ?: 0
                         val level = when {
@@ -390,11 +405,12 @@ object WidgetBitmapRenderer {
                 }
 
                 // Draw faint boundary dots for unused cells to preserve identical month geometry
-                for (slot in 0 until (daysCols * weekRows)) {
-                    val dayNum = slot - mb.firstDowMondayBased + 1
+                for (slot in 0 until (monthCols * monthRows)) {
+                    val c = if (isVertical) (slot / 7) else (slot % 7)
+                    val r = if (isVertical) (slot % 7) else (slot / 7)
+                    val slotIdx = if (isVertical) (c * 7 + r) else slot
+                    val dayNum = slotIdx - mb.firstDowMondayBased + 1
                     if (dayNum !in 1..mb.daysInMonth) {
-                        val c = slot % daysCols
-                        val r = slot / daysCols
                         val x = monthLeft + c * (actualCell + cellGap)
                         val y = gridTop + r * (actualCell + cellGap)
                         canvas.drawCircle(x + actualCell / 2f, y + actualCell / 2f, 0.8f, faintDotPaint)

@@ -114,6 +114,18 @@ class MainScreenViewModelTest {
     }
 
     @Test
+    fun heatmapOrientation_canBeToggled() = runTest {
+        val fakeRepo = FakeDataRepository()
+        val viewModel = MainScreenViewModel(fakeRepo)
+
+        assertEquals("horizontal", viewModel.heatmapOrientation.value)
+
+        viewModel.setHeatmapOrientation("vertical")
+        assertEquals("vertical", viewModel.heatmapOrientation.value)
+        assertEquals("vertical", fakeRepo.orientation)
+    }
+
+    @Test
     fun logoutConfirmation_clearsInputsAndReturnsHome() = runTest {
         val fakeRepo = FakeDataRepository()
         val viewModel = MainScreenViewModel(fakeRepo)
@@ -137,6 +149,7 @@ class MainScreenViewModelTest {
 private class FakeDataRepository : DataRepository {
     override val dashboardData: Flow<WidgetDashboardData> = flowOf(WidgetDashboardData())
     var interval = "1h"
+    var orientation = "horizontal"
     var ignoredVersion = ""
     var isLoggedOut = false
 
@@ -174,6 +187,12 @@ private class FakeDataRepository : DataRepository {
 
     override fun setRefreshInterval(interval: String) {
         this.interval = interval
+    }
+
+    override fun getHeatmapOrientation(): String = orientation
+
+    override fun setHeatmapOrientation(orientation: String) {
+        this.orientation = orientation
     }
 
     override suspend fun logoutAll() {

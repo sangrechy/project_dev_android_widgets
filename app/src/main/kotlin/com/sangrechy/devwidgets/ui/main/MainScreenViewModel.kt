@@ -56,6 +56,9 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
     private val _selectedInterval = MutableStateFlow(repository.getRefreshInterval())
     val selectedInterval: StateFlow<String> = _selectedInterval.asStateFlow()
 
+    private val _heatmapOrientation = MutableStateFlow(repository.getHeatmapOrientation())
+    val heatmapOrientation: StateFlow<String> = _heatmapOrientation.asStateFlow()
+
     private val _isCheckingUpdate = MutableStateFlow(false)
     val isCheckingUpdate: StateFlow<Boolean> = _isCheckingUpdate.asStateFlow()
 
@@ -199,6 +202,12 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
         _selectedInterval.value = interval
         repository.setRefreshInterval(interval)
         _syncMessage.value = "Auto-refresh frequency set to $interval"
+    }
+
+    fun setHeatmapOrientation(orientation: String) {
+        _heatmapOrientation.value = orientation
+        repository.setHeatmapOrientation(orientation)
+        _syncMessage.value = "Heatmap orientation set to $orientation"
     }
 
     fun checkForUpdates(manual: Boolean = true) {

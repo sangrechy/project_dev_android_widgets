@@ -46,12 +46,14 @@ class GitHubHeatmapWidgetProvider : AppWidgetProvider() {
 
         fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, data: WidgetDashboardData) {
             val views = RemoteViews(context.packageName, R.layout.widget_github_heatmap)
+            val prefs = WidgetPreferences(context)
             val ghHeatmap = WidgetBitmapRenderer.renderHeatmap(
                 data.gitHub.contributionDays,
                 isLeetCode = false,
                 widthPx = 800,
                 heightPx = 400,
-                weeksCount = 52
+                weeksCount = 52,
+                orientation = prefs.heatmapOrientation
             )
 
             views.setImageViewBitmap(R.id.iv_github_heatmap, ghHeatmap)

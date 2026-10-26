@@ -47,13 +47,15 @@ class LeetCodeWidgetProvider : AppWidgetProvider() {
 
         fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, data: WidgetDashboardData) {
             val views = RemoteViews(context.packageName, R.layout.widget_leetcode)
+            val prefs = WidgetPreferences(context)
             val lcCircle = WidgetBitmapRenderer.renderLeetCodeCircle(data.leetCode, sizePx = 360)
             val lcHeatmap = WidgetBitmapRenderer.renderHeatmap(
                 data.leetCode.submissionCalendar,
                 isLeetCode = true,
                 widthPx = 520,
                 heightPx = 360,
-                weeksCount = 52
+                weeksCount = 52,
+                orientation = prefs.heatmapOrientation
             )
 
             views.setImageViewBitmap(R.id.iv_leetcode_circle, lcCircle)

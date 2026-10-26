@@ -47,13 +47,15 @@ class GitHubWidgetProvider : AppWidgetProvider() {
 
         fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, data: WidgetDashboardData) {
             val views = RemoteViews(context.packageName, R.layout.widget_github)
+            val prefs = WidgetPreferences(context)
             val ghRadar = WidgetBitmapRenderer.renderGitHubTypeMap(data.gitHub, sizePx = 360)
             val ghHeatmap = WidgetBitmapRenderer.renderHeatmap(
                 data.gitHub.contributionDays,
                 isLeetCode = false,
                 widthPx = 520,
                 heightPx = 360,
-                weeksCount = 52
+                weeksCount = 52,
+                orientation = prefs.heatmapOrientation
             )
 
             views.setImageViewBitmap(R.id.iv_github_typemap, ghRadar)

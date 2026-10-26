@@ -32,6 +32,10 @@ class WidgetPreferences(context: Context) {
         get() = prefs.getString(KEY_REFRESH_INTERVAL, "1h") ?: "1h"
         set(value) = prefs.edit().putString(KEY_REFRESH_INTERVAL, value).apply()
 
+    var heatmapOrientation: String
+        get() = prefs.getString(KEY_HEATMAP_ORIENTATION, "horizontal") ?: "horizontal"
+        set(value) = prefs.edit().putString(KEY_HEATMAP_ORIENTATION, value).apply()
+
     var ignoredUpdateVersion: String
         get() = prefs.getString(KEY_IGNORED_UPDATE, "") ?: ""
         set(value) = prefs.edit().putString(KEY_IGNORED_UPDATE, value).apply()
@@ -419,6 +423,7 @@ class WidgetPreferences(context: Context) {
         private const val KEY_GITHUB_TOKEN = "github_token"
         private const val KEY_CACHED_DASHBOARD = "cached_dashboard_json"
         private const val KEY_REFRESH_INTERVAL = "auto_refresh_interval"
+        private const val KEY_HEATMAP_ORIENTATION = "heatmap_orientation"
         private const val KEY_IGNORED_UPDATE = "ignored_update_version"
     }
 }

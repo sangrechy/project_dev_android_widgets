@@ -138,6 +138,8 @@ class DevActivityWidgetProvider : AppWidgetProvider() {
             val hmWidthPx = (heatmapWidthDp * scale).toInt().coerceIn(240, 960)
             val hmHeightPx = (visualRowHeightDp * scale).toInt().coerceIn(160, 960)
             val circleSizePx = (circleSizeDp * scale).toInt().coerceIn(200, 600)
+            val prefs = WidgetPreferences(context)
+            val orientation = prefs.heatmapOrientation
 
             val lcCircle = WidgetBitmapRenderer.renderLeetCodeCircle(data.leetCode, sizePx = circleSizePx)
             val lcHeatmap = WidgetBitmapRenderer.renderHeatmap(
@@ -145,7 +147,8 @@ class DevActivityWidgetProvider : AppWidgetProvider() {
                 isLeetCode = true,
                 widthPx = hmWidthPx,
                 heightPx = hmHeightPx,
-                weeksCount = 52
+                weeksCount = 52,
+                orientation = orientation
             )
             val ghTypeMap = WidgetBitmapRenderer.renderGitHubTypeMap(data.gitHub, sizePx = circleSizePx)
             val ghHeatmap = WidgetBitmapRenderer.renderHeatmap(
@@ -153,7 +156,8 @@ class DevActivityWidgetProvider : AppWidgetProvider() {
                 isLeetCode = false,
                 widthPx = hmWidthPx,
                 heightPx = hmHeightPx,
-                weeksCount = 52
+                weeksCount = 52,
+                orientation = orientation
             )
 
             views.setImageViewBitmap(R.id.iv_leetcode_circle, lcCircle)

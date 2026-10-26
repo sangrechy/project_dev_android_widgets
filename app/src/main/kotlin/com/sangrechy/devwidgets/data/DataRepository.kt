@@ -31,6 +31,8 @@ interface DataRepository {
     fun setIgnoredUpdateVersion(version: String)
     fun getRefreshInterval(): String
     fun setRefreshInterval(interval: String)
+    fun getHeatmapOrientation(): String
+    fun setHeatmapOrientation(orientation: String)
     suspend fun logoutAll()
 }
 
@@ -154,6 +156,15 @@ class DefaultDataRepository(private val context: Context) : DataRepository {
     override fun setRefreshInterval(interval: String) {
         prefs.autoRefreshInterval = interval
         com.sangrechy.devwidgets.widget.AutoRefreshScheduler.schedule(context, interval)
+    }
+
+    override fun getHeatmapOrientation(): String {
+        return prefs.heatmapOrientation
+    }
+
+    override fun setHeatmapOrientation(orientation: String) {
+        prefs.heatmapOrientation = orientation
+        com.sangrechy.devwidgets.widget.WidgetManagerHelper.updateAll(context, _dashboardData.value)
     }
 
     override suspend fun logoutAll() = withContext(Dispatchers.IO) {
