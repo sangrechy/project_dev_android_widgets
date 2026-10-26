@@ -437,11 +437,16 @@ fun MainScreen(
                     }
 
                     // Scrollable Content Column
+                    val contentScrollState = rememberScrollState()
+                    LaunchedEffect(currentScreen) {
+                        contentScrollState.scrollTo(0)
+                    }
+
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f)
-                            .verticalScroll(rememberScrollState()),
+                            .verticalScroll(contentScrollState),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         // Content Based on Selected Screen
@@ -935,13 +940,17 @@ private fun LeetCodeDetailView(
         }
 
         // 3. Bubble Map / Problem Topic Tags Cloud
-        LeetCodeBubbleMapCard(topicTags = stats.topicTags)
+        LeetCodeBubbleMapCard(
+            topicTags = stats.topicTags,
+            isConnected = stats.status == AccountStatus.CONNECTED
+        )
 
         // 4. Recent Submissions Feed
         RecentSubmissionsCard(
             submissions = stats.recentSubmissions,
             feedLimit = feedLimit,
-            onFeedLimitSelected = onFeedLimitSelected
+            onFeedLimitSelected = onFeedLimitSelected,
+            isConnected = stats.status == AccountStatus.CONNECTED
         )
     }
 }
@@ -999,7 +1008,10 @@ private fun DifficultyPill(label: String, solved: Int, max: Int, color: Color) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun LeetCodeBubbleMapCard(topicTags: List<ProblemTopicTag>) {
+private fun LeetCodeBubbleMapCard(
+    topicTags: List<ProblemTopicTag>,
+    isConnected: Boolean = false
+) {
     var selectedCategory by remember { mutableStateOf("All") }
     val categories = listOf("All", "Fundamental", "Intermediate", "Advanced")
 
@@ -1070,8 +1082,14 @@ private fun LeetCodeBubbleMapCard(topicTags: List<ProblemTopicTag>) {
 
             // Flow of topic bubbles
             if (filteredTags.isEmpty()) {
+                val emptyMessage = if (isConnected) {
+                    if (topicTags.isEmpty()) "No solved problem topics found for this profile yet."
+                    else "No topic data available in category '$selectedCategory'."
+                } else {
+                    "No topic data available yet. Link and sync your LeetCode account in Settings."
+                }
                 Text(
-                    text = "No topic data available yet. Link and sync your LeetCode account.",
+                    text = emptyMessage,
                     color = Color(0xFF64748B),
                     fontSize = 12.sp,
                     modifier = Modifier.padding(vertical = 8.dp)
@@ -1138,7 +1156,8 @@ private fun TopicBubbleChip(tag: ProblemTopicTag) {
 private fun RecentSubmissionsCard(
     submissions: List<LeetCodeSubmission>,
     feedLimit: FeedLimit,
-    onFeedLimitSelected: (FeedLimit) -> Unit
+    onFeedLimitSelected: (FeedLimit) -> Unit,
+    isConnected: Boolean = false
 ) {
     val displayed: List<LeetCodeSubmission> = remember(submissions, feedLimit) {
         submissions.take(feedLimit.count)
@@ -1205,8 +1224,13 @@ private fun RecentSubmissionsCard(
             }
 
             if (displayed.isEmpty()) {
+                val emptyMessage = if (isConnected) {
+                    "No recent submissions found for this profile."
+                } else {
+                    "No recent submissions logged. Sync your profile to view history."
+                }
                 Text(
-                    text = "No recent submissions logged. Sync your profile to view history.",
+                    text = emptyMessage,
                     color = Color(0xFF64748B),
                     fontSize = 12.sp,
                     modifier = Modifier.padding(vertical = 8.dp)
@@ -1474,13 +1498,17 @@ private fun GitHubDetailView(
         }
 
         // 3. Top Languages Breakdown
-        GitHubLanguagesCard(languages = stats.topLanguages)
+        GitHubLanguagesCard(
+            languages = stats.topLanguages,
+            isConnected = stats.status == AccountStatus.CONNECTED
+        )
 
         // 4. Recent GitHub Events Feed
         RecentGitHubEventsCard(
             events = stats.recentEvents,
             feedLimit = feedLimit,
-            onFeedLimitSelected = onFeedLimitSelected
+            onFeedLimitSelected = onFeedLimitSelected,
+            isConnected = stats.status == AccountStatus.CONNECTED
         )
     }
 }
@@ -1516,7 +1544,10 @@ private fun ContribMetricItem(label: String, count: Int, color: Color) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun GitHubLanguagesCard(languages: List<GitHubLanguageStat>) {
+private fun GitHubLanguagesCard(
+    languages: List<GitHubLanguageStat>,
+    isConnected: Boolean = false
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -1549,8 +1580,13 @@ private fun GitHubLanguagesCard(languages: List<GitHubLanguageStat>) {
             }
 
             if (languages.isEmpty()) {
+                val emptyMessage = if (isConnected) {
+                    "No public language statistics found for this profile yet."
+                } else {
+                    "No public language statistics available. Sync your profile to populate repositories."
+                }
                 Text(
-                    text = "No public language statistics available. Sync your profile to populate repositories.",
+                    text = emptyMessage,
                     color = Color(0xFF64748B),
                     fontSize = 12.sp,
                     modifier = Modifier.padding(vertical = 8.dp)
@@ -1616,7 +1652,8 @@ private fun GitHubLanguagesCard(languages: List<GitHubLanguageStat>) {
 private fun RecentGitHubEventsCard(
     events: List<GitHubEvent>,
     feedLimit: FeedLimit,
-    onFeedLimitSelected: (FeedLimit) -> Unit
+    onFeedLimitSelected: (FeedLimit) -> Unit,
+    isConnected: Boolean = false
 ) {
     val displayed: List<GitHubEvent> = remember(events, feedLimit) {
         events.take(feedLimit.count)
@@ -1683,8 +1720,13 @@ private fun RecentGitHubEventsCard(
             }
 
             if (displayed.isEmpty()) {
+                val emptyMessage = if (isConnected) {
+                    "No recent public events recorded for this profile."
+                } else {
+                    "No recent public events recorded. Sync your profile to load contributions."
+                }
                 Text(
-                    text = "No recent public events recorded. Sync your profile to load contributions.",
+                    text = emptyMessage,
                     color = Color(0xFF64748B),
                     fontSize = 12.sp,
                     modifier = Modifier.padding(vertical = 8.dp)

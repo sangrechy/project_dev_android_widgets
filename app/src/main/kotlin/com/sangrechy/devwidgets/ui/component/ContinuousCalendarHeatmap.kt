@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
@@ -146,13 +147,16 @@ fun ContinuousCalendarHeatmap(
         rawDaysMap.values.count { it > 0 }
     }
 
-    val cellSize = 12.dp
-    val cellSpacing = 3.dp
-    val dayLabelWidth = 11.dp
-    val uniformGridWidth = (6 * 12 + 5 * 3).dp // 87.dp
-    val monthContentWidth = uniformGridWidth + dayLabelWidth + 4.dp // 102.dp
-    // Card width (102.dp + 20.dp padding) + 10.dp inter-card spacing = 132.dp per step
-    val monthStepPx = with(density) { (monthContentWidth + 30.dp).toPx() }
+    val cellSize = 10.5.dp
+    val cellSpacing = 2.dp
+    val dayLabelWidth = 9.dp
+    val uniformGridWidth = (6 * 10.5 + 5 * 2).dp // 73.dp
+    val monthContentWidth = uniformGridWidth + dayLabelWidth + 4.dp // 86.dp
+    val cardPadding = 8.dp
+    val cardWidth = monthContentWidth + (cardPadding * 2) // 102.dp
+    val cardSpacing = 8.dp
+    // Card width (102dp) + 8dp spacing = 110dp per step
+    val monthStepPx = with(density) { (cardWidth + cardSpacing).toPx() }
 
     Column(modifier = modifier.fillMaxWidth()) {
         // Summary Header Row in Glass Container
@@ -287,25 +291,25 @@ fun ContinuousCalendarHeatmap(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(scrollState),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(cardSpacing),
             verticalAlignment = Alignment.Top
         ) {
             monthBlocks.forEach { month ->
                 // Individual Month Glass Div Box
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(14.dp))
                         .background(Color(0x241E293B))
                         .border(
                             1.dp,
                             Brush.verticalGradient(
                                 listOf(Color(0x38FFFFFF), Color(0x14FFFFFF))
                             ),
-                            RoundedCornerShape(16.dp)
+                            RoundedCornerShape(14.dp)
                         )
-                        .padding(10.dp)
+                        .padding(cardPadding)
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         // Month Header
                         Row(
                             modifier = Modifier.width(monthContentWidth),
@@ -315,24 +319,27 @@ fun ContinuousCalendarHeatmap(
                             Text(
                                 text = month.monthName,
                                 color = Color(0xFFCBD5E1),
-                                fontSize = 11.5.sp,
+                                fontSize = 10.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                maxLines = 1
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
                             )
 
                             if (month.totalCount > 0) {
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(6.dp))
+                                        .clip(RoundedCornerShape(5.dp))
                                         .background(
                                             if (isLeetCode) Color(0x33FFA116) else Color(0x3322C55E)
                                         )
-                                        .padding(horizontal = 5.dp, vertical = 1.dp)
+                                        .padding(horizontal = 4.dp, vertical = 1.dp)
                                 ) {
                                     Text(
                                         text = "${month.totalCount}",
                                         color = if (isLeetCode) Color(0xFFFFA116) else Color(0xFF4ADE80),
-                                        fontSize = 9.sp,
+                                        fontSize = 8.5.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
