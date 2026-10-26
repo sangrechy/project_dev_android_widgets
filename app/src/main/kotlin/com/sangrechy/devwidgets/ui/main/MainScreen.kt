@@ -92,13 +92,24 @@ import com.sangrechy.devwidgets.data.DefaultDataRepository
 import com.sangrechy.devwidgets.data.model.AccountStatus
 import com.sangrechy.devwidgets.data.model.GitHubEvent
 import com.sangrechy.devwidgets.data.model.GitHubLanguageStat
+import android.appwidget.AppWidgetProvider
 import com.sangrechy.devwidgets.data.model.GitHubStats
 import com.sangrechy.devwidgets.data.model.LeetCodeStats
 import com.sangrechy.devwidgets.data.model.LeetCodeSubmission
 import com.sangrechy.devwidgets.data.model.ProblemTopicTag
 import com.sangrechy.devwidgets.data.model.WidgetDashboardData
+import com.sangrechy.devwidgets.ui.component.ContinuousCalendarHeatmap
+import com.sangrechy.devwidgets.widget.AutoRefreshScheduler
+import com.sangrechy.devwidgets.widget.CombinedHeatmapWidgetProvider
 import com.sangrechy.devwidgets.widget.DevActivityWidgetProvider
+import com.sangrechy.devwidgets.widget.GitHubHeatmapWidgetProvider
+import com.sangrechy.devwidgets.widget.GitHubWidgetProvider
+import com.sangrechy.devwidgets.widget.LeetCodeHeatmapWidgetProvider
+import com.sangrechy.devwidgets.widget.LeetCodeWidgetProvider
 import com.sangrechy.devwidgets.widget.WidgetBitmapRenderer
+import com.sangrechy.devwidgets.widget.WidgetManagerHelper
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.Instant
 
@@ -140,6 +151,17 @@ fun MainScreen(
     // Check updates silently on initial launch
     LaunchedEffect(Unit) {
         viewModel.checkForUpdates(manual = false)
+    }
+
+    // Active foreground auto-refresh loop matching chosen cadence
+    LaunchedEffect(selectedInterval) {
+        val delayMs = AutoRefreshScheduler.parseIntervalToMillis(selectedInterval)
+        while (isActive) {
+            delay(delayMs)
+            if (!isSyncing && (leetCodeInput.isNotBlank() || gitHubInput.isNotBlank())) {
+                viewModel.saveAndSync()
+            }
+        }
     }
 
     val bgGradient = remember {
@@ -431,7 +453,7 @@ fun MainScreen(
                             dashboardData = dashboardData,
                             selectedInterval = selectedInterval,
                             onIntervalSelected = viewModel::setRefreshInterval,
-                            onPinWidget = { pinWidgetToHomeScreen(context) }
+                            onPinWidget = { providerClass -> pinWidgetToHomeScreen(context, providerClass) }
                         )
 
                         AppScreen.SETTINGS -> SettingsScreenContent(
@@ -448,19 +470,15 @@ fun MainScreen(
                             onTokenChanged = viewModel::onGitHubTokenChanged,
                             onVerifyLeetCode = {
                                 viewModel.verifyLeetCode()
-                                DevActivityWidgetProvider.updateAllWidgets(context, dashboardData)
+                                WidgetManagerHelper.updateAll(context, dashboardData)
                             },
                             onVerifyGitHub = {
                                 viewModel.verifyGitHub()
-                                DevActivityWidgetProvider.updateAllWidgets(context, dashboardData)
+                                WidgetManagerHelper.updateAll(context, dashboardData)
                             },
                             onSyncAll = {
                                 viewModel.saveAndSync()
                                 DevActivityWidgetProvider.enqueueImmediateSync(context)
-                            },
-                            onUseSample = {
-                                viewModel.useSampleData()
-                                DevActivityWidgetProvider.updateAllWidgets(context, dashboardData)
                             },
                             onCheckForUpdate = { viewModel.checkForUpdates(manual = true) },
                             onLogoutAll = viewModel::showLogoutConfirmation
@@ -721,7 +739,7 @@ private fun LeetCodeDetailView(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        // User Profile & Status Card
+        // User Profile & Status Card (Responsive & Collision Free)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -735,28 +753,23 @@ private fun LeetCodeDetailView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Image(
-                            painter = painterResource(R.drawable.ic_leetcode_logo),
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Text(
-                            text = if (stats.username.isNotBlank()) "@${stats.username}" else "@not_linked",
-                            color = Color.White,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.weight(1f, fill = false),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.ic_leetcode_logo),
+                        contentDescription = null,
+                        modifier = Modifier.size(26.dp)
+                    )
                     Text(
-                        text = "Total Solved: ${stats.totalSolved} Problems Across All Tiers",
-                        color = Color(0xFF94A3B8),
-                        fontSize = 12.sp
+                        text = if (stats.username.isNotBlank()) "@${stats.username}" else "@not_linked",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
@@ -810,7 +823,7 @@ private fun LeetCodeDetailView(
             }
         }
 
-        // 2. Down the Uniform Heatmap (Constant Month Shape)
+        // 2. Submission Heatmap (Authentic Continuous Calendar)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -819,40 +832,10 @@ private fun LeetCodeDetailView(
                 .border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(22.dp))
                 .padding(16.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "12-Month Submission Heatmap",
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Uniform Month Blocks",
-                        color = Color(0xFFFFA116),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-
-                Image(
-                    bitmap = lcHeatmapBitmap,
-                    contentDescription = "Uniform LeetCode Heatmap",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
-                )
-
-                Text(
-                    text = "Each month consists of 7 columns (days of week) and 6 rows (weeks).",
-                    color = Color(0xFF64748B),
-                    fontSize = 10.5.sp
-                )
-            }
+            ContinuousCalendarHeatmap(
+                rawDaysMap = stats.submissionCalendar.toDaysMap(),
+                isLeetCode = true
+            )
         }
 
         // 3. Bubble Map / Problem Topic Tags Cloud
@@ -1054,14 +1037,21 @@ private fun RecentSubmissionsCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Recent Submissions",
-                    color = Color.White,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Column(modifier = Modifier.weight(1f, fill = false)) {
+                    Text(
+                        text = "Recent Submissions",
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Showing ${displayed.size} submissions",
+                        color = Color(0xFF94A3B8),
+                        fontSize = 11.sp
+                    )
+                }
 
-                // Limit switcher: Last 10 | 50 | 100
+                // Limit switcher: 10 | 50 | 100
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
@@ -1076,12 +1066,12 @@ private fun RecentSubmissionsCard(
                                 .clip(RoundedCornerShape(6.dp))
                                 .background(if (isSelected) Color(0xFFFFA116) else Color.Transparent)
                                 .clickable { onFeedLimitSelected(limit) }
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = limit.label.replace("Last ", ""),
+                                text = "${limit.count}",
                                 color = if (isSelected) Color.Black else Color(0xFF94A3B8),
-                                fontSize = 10.sp,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -1169,7 +1159,7 @@ private fun GitHubDetailView(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        // User Profile & Status Card
+        // User Profile & Status Card (Responsive & Collision Free)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1183,28 +1173,23 @@ private fun GitHubDetailView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Image(
-                            painter = painterResource(R.drawable.ic_github_logo),
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Text(
-                            text = if (stats.username.isNotBlank()) "@${stats.username}" else "@not_linked",
-                            color = Color.White,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.weight(1f, fill = false),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.ic_github_logo),
+                        contentDescription = null,
+                        modifier = Modifier.size(26.dp)
+                    )
                     Text(
-                        text = "Total Contributions: ${stats.totalContributions} (Yearly Activity)",
-                        color = Color(0xFF94A3B8),
-                        fontSize = 12.sp
+                        text = if (stats.username.isNotBlank()) "@${stats.username}" else "@not_linked",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
@@ -1258,7 +1243,7 @@ private fun GitHubDetailView(
             }
         }
 
-        // 2. Down the Uniform Heatmap (Constant Month Shape)
+        // 2. Contribution Heatmap (Authentic Continuous Calendar)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1267,40 +1252,10 @@ private fun GitHubDetailView(
                 .border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(22.dp))
                 .padding(16.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "12-Month GitHub Contribution Heatmap",
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Uniform Month Blocks",
-                        color = Color(0xFF3FB950),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-
-                Image(
-                    bitmap = ghHeatmapBitmap,
-                    contentDescription = "Uniform GitHub Heatmap",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
-                )
-
-                Text(
-                    text = "Each month consists of 7 columns (days of week) and 6 rows (weeks).",
-                    color = Color(0xFF64748B),
-                    fontSize = 10.5.sp
-                )
-            }
+            ContinuousCalendarHeatmap(
+                rawDaysMap = stats.contributionDays,
+                isLeetCode = false
+            )
         }
 
         // 3. Top Languages Breakdown
@@ -1453,14 +1408,21 @@ private fun RecentGitHubEventsCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Recent GitHub Activity",
-                    color = Color.White,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Column(modifier = Modifier.weight(1f, fill = false)) {
+                    Text(
+                        text = "Recent GitHub Activity",
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Showing ${displayed.size} events",
+                        color = Color(0xFF94A3B8),
+                        fontSize = 11.sp
+                    )
+                }
 
-                // Limit switcher: Last 10 | 50 | 100
+                // Limit switcher: 10 | 50 | 100
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
@@ -1475,12 +1437,12 @@ private fun RecentGitHubEventsCard(
                                 .clip(RoundedCornerShape(6.dp))
                                 .background(if (isSelected) Color(0xFF3FB950) else Color.Transparent)
                                 .clickable { onFeedLimitSelected(limit) }
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = limit.label.replace("Last ", ""),
+                                text = "${limit.count}",
                                 color = if (isSelected) Color.Black else Color(0xFF94A3B8),
-                                fontSize = 10.sp,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -1556,7 +1518,7 @@ private fun WidgetsScreenContent(
     dashboardData: WidgetDashboardData,
     selectedInterval: String,
     onIntervalSelected: (String) -> Unit,
-    onPinWidget: () -> Unit
+    onPinWidget: (Class<out AppWidgetProvider>) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         // 1. Auto-Refresh Frequency Box (15 options: 1s to 1d)
@@ -1634,7 +1596,7 @@ private fun WidgetsScreenContent(
                 }
 
                 Text(
-                    text = "Controls background WorkManager cadence and widget telemetry refresh.",
+                    text = "Controls app foreground loop and background launcher widget auto-refresh.",
                     color = Color(0xFF64748B),
                     fontSize = 10.5.sp
                 )
@@ -1649,20 +1611,21 @@ private fun WidgetsScreenContent(
             fontWeight = FontWeight.Bold
         )
 
-        // Multiple Widgets Available
+        // 1. Combined Hub
         WidgetGalleryCard(
-            title = "Master Dev Life Dashboard (4x5)",
+            title = "Master Dev Life Dashboard (4x4)",
             subtitle = "Combined LeetCode gauge + GitHub radar + dual 12-month uniform heatmaps",
-            tag = "Full Suite",
-            onClick = onPinWidget,
+            tag = "Combined Hub",
+            onClick = { onPinWidget(DevActivityWidgetProvider::class.java) },
             content = { WidgetVisualPreview(data = dashboardData) }
         )
 
+        // 2. LeetCode Dedicated
         WidgetGalleryCard(
-            title = "LeetCode Focus Widget (4x2)",
-            subtitle = "Dedicated 3/4 speedometer circle gauge and 12-month problem calendar",
+            title = "LeetCode Dedicated Widget (4x2)",
+            subtitle = "Dedicated 3/4 speedometer circle gauge and problem submission calendar",
             tag = "LeetCode",
-            onClick = onPinWidget,
+            onClick = { onPinWidget(LeetCodeWidgetProvider::class.java) },
             content = {
                 val lcCircle = remember(dashboardData.leetCode) {
                     WidgetBitmapRenderer.renderLeetCodeCircle(dashboardData.leetCode, sizePx = 320).asImageBitmap()
@@ -1690,11 +1653,12 @@ private fun WidgetsScreenContent(
             }
         )
 
+        // 3. GitHub Dedicated
         WidgetGalleryCard(
-            title = "GitHub Activity Widget (4x2)",
-            subtitle = "Dedicated contribution radar polygon and 12-month uniform commit heatmap",
+            title = "GitHub Dedicated Widget (4x2)",
+            subtitle = "Dedicated contribution radar polygon and uniform commit activity heatmap",
             tag = "GitHub",
-            onClick = onPinWidget,
+            onClick = { onPinWidget(GitHubWidgetProvider::class.java) },
             content = {
                 val ghRadar = remember(dashboardData.gitHub) {
                     WidgetBitmapRenderer.renderGitHubTypeMap(dashboardData.gitHub, sizePx = 320).asImageBitmap()
@@ -1718,6 +1682,90 @@ private fun WidgetsScreenContent(
                     Image(bitmap = ghRadar, contentDescription = null, modifier = Modifier.weight(0.42f).fillMaxHeight())
                     Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(Color(0x26FFFFFF)))
                     Image(bitmap = ghHeatmap, contentDescription = null, modifier = Modifier.weight(0.58f).fillMaxHeight())
+                }
+            }
+        )
+
+        // 4. LeetCode Heatmap Dedicated
+        WidgetGalleryCard(
+            title = "LeetCode Heatmap Widget (4x2)",
+            subtitle = "Full-width dedicated LeetCode submission activity calendar",
+            tag = "LC Heatmap",
+            onClick = { onPinWidget(LeetCodeHeatmapWidgetProvider::class.java) },
+            content = {
+                val lcHeatmap = remember(dashboardData.leetCode.submissionCalendar) {
+                    WidgetBitmapRenderer.renderHeatmap(
+                        dashboardData.leetCode.submissionCalendar,
+                        isLeetCode = true,
+                        widthPx = 680,
+                        heightPx = 340,
+                        weeksCount = 52
+                    ).asImageBitmap()
+                }
+                Image(
+                    bitmap = lcHeatmap,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxWidth().height(110.dp)
+                )
+            }
+        )
+
+        // 5. GitHub Heatmap Dedicated
+        WidgetGalleryCard(
+            title = "GitHub Heatmap Widget (4x2)",
+            subtitle = "Full-width dedicated GitHub emerald contribution activity calendar",
+            tag = "GH Heatmap",
+            onClick = { onPinWidget(GitHubHeatmapWidgetProvider::class.java) },
+            content = {
+                val ghHeatmap = remember(dashboardData.gitHub.contributionDays) {
+                    WidgetBitmapRenderer.renderHeatmap(
+                        dashboardData.gitHub.contributionDays,
+                        isLeetCode = false,
+                        widthPx = 680,
+                        heightPx = 340,
+                        weeksCount = 52
+                    ).asImageBitmap()
+                }
+                Image(
+                    bitmap = ghHeatmap,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxWidth().height(110.dp)
+                )
+            }
+        )
+
+        // 6. Dev Combined Heatmap
+        WidgetGalleryCard(
+            title = "Dev Combined Heatmap Widget (4x3)",
+            subtitle = "Dual stacked LeetCode and GitHub contribution heatmaps in one widget",
+            tag = "Dual Heatmap",
+            onClick = { onPinWidget(CombinedHeatmapWidgetProvider::class.java) },
+            content = {
+                val lcHeatmap = remember(dashboardData.leetCode.submissionCalendar) {
+                    WidgetBitmapRenderer.renderHeatmap(
+                        dashboardData.leetCode.submissionCalendar,
+                        isLeetCode = true,
+                        widthPx = 680,
+                        heightPx = 220,
+                        weeksCount = 52
+                    ).asImageBitmap()
+                }
+                val ghHeatmap = remember(dashboardData.gitHub.contributionDays) {
+                    WidgetBitmapRenderer.renderHeatmap(
+                        dashboardData.gitHub.contributionDays,
+                        isLeetCode = false,
+                        widthPx = 680,
+                        heightPx = 220,
+                        weeksCount = 52
+                    ).asImageBitmap()
+                }
+                Column(
+                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Image(bitmap = lcHeatmap, contentDescription = null, modifier = Modifier.fillMaxWidth().weight(1f))
+                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x26FFFFFF)))
+                    Image(bitmap = ghHeatmap, contentDescription = null, modifier = Modifier.fillMaxWidth().weight(1f))
                 }
             }
         )
@@ -1825,7 +1873,6 @@ private fun SettingsScreenContent(
     onVerifyLeetCode: () -> Unit,
     onVerifyGitHub: () -> Unit,
     onSyncAll: () -> Unit,
-    onUseSample: () -> Unit,
     onCheckForUpdate: () -> Unit,
     onLogoutAll: () -> Unit
 ) {
@@ -2068,36 +2115,23 @@ private fun SettingsScreenContent(
                 }
             }
 
-            // Sync All & Use Sample Actions
-            Row(
+            // Sync All Action (Full width)
+            Button(
+                onClick = onSyncAll,
+                enabled = !isSyncing,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF2563EB),
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Button(
-                    onClick = onSyncAll,
-                    enabled = !isSyncing,
-                    modifier = Modifier.weight(1.2f),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF2563EB),
-                        contentColor = Color.White
-                    )
-                ) {
-                    if (isSyncing) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Syncing...", fontWeight = FontWeight.Bold)
-                    } else {
-                        Text("Sync All & Update Widget", fontWeight = FontWeight.Bold)
-                    }
-                }
-
-                OutlinedButton(
-                    onClick = onUseSample,
-                    modifier = Modifier.weight(0.8f),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFCBD5E1)),
-                    border = BorderStroke(1.dp, Brush.linearGradient(listOf(Color(0x60FFFFFF), Color(0x30FFFFFF))))
-                ) {
-                    Text("Use Sample")
+                if (isSyncing) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Syncing...", fontWeight = FontWeight.Bold)
+                } else {
+                    Text("Sync All & Update Widget", fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -2451,10 +2485,11 @@ fun WidgetVisualPreview(data: WidgetDashboardData) {
     }
 }
 
-private fun pinWidgetToHomeScreen(context: Context) {
+private fun pinWidgetToHomeScreen(context: Context, providerClass: Class<*>? = null) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         val appWidgetManager = AppWidgetManager.getInstance(context)
-        val provider = ComponentName(context, DevActivityWidgetProvider::class.java)
+        val targetClass = providerClass ?: DevActivityWidgetProvider::class.java
+        val provider = ComponentName(context, targetClass)
         if (appWidgetManager.isRequestPinAppWidgetSupported) {
             appWidgetManager.requestPinAppWidget(provider, null, null)
             Toast.makeText(context, "Pinning widget to home screen...", Toast.LENGTH_SHORT).show()
@@ -2511,4 +2546,17 @@ private fun formatIsoDate(isoString: String): String {
     } catch (_: Exception) {
         isoString.take(10)
     }
+}
+
+private fun Map<Long, Int>.toDaysMap(): Map<String, Int> {
+    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).apply {
+        timeZone = java.util.TimeZone.getTimeZone("UTC")
+    }
+    val result = mutableMapOf<String, Int>()
+    forEach { (ts, count) ->
+        val millis = if (ts < 100000000000L) ts * 1000L else ts
+        val dStr = sdf.format(java.util.Date(millis))
+        result[dStr] = (result[dStr] ?: 0) + count
+    }
+    return result
 }

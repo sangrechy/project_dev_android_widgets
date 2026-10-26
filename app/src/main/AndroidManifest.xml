@@ -34,6 +34,74 @@
                 android:resource="@xml/widget_dev_activity_info" />
         </receiver>
 
+        <receiver
+            android:name=".widget.LeetCodeWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.sangrechy.devwidgets.ACTION_FORCE_REFRESH" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_leetcode_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.GitHubWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.sangrechy.devwidgets.ACTION_FORCE_REFRESH" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_github_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.LeetCodeHeatmapWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.sangrechy.devwidgets.ACTION_FORCE_REFRESH" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_leetcode_heatmap_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.GitHubHeatmapWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.sangrechy.devwidgets.ACTION_FORCE_REFRESH" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_github_heatmap_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.CombinedHeatmapWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.sangrechy.devwidgets.ACTION_FORCE_REFRESH" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_combined_heatmap_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.AutoRefreshReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.sangrechy.devwidgets.ACTION_AUTO_REFRESH_TICK" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

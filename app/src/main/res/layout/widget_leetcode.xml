@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_glass_chassis"
+    android:padding="12dp">
+
+    <!-- Top Header Bar -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp">
+
+        <LinearLayout
+            android:id="@+id/header_right_wrap"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true">
+
+            <TextView
+                android:id="@+id/tv_last_updated"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Sync: Just now"
+                android:textColor="#CBD5E1"
+                android:textSize="10.5sp"
+                android:layout_marginEnd="6dp" />
+
+            <ImageView
+                android:id="@+id/btn_refresh"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:background="@drawable/widget_icon_button_glass"
+                android:padding="5dp"
+                android:src="@drawable/ic_refresh"
+                android:contentDescription="Refresh" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true">
+
+            <ImageView
+                android:id="@+id/iv_lc_brand_logo"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_leetcode_logo"
+                android:layout_marginEnd="7dp"
+                android:contentDescription="LeetCode Logo" />
+
+            <TextView
+                android:id="@+id/tv_lc_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="LeetCode Stats"
+                android:textColor="#FFA116"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_lc_user_tag"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=" (@dev)"
+                android:textColor="#94A3B8"
+                android:textSize="11sp" />
+        </LinearLayout>
+    </RelativeLayout>
+
+    <!-- Main Content Area: Gauge + Heatmap -->
+    <LinearLayout
+        android:id="@+id/section_leetcode"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:background="@drawable/widget_glass_card"
+        android:padding="10dp"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:id="@+id/iv_leetcode_circle"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="0.45"
+            android:scaleType="fitCenter"
+            android:contentDescription="LeetCode Gauge" />
+
+        <ImageView
+            android:id="@+id/iv_leetcode_heatmap"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="0.55"
+            android:scaleType="fitCenter"
+            android:layout_marginStart="8dp"
+            android:contentDescription="LeetCode Heatmap" />
+    </LinearLayout>
+</LinearLayout>

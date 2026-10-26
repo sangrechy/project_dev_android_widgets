@@ -118,6 +118,7 @@ class DefaultDataRepository(private val context: Context) : DataRepository {
 
             prefs.saveDashboardData(updatedData)
             _dashboardData.value = updatedData
+            com.sangrechy.devwidgets.widget.WidgetManagerHelper.updateAll(context, updatedData)
             Result.success(updatedData)
         } catch (e: Exception) {
             val fallback = prefs.getDashboardData()
@@ -130,6 +131,7 @@ class DefaultDataRepository(private val context: Context) : DataRepository {
         val sample = prefs.getSampleDashboardData()
         prefs.saveDashboardData(sample)
         _dashboardData.value = sample
+        com.sangrechy.devwidgets.widget.WidgetManagerHelper.updateAll(context, sample)
     }
 
     override suspend fun checkForUpdates(): AppUpdateInfo {
@@ -151,6 +153,7 @@ class DefaultDataRepository(private val context: Context) : DataRepository {
 
     override fun setRefreshInterval(interval: String) {
         prefs.autoRefreshInterval = interval
+        com.sangrechy.devwidgets.widget.AutoRefreshScheduler.schedule(context, interval)
     }
 
     override suspend fun logoutAll() = withContext(Dispatchers.IO) {
@@ -162,6 +165,6 @@ class DefaultDataRepository(private val context: Context) : DataRepository {
         )
         prefs.saveDashboardData(emptyData)
         _dashboardData.value = emptyData
-        DevActivityWidgetProvider.updateAllWidgets(context, emptyData)
+        com.sangrechy.devwidgets.widget.WidgetManagerHelper.updateAll(context, emptyData)
     }
 }

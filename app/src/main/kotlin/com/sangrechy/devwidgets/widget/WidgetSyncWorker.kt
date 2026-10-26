@@ -24,7 +24,7 @@ class WidgetSyncWorker(
         val prefs = WidgetPreferences(applicationContext)
         val data = prefs.getDashboardData()
 
-        DevActivityWidgetProvider.updateAllWidgets(applicationContext, data)
+        WidgetManagerHelper.updateAll(applicationContext, data)
 
         return if (result.isSuccess) {
             Result.success()
@@ -35,25 +35,8 @@ class WidgetSyncWorker(
     }
 
     companion object {
-        private const val PERIODIC_WORK_TAG = "dev_widget_periodic_sync"
-
         fun schedulePeriodicSync(context: Context) {
-            val constraints = Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
-                .build()
-
-            val periodicRequest = PeriodicWorkRequestBuilder<WidgetSyncWorker>(
-                repeatInterval = 1,
-                repeatIntervalTimeUnit = TimeUnit.HOURS
-            )
-                .setConstraints(constraints)
-                .build()
-
-            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-                PERIODIC_WORK_TAG,
-                ExistingPeriodicWorkPolicy.KEEP,
-                periodicRequest
-            )
+            AutoRefreshScheduler.schedule(context)
         }
     }
 }

@@ -62,13 +62,13 @@ class DevActivityWidgetProvider : AppWidgetProvider() {
                 try {
                     val prefs = WidgetPreferences(appContext)
                     val current = prefs.getDashboardData()
-                    updateAllWidgets(appContext, current.copy(isSyncing = true))
+                    WidgetManagerHelper.updateAll(appContext, current.copy(isSyncing = true))
 
                     val repo = com.sangrechy.devwidgets.data.DefaultDataRepository(appContext)
                     repo.syncData()
 
                     val updated = prefs.getDashboardData()
-                    updateAllWidgets(appContext, updated.copy(isSyncing = false))
+                    WidgetManagerHelper.updateAll(appContext, updated.copy(isSyncing = false))
                 } catch (e: Exception) {
                     e.printStackTrace()
                 } finally {

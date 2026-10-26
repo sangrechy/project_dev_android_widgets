@@ -280,18 +280,44 @@ class WidgetPreferences(context: Context) {
             if (count > 0) sampleLcCal[ts] = count
         }
 
-        val sampleLcSubs = listOf(
-            LeetCodeSubmission("Two Sum", "two-sum", "Accepted", "Kotlin", now - 3600),
-            LeetCodeSubmission("LRU Cache", "lru-cache", "Accepted", "Kotlin", now - 7200),
-            LeetCodeSubmission("Median of Two Sorted Arrays", "median-of-two-sorted-arrays", "Wrong Answer", "Java", now - 18000),
-            LeetCodeSubmission("Trapping Rain Water", "trapping-rain-water", "Accepted", "Kotlin", now - 86400),
-            LeetCodeSubmission("Merge k Sorted Lists", "merge-k-sorted-lists", "Accepted", "C++", now - 120000),
-            LeetCodeSubmission("Valid Parentheses", "valid-parentheses", "Accepted", "Python", now - 180000),
-            LeetCodeSubmission("Number of Islands", "number-of-islands", "Accepted", "Kotlin", now - 250000),
-            LeetCodeSubmission("Coin Change", "coin-change", "Time Limit Exceeded", "Java", now - 300000),
-            LeetCodeSubmission("Word Break", "word-break", "Accepted", "Kotlin", now - 400000),
-            LeetCodeSubmission("Longest Substring Without Repeating Characters", "longest-substring", "Accepted", "Kotlin", now - 500000)
+        val problemTemplates = listOf(
+            "Two Sum" to "two-sum",
+            "LRU Cache" to "lru-cache",
+            "Median of Two Sorted Arrays" to "median-of-two-sorted-arrays",
+            "Trapping Rain Water" to "trapping-rain-water",
+            "Merge k Sorted Lists" to "merge-k-sorted-lists",
+            "Valid Parentheses" to "valid-parentheses",
+            "Number of Islands" to "number-of-islands",
+            "Coin Change" to "coin-change",
+            "Word Break" to "word-break",
+            "Longest Substring Without Repeating" to "longest-substring",
+            "Climbing Stairs" to "climbing-stairs",
+            "Reverse Linked List" to "reverse-linked-list",
+            "Binary Tree Maximum Path Sum" to "binary-tree-maximum-path-sum",
+            "Course Schedule" to "course-schedule",
+            "Kth Largest Element in an Array" to "kth-largest-element-in-an-array",
+            "Product of Array Except Self" to "product-of-array-except-self",
+            "Top K Frequent Elements" to "top-k-frequent-elements",
+            "Decode String" to "decode-string",
+            "Daily Temperatures" to "daily-temperatures",
+            "Find Minimum in Rotated Sorted Array" to "find-minimum-in-rotated-sorted-array"
         )
+        val langs = listOf("Kotlin", "Java", "Python3", "C++", "Rust", "Go", "TypeScript")
+        val statuses = listOf("Accepted", "Accepted", "Accepted", "Wrong Answer", "Time Limit Exceeded")
+
+        val sampleLcSubs = (0 until 100).map { i ->
+            val tmpl = problemTemplates[i % problemTemplates.size]
+            val lang = langs[i % langs.size]
+            val status = statuses[i % statuses.size]
+            val ts = now - (i * 3600L * 4 + (i * 123L))
+            LeetCodeSubmission(
+                title = tmpl.first,
+                titleSlug = tmpl.second,
+                statusDisplay = status,
+                lang = lang,
+                timestamp = ts
+            )
+        }
 
         val sampleGhCal = mutableMapOf<String, Int>()
         val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
@@ -306,18 +332,31 @@ class WidgetPreferences(context: Context) {
             if (count > 0) sampleGhCal[dateStr] = count
         }
 
-        val sampleGhEvents = listOf(
-            GitHubEvent("PushEvent", "project_dev_android_widgets", "Pushed 3 commits to main", "1h ago"),
-            GitHubEvent("PullRequestEvent", "awesome-android", "Opened PR #42: Jetpack Glance widget", "4h ago"),
-            GitHubEvent("PushEvent", "project_dev_android_widgets", "Pushed 1 commit to main", "1d ago"),
-            GitHubEvent("IssuesEvent", "compose-multiplatform", "Created issue: Canvas bitmap rendering", "2d ago"),
-            GitHubEvent("PullRequestReviewEvent", "developer-tools", "Approved PR #108", "3d ago"),
-            GitHubEvent("PushEvent", "portfolio", "Pushed 5 commits to master", "4d ago"),
-            GitHubEvent("ForkEvent", "kotlin-coroutines", "Forked repository", "5d ago"),
-            GitHubEvent("WatchEvent", "android/architecture-samples", "Starred repository", "6d ago"),
-            GitHubEvent("PushEvent", "algorithms-repo", "Pushed 2 commits to dev", "1w ago"),
-            GitHubEvent("CreateEvent", "sandbox-compose", "Created repository sandbox-compose", "1w ago")
-        )
+        val eventRepos = listOf("project_dev_android_widgets", "awesome-android", "compose-multiplatform", "developer-tools", "portfolio", "algorithms-repo")
+        val sampleGhEvents = (0 until 100).map { i ->
+            val repo = eventRepos[i % eventRepos.size]
+            val (type, summary) = when (i % 6) {
+                0 -> "PushEvent" to "Pushed ${((i % 4) + 1)} commit(s) to main"
+                1 -> "PullRequestEvent" to "Opened PR #${100 + i}: Feature enhancements"
+                2 -> "IssuesEvent" to "Created issue #${50 + i}: UI performance optimization"
+                3 -> "PullRequestReviewEvent" to "Approved PR #${80 + i}"
+                4 -> "WatchEvent" to "Starred repository"
+                else -> "ForkEvent" to "Forked repository"
+            }
+            val timeLabel = when {
+                i == 0 -> "1h ago"
+                i < 5 -> "${i * 2}h ago"
+                i < 24 -> "${i}h ago"
+                i < 48 -> "${i / 24}d ago"
+                else -> "${i / 7}w ago"
+            }
+            GitHubEvent(
+                type = type,
+                repoName = repo,
+                actionSummary = summary,
+                createdAt = timeLabel
+            )
+        }
 
         val sampleLcTags = listOf(
             ProblemTopicTag("Array", 145, "Fundamental"),
