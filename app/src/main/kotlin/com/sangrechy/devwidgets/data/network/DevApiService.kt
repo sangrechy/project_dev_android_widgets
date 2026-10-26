@@ -1,10 +1,13 @@
 package com.sangrechy.devwidgets.data.network
 
 import com.sangrechy.devwidgets.data.model.AccountStatus
+import com.sangrechy.devwidgets.data.model.AppUpdateInfo
 import com.sangrechy.devwidgets.data.model.GitHubEvent
+import com.sangrechy.devwidgets.data.model.GitHubLanguageStat
 import com.sangrechy.devwidgets.data.model.GitHubStats
 import com.sangrechy.devwidgets.data.model.LeetCodeStats
 import com.sangrechy.devwidgets.data.model.LeetCodeSubmission
+import com.sangrechy.devwidgets.data.model.ProblemTopicTag
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -41,8 +44,25 @@ class DevApiService(private val okHttpClient: OkHttpClient = defaultClient()) {
                   }
                 }
                 submissionCalendar
+                tagProblemCounts {
+                  advanced {
+                    tagName
+                    tagSlug
+                    problemsSolved
+                  }
+                  intermediate {
+                    tagName
+                    tagSlug
+                    problemsSolved
+                  }
+                  fundamental {
+                    tagName
+                    tagSlug
+                    problemsSolved
+                  }
+                }
               }
-              recentAcSubmissionList(username: ${'$'}username, limit: 10) {
+              recentAcSubmissionList(username: ${'$'}username, limit: 100) {
                 title
                 titleSlug
                 timestamp
@@ -147,6 +167,27 @@ class DevApiService(private val okHttpClient: OkHttpClient = defaultClient()) {
                 }
             }
 
+            val topicTags = mutableListOf<ProblemTopicTag>()
+            matchedUser.optJSONObject("tagProblemCounts")?.let { tpc ->
+                val categories = listOf(
+                    "Advanced" to tpc.optJSONArray("advanced"),
+                    "Intermediate" to tpc.optJSONArray("intermediate"),
+                    "Fundamental" to tpc.optJSONArray("fundamental")
+                )
+                for ((cat, arr) in categories) {
+                    if (arr != null) {
+                        for (i in 0 until arr.length()) {
+                            val item = arr.getJSONObject(i)
+                            val tagName = item.optString("tagName")
+                            val solved = item.optInt("problemsSolved", 0)
+                            if (tagName.isNotBlank() && solved > 0) {
+                                topicTags.add(ProblemTopicTag(name = tagName, solvedCount = solved, category = cat))
+                            }
+                        }
+                    }
+                }
+            }
+
             val actualUsername = matchedUser.optString("username", trimmed)
             LeetCodeStats(
                 username = actualUsername,
@@ -156,6 +197,7 @@ class DevApiService(private val okHttpClient: OkHttpClient = defaultClient()) {
                 hardSolved = hard,
                 submissionCalendar = calendarMap,
                 recentSubmissions = subs,
+                topicTags = topicTags,
                 status = AccountStatus.CONNECTED,
                 statusMessage = "Linked successfully ($total solved)"
             )
@@ -200,6 +242,7 @@ class DevApiService(private val okHttpClient: OkHttpClient = defaultClient()) {
             }
 
             val recentEvents = fetchGitHubRecentEvents(trimmed, token)
+            val topLanguages = fetchGitHubLanguages(trimmed, token)
             val (calendarMap, totalContribs, commits, prs, issues, reviews) = fetchGitHubContributions(trimmed, token)
 
             GitHubStats(
@@ -211,6 +254,7 @@ class DevApiService(private val okHttpClient: OkHttpClient = defaultClient()) {
                 reviewsCount = reviews,
                 contributionDays = calendarMap,
                 recentEvents = recentEvents,
+                topLanguages = topLanguages,
                 status = AccountStatus.CONNECTED,
                 statusMessage = "Linked successfully ($totalContribs contributions)"
             )
@@ -226,7 +270,7 @@ class DevApiService(private val okHttpClient: OkHttpClient = defaultClient()) {
 
     private fun fetchGitHubRecentEvents(username: String, token: String): List<GitHubEvent> {
         val reqBuilder = Request.Builder()
-            .url("https://api.github.com/users/$username/events?per_page=10")
+            .url("https://api.github.com/users/$username/events?per_page=100")
             .header("Accept", "application/vnd.github.v3+json")
             .header("User-Agent", "DevWidgets-Android")
 
@@ -395,5 +439,116 @@ class DevApiService(private val okHttpClient: OkHttpClient = defaultClient()) {
         }
 
         return GitHubContribResult(emptyMap(), 0, 0, 0, 0, 0)
+    }
+
+    private fun fetchGitHubLanguages(username: String, token: String): List<GitHubLanguageStat> {
+        val reqBuilder = Request.Builder()
+            .url("https://api.github.com/users/$username/repos?per_page=50&sort=updated")
+            .header("Accept", "application/vnd.github.v3+json")
+            .header("User-Agent", "DevWidgets-Android")
+        if (token.isNotBlank()) reqBuilder.header("Authorization", "Bearer $token")
+
+        val langMap = mutableMapOf<String, Int>()
+        try {
+            okHttpClient.newCall(reqBuilder.build()).execute().use { resp ->
+                if (resp.isSuccessful) {
+                    val body = resp.body?.string() ?: "[]"
+                    val arr = JSONArray(body)
+                    for (i in 0 until arr.length()) {
+                        val r = arr.getJSONObject(i)
+                        val l = r.optString("language")
+                        if (l.isNotBlank() && l != "null") {
+                            langMap[l] = (langMap[l] ?: 0) + 1
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        val colors = mapOf(
+            "Kotlin" to "#A97BFF", "Python" to "#3572A5", "Java" to "#B07219",
+            "JavaScript" to "#F1E05A", "TypeScript" to "#3178C6", "C++" to "#F34B7D",
+            "C" to "#555555", "HTML" to "#E34C26", "CSS" to "#563D7C",
+            "Dart" to "#00B4AB", "Swift" to "#F05138", "Go" to "#00ADD8",
+            "Rust" to "#DEA584", "Shell" to "#89E051", "Ruby" to "#701516"
+        )
+        return langMap.entries
+            .sortedByDescending { it.value }
+            .take(8)
+            .map { (lang, count) ->
+                GitHubLanguageStat(
+                    name = lang,
+                    repoCount = count,
+                    colorHex = colors[lang] ?: "#3B82F6"
+                )
+            }
+    }
+
+    suspend fun checkForAppUpdate(currentVersion: String): AppUpdateInfo = withContext(Dispatchers.IO) {
+        val req = Request.Builder()
+            .url("https://api.github.com/repos/sangrechy/project_dev_android_widgets/releases/latest")
+            .header("Accept", "application/vnd.github.v3+json")
+            .header("User-Agent", "DevWidgets-Android")
+            .build()
+        try {
+            okHttpClient.newCall(req).execute().use { resp ->
+                if (!resp.isSuccessful) {
+                    return@withContext AppUpdateInfo(hasUpdate = false)
+                }
+                val body = resp.body?.string() ?: "{}"
+                val json = JSONObject(body)
+                val tagName = json.optString("tag_name", "").trim()
+                val name = json.optString("name", tagName)
+                val notes = json.optString("body", "")
+                val htmlUrl = json.optString("html_url", "https://github.com/sangrechy/project_dev_android_widgets/releases")
+                var apkUrl = ""
+                val assets = json.optJSONArray("assets")
+                if (assets != null) {
+                    for (i in 0 until assets.length()) {
+                        val a = assets.getJSONObject(i)
+                        val aName = a.optString("name", "")
+                        if (aName.endsWith(".apk")) {
+                            apkUrl = a.optString("browser_download_url", "")
+                            break
+                        }
+                    }
+                }
+                if (apkUrl.isBlank()) {
+                    apkUrl = htmlUrl
+                }
+
+                val cleanRemote = tagName.removePrefix("v").trim()
+                val cleanCurrent = currentVersion.removePrefix("v").trim()
+                val hasUpdate = isVersionNewer(cleanRemote, cleanCurrent)
+
+                AppUpdateInfo(
+                    hasUpdate = hasUpdate,
+                    latestVersion = tagName,
+                    releaseName = name,
+                    releaseNotes = notes,
+                    downloadUrl = apkUrl,
+                    releaseHtmlUrl = htmlUrl
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            AppUpdateInfo(hasUpdate = false)
+        }
+    }
+
+    private fun isVersionNewer(remote: String, current: String): Boolean {
+        if (remote.isBlank() || current.isBlank()) return false
+        if (remote == current) return false
+        val rParts = remote.split(".").mapNotNull { it.toIntOrNull() }
+        val cParts = current.split(".").mapNotNull { it.toIntOrNull() }
+        val maxLen = maxOf(rParts.size, cParts.size)
+        for (i in 0 until maxLen) {
+            val r = rParts.getOrElse(i) { 0 }
+            val c = cParts.getOrElse(i) { 0 }
+            if (r > c) return true
+            if (r < c) return false
+        }
+        return false
     }
 }

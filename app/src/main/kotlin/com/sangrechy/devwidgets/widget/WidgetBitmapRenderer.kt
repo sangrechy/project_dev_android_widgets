@@ -171,27 +171,14 @@ object WidgetBitmapRenderer {
         // 1. Determine optimal tier count based on aspect ratio
         val ratio = safeW.toFloat() / safeH.toFloat()
         val tiers = when {
-            ratio >= 3.5f -> 1 // 1 line (12 months)
-            ratio >= 1.55f -> 2 // 2 lines (6 6)
-            ratio >= 0.70f -> 3 // 3 lines (4 4 4)
-            else -> 4 // 4 lines (3 3 3 3)
+            ratio >= 4.0f -> 1 // 1 line (12 months)
+            ratio >= 2.1f -> 2 // 2 lines (6 6)
+            else -> 3 // 3 lines (4 4 4)
         }
 
-        // 2. Pre-calculate month transitions & normalize data
-        val calendar = Calendar.getInstance()
+        // 2. Normalize submission / contribution data
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
         val monthSdf = SimpleDateFormat("MMM", Locale.US)
-
-        val todayDow = calendar.get(Calendar.DAY_OF_WEEK) - 1
-        val daysBackTotal = (safeWeeks - 1) * 7 + todayDow
-
-        val calCopy = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-        calCopy.add(Calendar.DAY_OF_YEAR, -daysBackTotal)
 
         val dayCountMap = mutableMapOf<String, Int>()
         var totalInPeriod = 0
@@ -234,78 +221,86 @@ object WidgetBitmapRenderer {
             )
         }
 
-        // 3. Group weeks into sequential complete MonthBlocks (Never split a single month)
-        data class MonthBlock(
+        // 3. Generate 12 sequential months ending at current month
+        data class MonthCalendarBlock(
+            val year: Int,
             val monthIdx: Int,
             val monthName: String,
-            val weekIndices: MutableList<Int> = mutableListOf()
+            val daysInMonth: Int,
+            val firstDowMondayBased: Int
         )
 
-        val monthBlocks = mutableListOf<MonthBlock>()
-        val calScanner = calCopy.clone() as Calendar
+        val months = mutableListOf<MonthCalendarBlock>()
+        val calIter = Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        calIter.add(Calendar.MONTH, -11)
 
-        for (w in 0 until safeWeeks) {
-            val m = calScanner.get(Calendar.MONTH)
-            val mName = monthSdf.format(calScanner.time)
-            if (monthBlocks.isEmpty() || monthBlocks.last().monthIdx != m) {
-                monthBlocks.add(MonthBlock(monthIdx = m, monthName = mName, weekIndices = mutableListOf(w)))
-            } else {
-                monthBlocks.last().weekIndices.add(w)
-            }
-            calScanner.add(Calendar.DAY_OF_YEAR, 7)
+        for (m in 0 until 12) {
+            val y = calIter.get(Calendar.YEAR)
+            val mIdx = calIter.get(Calendar.MONTH)
+            val mName = monthSdf.format(calIter.time)
+            val daysCount = calIter.getActualMaximum(Calendar.DAY_OF_MONTH)
+            val calDow = calIter.get(Calendar.DAY_OF_WEEK)
+            val firstDow = (calDow + 5) % 7 // Mon=0, Tue=1, ..., Sun=6
+            months.add(MonthCalendarBlock(y, mIdx, mName, daysCount, firstDow))
+            calIter.add(Calendar.MONTH, 1)
         }
 
-        // 4. Partition complete month blocks among tiers - NEVER split a single month
-        val totalMonths = monthBlocks.size
-        val effectiveTiers = minOf(tiers, totalMonths).coerceAtLeast(1)
-        val baseMonthsPerTier = totalMonths / effectiveTiers
-        val remainderMonths = totalMonths % effectiveTiers
-
-        val tierBlocks = mutableListOf<List<MonthBlock>>()
-        var mIdx = 0
-        for (t in 0 until effectiveTiers) {
-            val count = baseMonthsPerTier + if (t < remainderMonths) 1 else 0
-            if (count > 0 && mIdx < totalMonths) {
-                val end = minOf(mIdx + count, totalMonths)
-                tierBlocks.add(monthBlocks.subList(mIdx, end))
-                mIdx = end
-            }
+        // 4. Partition 12 months among tiers
+        val monthsPerRow = when (tiers) {
+            1 -> 12
+            2 -> 6
+            else -> 4
         }
+        val effectiveTiers = (12 + monthsPerRow - 1) / monthsPerRow
 
-        val cellRows = 7
-        val maxTierCols = tierBlocks.maxOfOrNull { tb -> tb.sumOf { it.weekIndices.size } } ?: 18
-        val maxMonthTransitions = tierBlocks.maxOfOrNull { tb -> maxOf(0, tb.size - 1) } ?: 3
+        val marginX = 12f
+        val availW = (safeW - 2 * marginX).coerceAtLeast(80f)
 
-        val leftDayMargin = 28f
-        val rightMargin = 8f
-        val availW = (safeW - leftDayMargin - rightMargin).coerceAtLeast(80f)
+        // Inside each month: 7 columns (days of week), 6 rows (weeks)
+        val daysCols = 7
+        val weekRows = 6
 
-        val widthDivisor = maxTierCols + (maxTierCols - 1) * 0.18f + maxMonthTransitions * 1.25f
-        val maxCellFromW = availW / widthDivisor
+        // Layout sizing
+        val monthGap = (availW / (monthsPerRow * 10f)).coerceIn(4f, 14f)
+        val cellGapRatio = 0.16f
 
-        val fixedVerticalH = 22f + effectiveTiers * 14f + (effectiveTiers - 1) * 12f
-        val availCellH = (safeH - fixedVerticalH).coerceAtLeast(60f)
-        val maxCellFromH = availCellH / (effectiveTiers * 8.08f)
+        val totalMonthGaps = (monthsPerRow - 1) * monthGap
+        val availWForMonths = (availW - totalMonthGaps).coerceAtLeast(60f)
+        val maxMonthW = availWForMonths / monthsPerRow
 
-        val actualCell = minOf(maxCellFromW, maxCellFromH).coerceIn(6.5f, 26f)
-        val cellGap = (actualCell * 0.18f).coerceAtLeast(1.5f)
-        val monthGap = (actualCell * 1.25f).coerceAtLeast(8.0f)
+        val cellFromW = maxMonthW / (daysCols + (daysCols - 1) * cellGapRatio)
 
-        val totalGridW = maxTierCols * actualCell + (maxTierCols - 1) * cellGap + maxMonthTransitions * monthGap
-        val gridLeft = maxOf(leftDayMargin, (safeW - totalGridW) / 2f)
+        val fixedH = 22f + effectiveTiers * 14f + (effectiveTiers - 1) * 8f
+        val availHForMonths = (safeH - fixedH).coerceAtLeast(60f)
+        val maxMonthH = availHForMonths / effectiveTiers
+        val cellFromH = maxMonthH / (weekRows + (weekRows - 1) * cellGapRatio)
 
-        // 5. Header Label & Legend
+        val actualCell = minOf(cellFromW, cellFromH).coerceIn(4.5f, 22f)
+        val cellGap = (actualCell * cellGapRatio).coerceAtLeast(1.0f)
+        val uniformMonthW = daysCols * actualCell + (daysCols - 1) * cellGap
+        val uniformMonthH = weekRows * actualCell + (weekRows - 1) * cellGap
+
+        val totalGridW = monthsPerRow * uniformMonthW + (monthsPerRow - 1) * monthGap
+        val gridLeft = maxOf(marginX, (safeW - totalGridW) / 2f)
+
+        // 5. Header Title & Legend
         val headerTitle = if (isLeetCode) {
             if (totalInPeriod > 0) "$totalInPeriod submissions in 1 year" else "0 submissions in 1 year"
         } else {
             if (totalInPeriod > 0) "$totalInPeriod contributions in 1 year" else "0 contributions in 1 year"
         }
 
-        val headerY = (actualCell * 1.4f).coerceIn(16f, 24f)
+        val headerY = (actualCell * 1.5f).coerceIn(14f, 22f)
 
         val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = COLOR_TEXT_SLATE
-            textSize = (actualCell * 1.0f).coerceIn(10.5f, 15f)
+            textSize = (actualCell * 1.05f).coerceIn(10f, 14.5f)
             typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
             textAlign = Paint.Align.LEFT
         }
@@ -314,18 +309,16 @@ object WidgetBitmapRenderer {
         // Legend: Less [■][■][■][■][■] More
         val legendTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = COLOR_TEXT_MUTED
-            textSize = (actualCell * 0.82f).coerceIn(8.5f, 12f)
+            textSize = (actualCell * 0.85f).coerceIn(8f, 11.5f)
             typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
             textAlign = Paint.Align.RIGHT
         }
-        val sqSize = (actualCell * 0.75f).coerceIn(6.5f, 11f)
-        val sqGap = cellGap
+        val sqSize = (actualCell * 0.78f).coerceIn(5.5f, 10.5f)
         val moreWidth = legendTextPaint.measureText("More")
-
-        val legendRight = (gridLeft + totalGridW).coerceAtMost(safeW - 6f)
+        val legendRight = (gridLeft + totalGridW).coerceAtMost(safeW - 4f)
         canvas.drawText("More", legendRight, headerY, legendTextPaint)
 
-        var sqRight = legendRight - moreWidth - 4f
+        var sqRight = legendRight - moreWidth - 3f
         for (lvl in 4 downTo 0) {
             val sqPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 style = Paint.Style.FILL
@@ -334,64 +327,53 @@ object WidgetBitmapRenderer {
             val sqLeft = sqRight - sqSize
             val sqTop = headerY - sqSize + 1f
             canvas.drawRoundRect(RectF(sqLeft, sqTop, sqRight, sqTop + sqSize), 1.5f, 1.5f, sqPaint)
-            sqRight -= (sqSize + sqGap)
+            sqRight -= (sqSize + cellGap)
         }
-        canvas.drawText("Less", sqRight - 4f, headerY, legendTextPaint)
+        canvas.drawText("Less", sqRight - 3f, headerY, legendTextPaint)
 
-        // 6. Draw Tiers with Complete Months
-        val dayTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = COLOR_TEXT_MUTED
-            textSize = (actualCell * 0.72f).coerceIn(8f, 11f)
-            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
-            textAlign = Paint.Align.RIGHT
-        }
+        // 6. Draw Tiers with Uniform 7x6 Month Shapes
         val monthTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = COLOR_TEXT_MUTED
-            textSize = (actualCell * 0.82f).coerceIn(9f, 12.5f)
+            textSize = (actualCell * 0.92f).coerceIn(8.5f, 12f)
             typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-            textAlign = Paint.Align.LEFT
+            textAlign = Paint.Align.CENTER
         }
         val cellPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.FILL
         }
+        val faintDotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+            color = Color.argb(12, 255, 255, 255)
+        }
         val dividerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.argb(35, 255, 255, 255)
+            color = Color.argb(30, 255, 255, 255)
             strokeWidth = 1f
         }
 
-        val dowRows = mapOf(1 to "Mon", 3 to "Wed", 5 to "Fri")
-
         var currentTierTop = headerY + actualCell * 1.35f
 
-        for (tierIndex in 0 until tierBlocks.size) {
-            val monthsInTier = tierBlocks[tierIndex]
+        for (tierIndex in 0 until effectiveTiers) {
+            val startM = tierIndex * monthsPerRow
+            val endM = minOf(startM + monthsPerRow, 12)
             val monthY = currentTierTop
-            val gridTop = monthY + actualCell * 0.5f
+            val gridTop = monthY + actualCell * 0.6f
 
-            // Day-of-week labels
-            for ((r, label) in dowRows) {
-                val y = gridTop + r * (actualCell + cellGap) + actualCell * 0.82f
-                canvas.drawText(label, gridLeft - 4f, y, dayTextPaint)
-            }
+            for (mIdx in startM until endM) {
+                val mb = months[mIdx]
+                val colInTier = mIdx - startM
+                val monthLeft = gridLeft + colInTier * (uniformMonthW + monthGap)
 
-            var currentX = gridLeft
+                // Centered month name
+                val monthCenterX = monthLeft + uniformMonthW / 2f
+                canvas.drawText(mb.monthName, monthCenterX, monthY, monthTextPaint)
 
-            for (monthBlockIndex in 0 until monthsInTier.size) {
-                val mb = monthsInTier[monthBlockIndex]
-
-                if (monthBlockIndex > 0) {
-                    currentX += monthGap
-                }
-
-                // Draw month label at start of this complete month block
-                canvas.drawText(mb.monthName, currentX, monthY, monthTextPaint)
-
-                for (w in mb.weekIndices) {
-                    val calWeek = calCopy.clone() as Calendar
-                    calWeek.add(Calendar.DAY_OF_YEAR, w * 7)
-
-                    for (row in 0 until cellRows) {
-                        val dateStr = sdf.format(calWeek.time)
+                // Draw uniform 7 days (horizontal) x 6 weeks (vertical)
+                for (dayNum in 1..mb.daysInMonth) {
+                    val slot = mb.firstDowMondayBased + (dayNum - 1)
+                    val c = slot % daysCols
+                    val r = slot / daysCols
+                    if (r < weekRows) {
+                        val dateStr = String.format(Locale.US, "%04d-%02d-%02d", mb.year, mb.monthIdx + 1, dayNum)
                         val count = dayCountMap[dateStr] ?: 0
                         val level = when {
                             count <= 0 -> 0
@@ -401,21 +383,30 @@ object WidgetBitmapRenderer {
                             else -> 4
                         }
                         cellPaint.color = levelColors[level]
-                        val y = gridTop + row * (actualCell + cellGap)
-                        val cellRect = RectF(currentX, y, currentX + actualCell, y + actualCell)
-                        canvas.drawRoundRect(cellRect, actualCell * 0.22f, actualCell * 0.22f, cellPaint)
-
-                        calWeek.add(Calendar.DAY_OF_YEAR, 1)
+                        val x = monthLeft + c * (actualCell + cellGap)
+                        val y = gridTop + r * (actualCell + cellGap)
+                        canvas.drawRoundRect(RectF(x, y, x + actualCell, y + actualCell), actualCell * 0.22f, actualCell * 0.22f, cellPaint)
                     }
-                    currentX += (actualCell + cellGap)
+                }
+
+                // Draw faint boundary dots for unused cells to preserve identical month geometry
+                for (slot in 0 until (daysCols * weekRows)) {
+                    val dayNum = slot - mb.firstDowMondayBased + 1
+                    if (dayNum !in 1..mb.daysInMonth) {
+                        val c = slot % daysCols
+                        val r = slot / daysCols
+                        val x = monthLeft + c * (actualCell + cellGap)
+                        val y = gridTop + r * (actualCell + cellGap)
+                        canvas.drawCircle(x + actualCell / 2f, y + actualCell / 2f, 0.8f, faintDotPaint)
+                    }
                 }
             }
 
-            val tierBottom = gridTop + 7 * actualCell + 6 * cellGap
+            val tierBottom = gridTop + uniformMonthH
 
             // Divider between tiers
-            if (tierIndex < tierBlocks.size - 1) {
-                val dividerY = tierBottom + actualCell * 0.6f
+            if (tierIndex < effectiveTiers - 1) {
+                val dividerY = tierBottom + actualCell * 0.45f
                 canvas.drawLine(gridLeft, dividerY, gridLeft + totalGridW, dividerY, dividerPaint)
                 currentTierTop = dividerY + actualCell * 1.35f
             }

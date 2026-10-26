@@ -4,9 +4,11 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.sangrechy.devwidgets.data.model.AccountStatus
 import com.sangrechy.devwidgets.data.model.GitHubEvent
+import com.sangrechy.devwidgets.data.model.GitHubLanguageStat
 import com.sangrechy.devwidgets.data.model.GitHubStats
 import com.sangrechy.devwidgets.data.model.LeetCodeSubmission
 import com.sangrechy.devwidgets.data.model.LeetCodeStats
+import com.sangrechy.devwidgets.data.model.ProblemTopicTag
 import com.sangrechy.devwidgets.data.model.WidgetDashboardData
 import org.json.JSONArray
 import org.json.JSONObject
@@ -25,6 +27,23 @@ class WidgetPreferences(context: Context) {
     var gitHubToken: String
         get() = prefs.getString(KEY_GITHUB_TOKEN, "") ?: ""
         set(value) = prefs.edit().putString(KEY_GITHUB_TOKEN, value.trim()).apply()
+
+    var autoRefreshInterval: String
+        get() = prefs.getString(KEY_REFRESH_INTERVAL, "1h") ?: "1h"
+        set(value) = prefs.edit().putString(KEY_REFRESH_INTERVAL, value).apply()
+
+    var ignoredUpdateVersion: String
+        get() = prefs.getString(KEY_IGNORED_UPDATE, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_IGNORED_UPDATE, value).apply()
+
+    fun clearAll() {
+        prefs.edit()
+            .remove(KEY_LEETCODE_USERNAME)
+            .remove(KEY_GITHUB_USERNAME)
+            .remove(KEY_GITHUB_TOKEN)
+            .remove(KEY_CACHED_DASHBOARD)
+            .apply()
+    }
 
     fun saveDashboardData(data: WidgetDashboardData) {
         val root = JSONObject()
@@ -58,6 +77,17 @@ class WidgetPreferences(context: Context) {
                 subsArr.put(sObj)
             }
             put("recentSubmissions", subsArr)
+
+            val tagsArr = JSONArray()
+            data.leetCode.topicTags.forEach { tag ->
+                val tObj = JSONObject().apply {
+                    put("name", tag.name)
+                    put("solvedCount", tag.solvedCount)
+                    put("category", tag.category)
+                }
+                tagsArr.put(tObj)
+            }
+            put("topicTags", tagsArr)
         }
         root.put("leetCode", lcObj)
 
@@ -89,6 +119,17 @@ class WidgetPreferences(context: Context) {
                 evArr.put(eObj)
             }
             put("recentEvents", evArr)
+
+            val langArr = JSONArray()
+            data.gitHub.topLanguages.forEach { l ->
+                val lObj = JSONObject().apply {
+                    put("name", l.name)
+                    put("repoCount", l.repoCount)
+                    put("colorHex", l.colorHex)
+                }
+                langArr.put(lObj)
+            }
+            put("topLanguages", langArr)
         }
         root.put("gitHub", ghObj)
 
@@ -133,6 +174,19 @@ class WidgetPreferences(context: Context) {
                     )
                 }
             }
+            val lcTags = mutableListOf<ProblemTopicTag>()
+            lcObj.optJSONArray("topicTags")?.let { tArr ->
+                for (i in 0 until tArr.length()) {
+                    val item = tArr.getJSONObject(i)
+                    lcTags.add(
+                        ProblemTopicTag(
+                            name = item.optString("name", ""),
+                            solvedCount = item.optInt("solvedCount", 0),
+                            category = item.optString("category", "General")
+                        )
+                    )
+                }
+            }
             val lcStatusStr = lcObj.optString("status", AccountStatus.NOT_CONFIGURED.name)
             val lcStatus = try { AccountStatus.valueOf(lcStatusStr) } catch (_: Exception) { AccountStatus.NOT_CONFIGURED }
             val lcStats = LeetCodeStats(
@@ -143,6 +197,7 @@ class WidgetPreferences(context: Context) {
                 hardSolved = lcObj.optInt("hardSolved", 0),
                 submissionCalendar = lcCal,
                 recentSubmissions = lcSubs,
+                topicTags = lcTags,
                 status = lcStatus,
                 statusMessage = lcObj.optString("statusMessage", "")
             )
@@ -168,6 +223,19 @@ class WidgetPreferences(context: Context) {
                     )
                 }
             }
+            val ghLangs = mutableListOf<GitHubLanguageStat>()
+            ghObj.optJSONArray("topLanguages")?.let { lArr ->
+                for (i in 0 until lArr.length()) {
+                    val item = lArr.getJSONObject(i)
+                    ghLangs.add(
+                        GitHubLanguageStat(
+                            name = item.optString("name", ""),
+                            repoCount = item.optInt("repoCount", 0),
+                            colorHex = item.optString("colorHex", "#3B82F6")
+                        )
+                    )
+                }
+            }
             val ghStatusStr = ghObj.optString("status", AccountStatus.NOT_CONFIGURED.name)
             val ghStatus = try { AccountStatus.valueOf(ghStatusStr) } catch (_: Exception) { AccountStatus.NOT_CONFIGURED }
             val ghStats = GitHubStats(
@@ -179,6 +247,7 @@ class WidgetPreferences(context: Context) {
                 reviewsCount = ghObj.optInt("reviewsCount", 0),
                 contributionDays = ghCal,
                 recentEvents = ghEvents,
+                topLanguages = ghLangs,
                 status = ghStatus,
                 statusMessage = ghObj.optString("statusMessage", "")
             )
@@ -250,6 +319,30 @@ class WidgetPreferences(context: Context) {
             GitHubEvent("CreateEvent", "sandbox-compose", "Created repository sandbox-compose", "1w ago")
         )
 
+        val sampleLcTags = listOf(
+            ProblemTopicTag("Array", 145, "Fundamental"),
+            ProblemTopicTag("String", 98, "Fundamental"),
+            ProblemTopicTag("Hash Table", 85, "Fundamental"),
+            ProblemTopicTag("Dynamic Programming", 64, "Advanced"),
+            ProblemTopicTag("Tree", 52, "Intermediate"),
+            ProblemTopicTag("Math", 48, "Fundamental"),
+            ProblemTopicTag("Depth-First Search", 45, "Intermediate"),
+            ProblemTopicTag("Binary Search", 36, "Intermediate"),
+            ProblemTopicTag("Greedy", 30, "Intermediate"),
+            ProblemTopicTag("Two Pointers", 28, "Intermediate"),
+            ProblemTopicTag("Graph", 24, "Advanced"),
+            ProblemTopicTag("Stack", 22, "Fundamental")
+        )
+
+        val sampleGhLangs = listOf(
+            GitHubLanguageStat("Kotlin", 14, "#A97BFF"),
+            GitHubLanguageStat("Python", 11, "#3572A5"),
+            GitHubLanguageStat("TypeScript", 7, "#3178C6"),
+            GitHubLanguageStat("Java", 5, "#B07219"),
+            GitHubLanguageStat("Rust", 4, "#DEA584"),
+            GitHubLanguageStat("C++", 3, "#F34B7D")
+        )
+
         return WidgetDashboardData(
             leetCode = LeetCodeStats(
                 username = if (leetCodeUsername.isNotEmpty()) leetCodeUsername else "sangrechy",
@@ -258,7 +351,10 @@ class WidgetPreferences(context: Context) {
                 mediumSolved = 238,
                 hardSolved = 55,
                 submissionCalendar = sampleLcCal,
-                recentSubmissions = sampleLcSubs
+                recentSubmissions = sampleLcSubs,
+                topicTags = sampleLcTags,
+                status = AccountStatus.CONNECTED,
+                statusMessage = "Linked (485 solved)"
             ),
             gitHub = GitHubStats(
                 username = if (gitHubUsername.isNotEmpty()) gitHubUsername else "sangrechy",
@@ -268,7 +364,10 @@ class WidgetPreferences(context: Context) {
                 issuesCount = 38,
                 reviewsCount = 130,
                 contributionDays = sampleGhCal,
-                recentEvents = sampleGhEvents
+                recentEvents = sampleGhEvents,
+                topLanguages = sampleGhLangs,
+                status = AccountStatus.CONNECTED,
+                statusMessage = "Linked (842 contribs)"
             ),
             lastUpdatedMillis = System.currentTimeMillis()
         )
@@ -280,5 +379,7 @@ class WidgetPreferences(context: Context) {
         private const val KEY_GITHUB_USERNAME = "github_username"
         private const val KEY_GITHUB_TOKEN = "github_token"
         private const val KEY_CACHED_DASHBOARD = "cached_dashboard_json"
+        private const val KEY_REFRESH_INTERVAL = "auto_refresh_interval"
+        private const val KEY_IGNORED_UPDATE = "ignored_update_version"
     }
 }

@@ -12,8 +12,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 
 import com.sangrechy.devwidgets.data.model.AccountStatus
+import com.sangrechy.devwidgets.BuildConfig
+import com.sangrechy.devwidgets.data.model.AppUpdateInfo
 import com.sangrechy.devwidgets.data.model.GitHubStats
 import com.sangrechy.devwidgets.data.model.LeetCodeStats
+import com.sangrechy.devwidgets.widget.DevActivityWidgetProvider
 
 interface DataRepository {
     val dashboardData: Flow<WidgetDashboardData>
@@ -23,6 +26,12 @@ interface DataRepository {
     suspend fun verifyGitHub(username: String, token: String = ""): GitHubStats
     suspend fun syncData(): Result<WidgetDashboardData>
     fun loadSampleData()
+    suspend fun checkForUpdates(): AppUpdateInfo
+    fun getIgnoredUpdateVersion(): String
+    fun setIgnoredUpdateVersion(version: String)
+    fun getRefreshInterval(): String
+    fun setRefreshInterval(interval: String)
+    suspend fun logoutAll()
 }
 
 class DefaultDataRepository(private val context: Context) : DataRepository {
@@ -121,5 +130,38 @@ class DefaultDataRepository(private val context: Context) : DataRepository {
         val sample = prefs.getSampleDashboardData()
         prefs.saveDashboardData(sample)
         _dashboardData.value = sample
+    }
+
+    override suspend fun checkForUpdates(): AppUpdateInfo {
+        val currentVer = BuildConfig.VERSION_NAME
+        return apiService.checkForAppUpdate(currentVer)
+    }
+
+    override fun getIgnoredUpdateVersion(): String {
+        return prefs.ignoredUpdateVersion
+    }
+
+    override fun setIgnoredUpdateVersion(version: String) {
+        prefs.ignoredUpdateVersion = version
+    }
+
+    override fun getRefreshInterval(): String {
+        return prefs.autoRefreshInterval
+    }
+
+    override fun setRefreshInterval(interval: String) {
+        prefs.autoRefreshInterval = interval
+    }
+
+    override suspend fun logoutAll() = withContext(Dispatchers.IO) {
+        prefs.clearAll()
+        val emptyData = WidgetDashboardData(
+            leetCode = LeetCodeStats(status = AccountStatus.NOT_CONFIGURED),
+            gitHub = GitHubStats(status = AccountStatus.NOT_CONFIGURED),
+            lastUpdatedMillis = System.currentTimeMillis()
+        )
+        prefs.saveDashboardData(emptyData)
+        _dashboardData.value = emptyData
+        DevActivityWidgetProvider.updateAllWidgets(context, emptyData)
     }
 }

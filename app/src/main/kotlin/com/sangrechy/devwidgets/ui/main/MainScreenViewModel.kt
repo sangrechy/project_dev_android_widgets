@@ -12,9 +12,61 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+import com.sangrechy.devwidgets.BuildConfig
+import com.sangrechy.devwidgets.data.model.AppUpdateInfo
+
+enum class AppScreen(val title: String) {
+    HOME("Home"),
+    WIDGETS("Widgets"),
+    SETTINGS("Settings")
+}
+
+enum class HomeTab {
+    LEETCODE,
+    GITHUB
+}
+
+enum class FeedLimit(val count: Int, val label: String) {
+    LIMIT_10(10, "Last 10"),
+    LIMIT_50(50, "Last 50"),
+    LIMIT_100(100, "Last 100")
+}
+
 class MainScreenViewModel(private val repository: DataRepository) : ViewModel() {
 
+    companion object {
+        val REFRESH_INTERVALS = listOf(
+            "1s", "5s", "15s", "30s",
+            "1m", "2m", "5m", "10m", "15m", "30m",
+            "1h", "2h", "6h", "12h", "1d"
+        )
+    }
+
     private val saved = repository.getSavedUsernames()
+
+    private val _currentScreen = MutableStateFlow(AppScreen.HOME)
+    val currentScreen: StateFlow<AppScreen> = _currentScreen.asStateFlow()
+
+    private val _currentHomeTab = MutableStateFlow(HomeTab.LEETCODE)
+    val currentHomeTab: StateFlow<HomeTab> = _currentHomeTab.asStateFlow()
+
+    private val _feedLimit = MutableStateFlow(FeedLimit.LIMIT_10)
+    val feedLimit: StateFlow<FeedLimit> = _feedLimit.asStateFlow()
+
+    private val _selectedInterval = MutableStateFlow(repository.getRefreshInterval())
+    val selectedInterval: StateFlow<String> = _selectedInterval.asStateFlow()
+
+    private val _isCheckingUpdate = MutableStateFlow(false)
+    val isCheckingUpdate: StateFlow<Boolean> = _isCheckingUpdate.asStateFlow()
+
+    private val _updateInfo = MutableStateFlow<AppUpdateInfo?>(null)
+    val updateInfo: StateFlow<AppUpdateInfo?> = _updateInfo.asStateFlow()
+
+    private val _showUpdateDialog = MutableStateFlow(false)
+    val showUpdateDialog: StateFlow<Boolean> = _showUpdateDialog.asStateFlow()
+
+    private val _showLogoutDialog = MutableStateFlow(false)
+    val showLogoutDialog: StateFlow<Boolean> = _showLogoutDialog.asStateFlow()
 
     private val _leetCodeInput = MutableStateFlow(saved.first)
     val leetCodeInput: StateFlow<String> = _leetCodeInput.asStateFlow()
@@ -129,6 +181,76 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
         _gitHubInput.value = "sangrechy"
         repository.loadSampleData()
         _syncMessage.value = "Loaded sample developer activity data."
+    }
+
+    fun setScreen(screen: AppScreen) {
+        _currentScreen.value = screen
+    }
+
+    fun setHomeTab(tab: HomeTab) {
+        _currentHomeTab.value = tab
+    }
+
+    fun setFeedLimit(limit: FeedLimit) {
+        _feedLimit.value = limit
+    }
+
+    fun setRefreshInterval(interval: String) {
+        _selectedInterval.value = interval
+        repository.setRefreshInterval(interval)
+        _syncMessage.value = "Auto-refresh frequency set to $interval"
+    }
+
+    fun checkForUpdates(manual: Boolean = true) {
+        viewModelScope.launch {
+            _isCheckingUpdate.value = true
+            val info = repository.checkForUpdates()
+            _isCheckingUpdate.value = false
+            if (info.hasUpdate) {
+                val ignored = repository.getIgnoredUpdateVersion()
+                if (!manual && ignored == info.latestVersion) {
+                    return@launch
+                }
+                _updateInfo.value = info
+                _showUpdateDialog.value = true
+            } else {
+                if (manual) {
+                    _syncMessage.value = "You are on the latest version (${BuildConfig.VERSION_NAME})!"
+                }
+            }
+        }
+    }
+
+    fun ignoreCurrentUpdate() {
+        _updateInfo.value?.latestVersion?.let { ver ->
+            repository.setIgnoredUpdateVersion(ver)
+        }
+        _showUpdateDialog.value = false
+        _syncMessage.value = "Update notifications muted for this version."
+    }
+
+    fun dismissUpdateDialog() {
+        _showUpdateDialog.value = false
+    }
+
+    fun showLogoutConfirmation() {
+        _showLogoutDialog.value = true
+    }
+
+    fun dismissLogoutConfirmation() {
+        _showLogoutDialog.value = false
+    }
+
+    fun confirmLogout() {
+        viewModelScope.launch {
+            repository.logoutAll()
+            _leetCodeInput.value = ""
+            _gitHubInput.value = ""
+            _gitHubTokenInput.value = ""
+            _showLogoutDialog.value = false
+            _currentScreen.value = AppScreen.HOME
+            _syncMessage.value = "Logged out from all developer accounts."
+        }
     }
 
     fun dismissMessage() {

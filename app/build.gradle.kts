@@ -11,8 +11,8 @@ android {
     applicationId = "com.sangrechy.devwidgets"
     minSdk = 26
     targetSdk = 36
-    versionCode = 2
-    versionName = "1.1.0"
+    versionCode = 3
+    versionName = "1.2.0"
   }
 
   buildTypes {
@@ -28,7 +28,7 @@ android {
   buildFeatures {
     compose = true
     aidl = false
-    buildConfig = false
+    buildConfig = true
     shaders = false
   }
 
@@ -61,6 +61,7 @@ dependencies {
   implementation(libs.androidx.compose.ui)
   implementation(libs.androidx.compose.ui.tooling.preview)
   implementation(libs.androidx.compose.material3)
+  implementation("androidx.compose.material:material-icons-extended")
 
   // Networking and Background Sync
   implementation(libs.okhttp)
