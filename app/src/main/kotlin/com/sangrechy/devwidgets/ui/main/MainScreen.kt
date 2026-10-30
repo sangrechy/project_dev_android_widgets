@@ -3303,12 +3303,35 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
                         letterSpacing = 0.5.sp
                     )
                 }
-                Text(
-                    text = "Live Glass Preview (Drag Cards)",
-                    color = Color(0xFFCBD5E1),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Medium
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Live Glass Preview (Drag Cards)",
+                        color = Color(0xFFCBD5E1),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    if (lcOffsetX != 0f || lcOffsetY != 0f || ghOffsetX != 0f || ghOffsetY != 0f) {
+                        Text(
+                            text = "Reset",
+                            color = ThemeAccentBlue,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0x3338BDF8))
+                                .clickable {
+                                    lcOffsetX = 0f
+                                    lcOffsetY = 0f
+                                    ghOffsetX = 0f
+                                    ghOffsetY = 0f
+                                }
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
             }
 
             // Top Card: LeetCode Glass Card (Movable via Drag)

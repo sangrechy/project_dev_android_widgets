@@ -1485,7 +1485,7 @@ private fun LeetCodeNotesTab(
                         tint = ThemeAccentBlue,
                         modifier = Modifier.size(14.dp)
                     )
-                    Text("+ Note", color = ThemeAccentBlue, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Note", color = ThemeAccentBlue, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }

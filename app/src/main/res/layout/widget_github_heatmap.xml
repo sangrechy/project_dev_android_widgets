@@ -88,6 +88,7 @@
                 android:id="@+id/tv_gh_user_tag"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
                 android:text=" (@dev)"
                 android:textColor="#94A3B8"
                 android:textSize="11sp" />
