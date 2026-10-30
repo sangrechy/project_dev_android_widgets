@@ -58,7 +58,8 @@ data class GitHubStats(
     val recentEvents: List<GitHubEvent> = emptyList(),
     val topLanguages: List<GitHubLanguageStat> = emptyList(),
     val status: AccountStatus = AccountStatus.NOT_CONFIGURED,
-    val statusMessage: String = ""
+    val statusMessage: String = "",
+    val isAuthenticated: Boolean = false
 )
 
 data class AppUpdateInfo(

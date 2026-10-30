@@ -170,6 +170,7 @@ class WidgetPreferences(context: Context) {
             put("reviewsCount", data.gitHub.reviewsCount)
             put("status", data.gitHub.status.name)
             put("statusMessage", data.gitHub.statusMessage)
+            put("isAuthenticated", data.gitHub.isAuthenticated)
 
             val calObj = JSONObject()
             data.gitHub.contributionDays.forEach { (date, count) ->
@@ -318,7 +319,8 @@ class WidgetPreferences(context: Context) {
                 recentEvents = ghEvents,
                 topLanguages = ghLangs,
                 status = ghStatus,
-                statusMessage = ghObj.optString("statusMessage", "")
+                statusMessage = ghObj.optString("statusMessage", ""),
+                isAuthenticated = ghObj.optBoolean("isAuthenticated", false)
             )
 
             WidgetDashboardData(

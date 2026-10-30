@@ -1618,7 +1618,7 @@ private fun GitHubDetailView(
                 AccountStatusBadge(
                     status = stats.status,
                     isVerifying = false,
-                    connectedText = "Connected",
+                    connectedText = if (stats.isAuthenticated) "Connected (Token)" else "Connected",
                     failedText = "Offline",
                     onClick = onNavigateToSettings
                 )
@@ -2857,10 +2857,15 @@ private fun SettingsScreenContent(
                             )
                         }
 
+                        val ghConnectedLabel = if (dashboardData.gitHub.isAuthenticated) {
+                            "✓ Connected (Token • ${dashboardData.gitHub.totalContributions} contribs)"
+                        } else {
+                            "✓ Connected (${dashboardData.gitHub.totalContributions} contribs)"
+                        }
                         AccountStatusBadge(
                             status = dashboardData.gitHub.status,
                             isVerifying = isVerifyingGh,
-                            connectedText = "✓ Connected (${dashboardData.gitHub.totalContributions} contribs)",
+                            connectedText = ghConnectedLabel,
                             failedText = "✗ Failed"
                         )
                     }
@@ -2941,6 +2946,7 @@ private fun SettingsScreenContent(
 
                     // Token Status Indicator
                     val hasToken = tokenInput.isNotBlank()
+                    val tokenAuthenticated = hasToken && dashboardData.gitHub.isAuthenticated && dashboardData.gitHub.status == AccountStatus.CONNECTED
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -2950,10 +2956,14 @@ private fun SettingsScreenContent(
                             modifier = Modifier
                                 .size(8.dp)
                                 .clip(CircleShape)
-                                .background(if (hasToken) ThemeAccentGreen else ThemeTextMuted)
+                                .background(if (tokenAuthenticated) ThemeAccentGreen else if (hasToken) ThemeTextSecondary else ThemeTextMuted)
                         )
                         Text(
-                            text = if (hasToken) "token: connected (private repo telemetry enabled)" else "token: disconnected (public contributions only)",
+                            text = when {
+                                tokenAuthenticated -> "token: connected & authenticated (GraphQL API + private contributions enabled)"
+                                hasToken -> "token: entered (click verify below to authenticate with GitHub)"
+                                else -> "token: disconnected (public contributions only)"
+                            },
                             color = ThemeTextSecondary,
                             fontSize = 11.sp
                         )

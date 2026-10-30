@@ -4,6 +4,7 @@ import android.content.Context
 import com.sangrechy.devwidgets.data.model.CustomNote
 import com.sangrechy.devwidgets.data.model.OfflineProblem
 import com.sangrechy.devwidgets.data.model.ProblemNote
+import com.sangrechy.devwidgets.data.network.DevApiService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -228,13 +229,15 @@ class OfflineProblemRepository(
             return@withContext Result.failure(Exception("GitHub username/owner and repository name are required."))
         }
 
+        val cleanToken = DevApiService.normalizeToken(token)
+
         try {
             // 1. Detect default branch from repository info
             val repoInfoReq = Request.Builder()
                 .url("https://api.github.com/repos/$cleanOwner/$cleanRepo")
                 .header("Accept", "application/vnd.github.v3+json")
                 .header("User-Agent", "DevLife-Android")
-                .apply { if (token.isNotBlank()) header("Authorization", "Bearer ${token.trim()}") }
+                .apply { if (cleanToken.isNotBlank()) header("Authorization", "Bearer $cleanToken") }
                 .build()
 
             val detectedBranch = try {
@@ -257,8 +260,8 @@ class OfflineProblemRepository(
                     .url(treeUrl)
                     .header("Accept", "application/vnd.github.v3+json")
                     .header("User-Agent", "DevLife-Android")
-                if (token.isNotBlank()) {
-                    reqBuilder.header("Authorization", "Bearer ${token.trim()}")
+                if (cleanToken.isNotBlank()) {
+                    reqBuilder.header("Authorization", "Bearer $cleanToken")
                 }
 
                 try {
@@ -309,8 +312,8 @@ class OfflineProblemRepository(
                         .url(blobUrl)
                         .header("Accept", "application/vnd.github.v3+json")
                         .header("User-Agent", "DevLife-Android")
-                    if (token.isNotBlank()) {
-                        blobReqBuilder.header("Authorization", "Bearer ${token.trim()}")
+                    if (cleanToken.isNotBlank()) {
+                        blobReqBuilder.header("Authorization", "Bearer $cleanToken")
                     }
 
                     okHttpClient.newCall(blobReqBuilder.build()).execute().use { blobResp ->
