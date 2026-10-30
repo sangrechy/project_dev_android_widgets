@@ -210,6 +210,47 @@ class MainScreenViewModelTest {
         assertEquals("custom-leetcode-backup", viewModel.backupRepoInput.value)
         assertEquals("custom-leetcode-backup", fakeRepo.getGitHubBackupRepo())
     }
+
+    @Test
+    fun wallpaperSettings_updateStatesAndRepository() = runTest {
+        val fakeRepo = FakeDataRepository()
+        val viewModel = MainScreenViewModel(fakeRepo)
+
+        // App wallpaper preset
+        viewModel.setAppWallpaperPreset("CYBER_MATRIX")
+        assertEquals("PRESET", viewModel.appWallpaperType.value)
+        assertEquals("CYBER_MATRIX", viewModel.appWallpaperPreset.value)
+        assertEquals("PRESET", fakeRepo.getAppWallpaperType())
+        assertEquals("CYBER_MATRIX", fakeRepo.getAppWallpaperPreset())
+
+        // App wallpaper dim
+        viewModel.setAppWallpaperDim(0.75f)
+        assertEquals(0.75f, viewModel.appWallpaperDim.value)
+        assertEquals(0.75f, fakeRepo.getAppWallpaperDim())
+
+        // App wallpaper reset to obsidian theme
+        viewModel.setAppWallpaperDefault()
+        assertEquals("NONE", viewModel.appWallpaperType.value)
+        assertEquals("NONE", fakeRepo.getAppWallpaperType())
+
+        // Widget wallpaper type and preset
+        val initialWidgetCalls = fakeRepo.updateWidgetsCallCount
+        viewModel.setWidgetWallpaperType("TRANSLUCENT")
+        assertEquals("TRANSLUCENT", viewModel.widgetWallpaperType.value)
+        assertEquals("TRANSLUCENT", fakeRepo.getWidgetWallpaperType())
+        assertTrue(fakeRepo.updateWidgetsCallCount > initialWidgetCalls)
+
+        val presetWidgetCalls = fakeRepo.updateWidgetsCallCount
+        viewModel.setWidgetWallpaperPreset("TERMINAL_CODE")
+        assertEquals("TERMINAL_CODE", viewModel.widgetWallpaperPreset.value)
+        assertEquals("TERMINAL_CODE", fakeRepo.getWidgetWallpaperPreset())
+        assertTrue(fakeRepo.updateWidgetsCallCount > presetWidgetCalls)
+
+        // Widget wallpaper dim
+        viewModel.setWidgetWallpaperDim(0.4f)
+        assertEquals(0.4f, viewModel.widgetWallpaperDim.value)
+        assertEquals(0.4f, fakeRepo.getWidgetWallpaperDim())
+    }
 }
 
 private class FakeProblemRepository : com.sangrechy.devwidgets.data.ProblemRepository {
@@ -356,4 +397,41 @@ private class FakeDataRepository : DataRepository {
     override suspend fun logoutAll() {
         isLoggedOut = true
     }
+
+    private var appWallpaperTypeVal = "NONE"
+    private var appWallpaperPresetVal = "OBSIDIAN_CORE"
+    private var appWallpaperDimVal = 0.5f
+    private var appWallpaperCustomPathVal = ""
+    private var widgetWallpaperTypeVal = "DEFAULT"
+    private var widgetWallpaperPresetVal = "OBSIDIAN_CORE"
+    private var widgetWallpaperDimVal = 0.3f
+    private var widgetWallpaperCustomPathVal = ""
+    var updateWidgetsCallCount = 0
+
+    override fun getAppWallpaperType(): String = appWallpaperTypeVal
+    override fun setAppWallpaperType(type: String) { appWallpaperTypeVal = type }
+    override fun getAppWallpaperPreset(): String = appWallpaperPresetVal
+    override fun setAppWallpaperPreset(preset: String) { appWallpaperPresetVal = preset }
+    override fun getAppWallpaperDim(): Float = appWallpaperDimVal
+    override fun setAppWallpaperDim(dim: Float) { appWallpaperDimVal = dim }
+    override fun getAppWallpaperCustomPath(): String = appWallpaperCustomPathVal
+    override fun setAppWallpaperCustomPath(path: String) { appWallpaperCustomPathVal = path }
+
+    private val widgetSpecificWallpapers = mutableMapOf<String, String>()
+    override fun getWidgetWallpaperType(): String = widgetWallpaperTypeVal
+    override fun setWidgetWallpaperType(type: String) { widgetWallpaperTypeVal = type }
+    override fun getWidgetWallpaperTypeFor(widgetKey: String): String = widgetSpecificWallpapers[widgetKey] ?: widgetWallpaperTypeVal
+    override fun setWidgetWallpaperTypeFor(widgetKey: String, type: String) { widgetSpecificWallpapers[widgetKey] = type }
+    override fun getWidgetWallpaperPreset(): String = widgetWallpaperPresetVal
+    override fun setWidgetWallpaperPreset(preset: String) { widgetWallpaperPresetVal = preset }
+    override fun getWidgetWallpaperDim(): Float = widgetWallpaperDimVal
+    override fun setWidgetWallpaperDim(dim: Float) { widgetWallpaperDimVal = dim }
+    override fun getWidgetWallpaperCustomPath(): String = widgetWallpaperCustomPathVal
+    override fun setWidgetWallpaperCustomPath(path: String) { widgetWallpaperCustomPathVal = path }
+
+    override suspend fun saveCustomWallpaperFromUri(uri: android.net.Uri, forWidget: Boolean): String? = "/mock/path.jpg"
+    override fun updateAllWidgets() {
+        updateWidgetsCallCount++
+    }
 }
+

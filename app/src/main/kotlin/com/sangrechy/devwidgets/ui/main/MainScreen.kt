@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -41,8 +42,30 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material.icons.filled.Widgets
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.FormatPaint
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.ui.layout.ContentScale
+import com.sangrechy.devwidgets.data.WallpaperManager
+import com.sangrechy.devwidgets.data.WallpaperPreset
+import androidx.activity.compose.BackHandler
+import com.sangrechy.devwidgets.ui.problems.LeetCodeProblemDetailView
+import com.sangrechy.devwidgets.ui.problems.GeneralNoteEditorView
+import com.sangrechy.devwidgets.util.ChangelogParser
 import com.sangrechy.devwidgets.ui.problems.ProblemsScreenContent
+import com.sangrechy.devwidgets.ui.wallpaper.WallpaperScreenContent
+import com.sangrechy.devwidgets.ui.theme.*
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -73,6 +96,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -157,6 +185,13 @@ fun MainScreen(
     val syncMessage by viewModel.syncMessage.collectAsStateWithLifecycle()
     val dashboardData by viewModel.dashboardData.collectAsStateWithLifecycle()
 
+    LaunchedEffect(syncMessage) {
+        if (syncMessage != null) {
+            kotlinx.coroutines.delay(3500)
+            viewModel.dismissMessage()
+        }
+    }
+
     val showUpdateDialog by viewModel.showUpdateDialog.collectAsStateWithLifecycle()
     val updateInfo by viewModel.updateInfo.collectAsStateWithLifecycle()
     val showLogoutDialog by viewModel.showLogoutDialog.collectAsStateWithLifecycle()
@@ -175,7 +210,8 @@ fun MainScreen(
         while (isActive) {
             delay(delayMs)
             if (!isSyncing && (leetCodeInput.isNotBlank() || gitHubInput.isNotBlank())) {
-                viewModel.saveAndSync()
+                viewModel.syncSilently()
+                DevActivityWidgetProvider.enqueueImmediateSync(context)
             }
         }
     }
@@ -183,9 +219,9 @@ fun MainScreen(
     val bgGradient = remember {
         Brush.verticalGradient(
             listOf(
-                Color(0xFF060A12),
-                Color(0xFF0F1A2E),
-                Color(0xFF080D18)
+                ThemeBgTop,
+                ThemeBgMid,
+                ThemeBgBottom
             )
         )
     }
@@ -194,19 +230,15 @@ fun MainScreen(
         drawerState = drawerState,
         drawerContent = {
             ModalDrawerSheet(
-                drawerContainerColor = Color(0xFF0D1424),
-                drawerContentColor = Color.White,
+                drawerContainerColor = ThemeDrawerBg,
+                drawerContentColor = ThemeTextPrimary,
                 modifier = Modifier.width(300.dp)
             ) {
                 // Drawer Header
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(Color(0xFF1E293B), Color(0xFF0F172A))
-                            )
-                        )
+                        .background(ThemeDrawerHeaderBg)
                         .padding(20.dp)
                 ) {
                     Image(
@@ -215,19 +247,19 @@ fun MainScreen(
                         modifier = Modifier
                             .size(56.dp)
                             .clip(CircleShape)
-                            .border(1.5.dp, Color(0x80FFFFFF), CircleShape)
+                            .border(1.5.dp, ThemeCardBorder, CircleShape)
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = "Dev Life",
-                        color = Color.White,
+                        color = ThemeTextPrimary,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.5.sp
                     )
                     Text(
                         text = "v${BuildConfig.VERSION_NAME} • Multi-Platform Hub",
-                        color = Color(0xFF94A3B8),
+                        color = ThemeTextSecondary,
                         fontSize = 12.sp
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -240,17 +272,17 @@ fun MainScreen(
                         MiniAccountChip(
                             name = "LeetCode",
                             status = dashboardData.leetCode.status,
-                            color = Color(0xFFFFA116)
+                            color = ThemeAccentAmber
                         )
                         MiniAccountChip(
                             name = "GitHub",
                             status = dashboardData.gitHub.status,
-                            color = Color(0xFF3FB950)
+                            color = ThemeAccentGreen
                         )
                     }
                 }
 
-                HorizontalDivider(color = Color(0x26FFFFFF))
+                HorizontalDivider(color = ThemeCardBorder)
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // Navigation Items
@@ -263,11 +295,11 @@ fun MainScreen(
                     },
                     icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
                     colors = NavigationDrawerItemDefaults.colors(
-                        selectedContainerColor = Color(0x333B82F6),
-                        selectedTextColor = Color(0xFF93C5FD),
-                        selectedIconColor = Color(0xFF60A5FA),
-                        unselectedTextColor = Color(0xFFCBD5E1),
-                        unselectedIconColor = Color(0xFF94A3B8)
+                        selectedContainerColor = ThemeDrawerItemSelected,
+                        selectedTextColor = ThemeTextPrimary,
+                        selectedIconColor = ThemeAccentBlue,
+                        unselectedTextColor = ThemeTextSecondary,
+                        unselectedIconColor = ThemeTextMuted
                     ),
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
                 )
@@ -281,11 +313,11 @@ fun MainScreen(
                     },
                     icon = { Icon(Icons.Default.Code, contentDescription = "Problems") },
                     colors = NavigationDrawerItemDefaults.colors(
-                        selectedContainerColor = Color(0x333B82F6),
-                        selectedTextColor = Color(0xFF93C5FD),
-                        selectedIconColor = Color(0xFF60A5FA),
-                        unselectedTextColor = Color(0xFFCBD5E1),
-                        unselectedIconColor = Color(0xFF94A3B8)
+                        selectedContainerColor = ThemeDrawerItemSelected,
+                        selectedTextColor = ThemeTextPrimary,
+                        selectedIconColor = ThemeAccentBlue,
+                        unselectedTextColor = ThemeTextSecondary,
+                        unselectedIconColor = ThemeTextMuted
                     ),
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
                 )
@@ -299,11 +331,29 @@ fun MainScreen(
                     },
                     icon = { Icon(Icons.Default.Widgets, contentDescription = "Widgets") },
                     colors = NavigationDrawerItemDefaults.colors(
-                        selectedContainerColor = Color(0x333B82F6),
-                        selectedTextColor = Color(0xFF93C5FD),
-                        selectedIconColor = Color(0xFF60A5FA),
-                        unselectedTextColor = Color(0xFFCBD5E1),
-                        unselectedIconColor = Color(0xFF94A3B8)
+                        selectedContainerColor = ThemeDrawerItemSelected,
+                        selectedTextColor = ThemeTextPrimary,
+                        selectedIconColor = ThemeAccentBlue,
+                        unselectedTextColor = ThemeTextSecondary,
+                        unselectedIconColor = ThemeTextMuted
+                    ),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
+                )
+
+                NavigationDrawerItem(
+                    label = { Text("Wallpaper", fontWeight = FontWeight.SemiBold) },
+                    selected = currentScreen == AppScreen.WALLPAPER,
+                    onClick = {
+                        viewModel.setScreen(AppScreen.WALLPAPER)
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    icon = { Icon(Icons.Default.Wallpaper, contentDescription = "Wallpaper") },
+                    colors = NavigationDrawerItemDefaults.colors(
+                        selectedContainerColor = ThemeDrawerItemSelected,
+                        selectedTextColor = ThemeTextPrimary,
+                        selectedIconColor = ThemeAccentBlue,
+                        unselectedTextColor = ThemeTextSecondary,
+                        unselectedIconColor = ThemeTextMuted
                     ),
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
                 )
@@ -317,26 +367,26 @@ fun MainScreen(
                     },
                     icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
                     colors = NavigationDrawerItemDefaults.colors(
-                        selectedContainerColor = Color(0x333B82F6),
-                        selectedTextColor = Color(0xFF93C5FD),
-                        selectedIconColor = Color(0xFF60A5FA),
-                        unselectedTextColor = Color(0xFFCBD5E1),
-                        unselectedIconColor = Color(0xFF94A3B8)
+                        selectedContainerColor = ThemeDrawerItemSelected,
+                        selectedTextColor = ThemeTextPrimary,
+                        selectedIconColor = ThemeAccentBlue,
+                        unselectedTextColor = ThemeTextSecondary,
+                        unselectedIconColor = ThemeTextMuted
                     ),
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
                 )
 
                 Spacer(modifier = Modifier.weight(1f))
-                HorizontalDivider(color = Color(0x26FFFFFF))
+                HorizontalDivider(color = ThemeCardBorder)
 
                 NavigationDrawerItem(
-                    label = { Text("Logout All", fontWeight = FontWeight.Bold, color = Color(0xFFF87171)) },
+                    label = { Text("Logout All", fontWeight = FontWeight.Bold, color = ThemeAccentRed) },
                     selected = false,
                     onClick = {
                         coroutineScope.launch { drawerState.close() }
                         viewModel.showLogoutConfirmation()
                     },
-                    icon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout", tint = Color(0xFFF87171)) },
+                    icon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout", tint = ThemeAccentRed) },
                     modifier = Modifier.padding(12.dp)
                 )
             }
@@ -346,27 +396,55 @@ fun MainScreen(
             modifier = modifier.fillMaxSize(),
             containerColor = Color.Transparent
         ) { innerPadding ->
+            val appWallpaperType by viewModel.appWallpaperType.collectAsState()
+            val appWallpaperPreset by viewModel.appWallpaperPreset.collectAsState()
+            val appWallpaperCustomPath by viewModel.appWallpaperCustomPath.collectAsState()
+            val appWallpaperDim by viewModel.appWallpaperDim.collectAsState()
+            val widgetWallpaperType by viewModel.widgetWallpaperType.collectAsState()
+
+            val wallpaperBitmap = remember(appWallpaperType, appWallpaperPreset, appWallpaperCustomPath) {
+                WallpaperManager.getAppWallpaperBitmap(context, 1080, 2400)?.asImageBitmap()
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(bgGradient)
-                    .padding(innerPadding)
             ) {
-                Column(
+                if (appWallpaperType != "NONE" && wallpaperBitmap != null) {
+                    Image(
+                        bitmap = wallpaperBitmap,
+                        contentDescription = "App Wallpaper Background",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = appWallpaperDim))
+                    )
+                }
+
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                        .padding(innerPadding)
                 ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
                     // Top App Bar with Left Menu Button (PINNED AT TOP)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0x28182438))
+                            .background(ThemeTopBarBg)
                             .border(
                                 1.dp,
-                                Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                                ThemeTopBarBorder,
                                 RoundedCornerShape(20.dp)
                             )
                             .padding(horizontal = 8.dp, vertical = 8.dp),
@@ -376,7 +454,7 @@ fun MainScreen(
                             Icon(
                                 imageVector = Icons.Default.Menu,
                                 contentDescription = "Open Navigation Menu",
-                                tint = Color.White
+                                tint = ThemeTextPrimary
                             )
                         }
 
@@ -386,13 +464,13 @@ fun MainScreen(
                             modifier = Modifier
                                 .size(34.dp)
                                 .clip(CircleShape)
-                                .border(1.dp, Color(0x55FFFFFF), CircleShape)
+                                .border(1.dp, ThemeCardBorder, CircleShape)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "Dev Life",
-                                color = Color.White,
+                                color = ThemeTextPrimary,
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 0.5.sp
@@ -402,9 +480,10 @@ fun MainScreen(
                                     AppScreen.HOME -> "User Insights & Activity"
                                     AppScreen.PROBLEMS -> "Offline Problem Bank & Notes"
                                     AppScreen.WIDGETS -> "Widget Gallery & Sync"
+                                    AppScreen.WALLPAPER -> "App & Widget Wallpaper Studio"
                                     AppScreen.SETTINGS -> "Accounts & Configuration"
                                 },
-                                color = Color(0xFF94A3B8),
+                                color = ThemeTextSecondary,
                                 fontSize = 11.sp
                             )
                         }
@@ -412,7 +491,7 @@ fun MainScreen(
                         // Quick Sync Icon Button
                         IconButton(
                             onClick = {
-                                viewModel.saveAndSync()
+                                viewModel.refreshCurrentScreen()
                                 DevActivityWidgetProvider.enqueueImmediateSync(context)
                             },
                             enabled = !isSyncing
@@ -421,51 +500,14 @@ fun MainScreen(
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(18.dp),
                                     strokeWidth = 2.dp,
-                                    color = Color(0xFF60A5FA)
+                                    color = ThemeAccentBlue
                                 )
                             } else {
                                 Icon(
                                     imageVector = Icons.Default.Refresh,
                                     contentDescription = "Quick Sync",
-                                    tint = Color(0xFF94A3B8)
+                                    tint = ThemeTextSecondary
                                 )
-                            }
-                        }
-                    }
-
-                    // Status Message Banner (PINNED)
-                    syncMessage?.let { msg ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(Color(0x2E3B82F6))
-                                .border(1.dp, Color(0x5560A5FA), RoundedCornerShape(14.dp))
-                                .padding(horizontal = 14.dp, vertical = 10.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = msg,
-                                    color = Color(0xFF93C5FD),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                IconButton(
-                                    onClick = viewModel::dismissMessage,
-                                    modifier = Modifier.size(20.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Dismiss",
-                                        tint = Color(0xFF93C5FD),
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
                             }
                         }
                     }
@@ -529,9 +571,19 @@ fun MainScreen(
                             dashboardData = dashboardData,
                             selectedInterval = selectedInterval,
                             heatmapOrientation = heatmapOrientation,
+                            widgetWallpaperType = widgetWallpaperType,
                             onIntervalSelected = viewModel::setRefreshInterval,
                             onOrientationSelected = viewModel::setHeatmapOrientation,
+                            onWidgetWallpaperTypeSelected = viewModel::setWidgetWallpaperType,
+                            onSetWidgetSpecificWallpaper = viewModel::setWidgetWallpaperTypeFor,
+                            getWidgetSpecificWallpaper = viewModel::getWidgetWallpaperTypeFor,
                             onPinWidget = { providerClass -> pinWidgetToHomeScreen(context, providerClass) }
+                        )
+
+                        AppScreen.WALLPAPER -> WallpaperScreenContent(
+                            viewModel = viewModel,
+                            dashboardData = dashboardData,
+                            heatmapOrientation = heatmapOrientation
                         )
 
                         AppScreen.SETTINGS -> SettingsScreenContent(
@@ -556,58 +608,206 @@ fun MainScreen(
                                 DevActivityWidgetProvider.enqueueImmediateSync(context)
                             },
                             onCheckForUpdate = { viewModel.checkForUpdates(manual = true) },
+                            onOpenWallpaper = { viewModel.setScreen(AppScreen.WALLPAPER) },
                             onLogoutAll = viewModel::showLogoutConfirmation
                         )
                     }
+                }
+            }
+        }
 
-                        Spacer(modifier = Modifier.height(24.dp))
+        // Floating Top-Right Notification Sticker (Overlay, zero layout shift)
+        androidx.compose.animation.AnimatedVisibility(
+            visible = syncMessage != null,
+            enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInHorizontally(initialOffsetX = { it }),
+            exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.slideOutHorizontally(targetOffsetX = { it }),
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 56.dp, end = 16.dp)
+        ) {
+            syncMessage?.let { msg ->
+                Box(
+                    modifier = Modifier
+                        .shadow(12.dp, RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xF0181B24))
+                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(ThemeAccentBlue)
+                        )
+                        Text(
+                            text = msg,
+                            color = ThemeTextPrimary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        IconButton(
+                            onClick = viewModel::dismissMessage,
+                            modifier = Modifier.size(18.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Dismiss",
+                                tint = ThemeTextSecondary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
                     }
+                }
+            }
+        }
+
+        // Problem Detail In-Hierarchy View (Wallpaper completely visible behind outer margins)
+                selectedProblemDetail?.let { problem ->
+                    BackHandler(onBack = { viewModel.selectProblem(null) })
+                    LeetCodeProblemDetailView(
+                        problem = problem,
+                        activeNoteIndex = activeProblemNoteIndex,
+                        onDismiss = { viewModel.selectProblem(null) },
+                        onActiveNoteIndexChanged = viewModel::setActiveProblemNoteIndex,
+                        onDownloadOffline = { viewModel.downloadProblemOffline(problem.folderName, problem.titleSlug) },
+                        onDeleteOffline = { viewModel.deleteProblemOffline(problem.folderName) },
+                        onSaveNote = { filename, content -> viewModel.saveProblemNote(problem.folderName, filename, content) },
+                        onDeleteNote = { filename -> viewModel.deleteProblemNote(problem.folderName, filename) },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = 28.dp, bottom = 12.dp, start = 12.dp, end = 12.dp)
+                    )
+                }
+
+                // General Note Editor In-Hierarchy View (Wallpaper completely visible behind outer margins)
+                selectedGeneralNote?.let { note ->
+                    BackHandler(onBack = { viewModel.selectGeneralNote(null) })
+                    GeneralNoteEditorView(
+                        note = note,
+                        isNew = note.id.isBlank(),
+                        onDismiss = { viewModel.selectGeneralNote(null) },
+                        onSave = { updated ->
+                            viewModel.saveGeneralNote(updated)
+                            viewModel.selectGeneralNote(null)
+                        },
+                        onDelete = { id ->
+                            viewModel.deleteGeneralNote(id)
+                            viewModel.selectGeneralNote(null)
+                        },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = 28.dp, bottom = 12.dp, start = 12.dp, end = 12.dp)
+                    )
                 }
             }
         }
     }
 
-    // App Update Dialog
+    // App Update Dialog with Markdown / What's New Catcher
     if (showUpdateDialog && updateInfo != null) {
         val info = updateInfo!!
+        val sections = remember(info.releaseNotes) {
+            val parsed = ChangelogParser.parse(info.releaseNotes)
+            if (parsed.isEmpty() || parsed.all { it.items.isEmpty() }) {
+                ChangelogParser.getFallbackChangelog()
+            } else {
+                parsed
+            }
+        }
         AlertDialog(
             onDismissRequest = viewModel::dismissUpdateDialog,
             title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.SystemUpdate,
-                        contentDescription = "Update",
-                        tint = Color(0xFF60A5FA),
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "New Version ${info.latestVersion}",
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(ThemePillBg)
+                            .border(1.dp, ThemeCardBorder, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SystemUpdate,
+                            contentDescription = "Update",
+                            tint = ThemeTextPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = "Update Available",
+                            style = BalancedHeading.copy(fontSize = 16.sp),
+                            color = ThemeTextPrimary
+                        )
+                        Text(
+                            text = "Version ${info.latestVersion}",
+                            style = BalancedParagraph.copy(fontSize = 12.sp, color = ThemeTextSecondary)
+                        )
+                    }
                 }
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = if (info.releaseName.isNotBlank()) info.releaseName else "Dev Life Update",
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF93C5FD),
-                        fontSize = 13.sp
-                    )
-                    if (info.releaseNotes.isNotBlank()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 260.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    if (info.releaseName.isNotBlank() && info.releaseName != info.latestVersion) {
                         Text(
-                            text = info.releaseNotes.take(300),
-                            color = Color(0xFFCBD5E1),
-                            fontSize = 12.sp
+                            text = info.releaseName,
+                            style = BalancedParagraph.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                color = ThemeTextPrimary,
+                                fontSize = 13.sp
+                            )
                         )
                     }
-                    Text(
-                        text = "Download the latest APK release directly from our GitHub repository.",
-                        color = Color(0xFF94A3B8),
-                        fontSize = 11.sp
-                    )
+
+                    sections.forEach { section ->
+                        Text(
+                            text = section.title,
+                            style = BalancedParagraph.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                color = ThemeTextSecondary,
+                                fontSize = 12.sp
+                            )
+                        )
+                        section.items.forEach { item ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 4.dp, top = 2.dp, bottom = 2.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .padding(top = 6.dp)
+                                        .size(4.dp)
+                                        .clip(CircleShape)
+                                        .background(ThemeTextSecondary)
+                                )
+                                Text(
+                                    text = item,
+                                    style = BalancedParagraph.copy(
+                                        color = ThemeTextPrimary.copy(alpha = 0.9f),
+                                        fontSize = 12.sp,
+                                        lineHeight = 17.sp
+                                    )
+                                )
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {
@@ -622,26 +822,27 @@ fun MainScreen(
                         viewModel.dismissUpdateDialog()
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF2563EB),
-                        contentColor = Color.White
-                    )
+                        containerColor = ThemeTextPrimary,
+                        contentColor = ThemeBgDark
+                    ),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(15.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Download APK")
+                    Text("Download APK", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                Row {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = viewModel::ignoreCurrentUpdate) {
-                        Text("Never ask again", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                        Text("Never ask again", color = ThemeTextMuted, fontSize = 11.sp)
                     }
                     TextButton(onClick = viewModel::dismissUpdateDialog) {
-                        Text("Later", color = Color(0xFFCBD5E1))
+                        Text("Later", color = ThemeTextSecondary, fontSize = 12.sp)
                     }
                 }
             },
-            containerColor = Color(0xFF1E293B),
+            containerColor = ThemeCardBg,
             shape = RoundedCornerShape(20.dp)
         )
     }
@@ -654,33 +855,36 @@ fun MainScreen(
                 Text(
                     text = "Logout from All Accounts?",
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = ThemeTextPrimary
                 )
             },
             text = {
                 Text(
                     text = "This will clear your saved LeetCode and GitHub usernames, private access token, and all cached widget telemetry.",
-                    color = Color(0xFFCBD5E1),
-                    fontSize = 13.sp
+                    color = ThemeTextSecondary,
+                    fontSize = 13.sp,
+                    style = BalancedParagraph
                 )
             },
             confirmButton = {
                 Button(
                     onClick = viewModel::confirmLogout,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFDC2626),
-                        contentColor = Color.White
-                    )
+                        containerColor = ThemeAccentRed.copy(alpha = 0.2f),
+                        contentColor = ThemeAccentRed
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, ThemeCardBorder)
                 ) {
-                    Text("Logout All", fontWeight = FontWeight.Bold)
+                    Text("Logout All", fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = viewModel::dismissLogoutConfirmation) {
-                    Text("Cancel", color = Color(0xFF94A3B8))
+                    Text("Cancel", color = ThemeTextSecondary)
                 }
             },
-            containerColor = Color(0xFF1E293B),
+            containerColor = ThemeCardBgElevated,
             shape = RoundedCornerShape(20.dp)
         )
     }
@@ -705,10 +909,10 @@ private fun HomeScreenContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color(0x28182438))
+                .background(ThemeTopBarBg)
                 .border(
                     1.dp,
-                    Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                    ThemeTopBarBorder,
                     RoundedCornerShape(16.dp)
                 )
                 .padding(4.dp),
@@ -720,10 +924,10 @@ private fun HomeScreenContent(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(if (isLcSelected) Color(0x33FFA116) else Color.Transparent)
+                    .background(if (isLcSelected) ThemeCardBgElevated else Color.Transparent)
                     .border(
                         1.dp,
-                        if (isLcSelected) Color(0xFFFFA116) else Color.Transparent,
+                        if (isLcSelected) ThemeCardBorder else Color.Transparent,
                         RoundedCornerShape(12.dp)
                     )
                     .clickable { onTabSelected(HomeTab.LEETCODE) }
@@ -741,7 +945,7 @@ private fun HomeScreenContent(
                     )
                     Text(
                         text = "LeetCode",
-                        color = if (isLcSelected) Color(0xFFFFA116) else Color(0xFF94A3B8),
+                        color = if (isLcSelected) ThemeAccentAmber else ThemeTextSecondary,
                         fontWeight = if (isLcSelected) FontWeight.Bold else FontWeight.Medium,
                         fontSize = 14.sp
                     )
@@ -754,10 +958,10 @@ private fun HomeScreenContent(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(if (isGhSelected) Color(0x333FB950) else Color.Transparent)
+                    .background(if (isGhSelected) ThemeCardBgElevated else Color.Transparent)
                     .border(
                         1.dp,
-                        if (isGhSelected) Color(0xFF3FB950) else Color.Transparent,
+                        if (isGhSelected) ThemeCardBorder else Color.Transparent,
                         RoundedCornerShape(12.dp)
                     )
                     .clickable { onTabSelected(HomeTab.GITHUB) }
@@ -775,7 +979,7 @@ private fun HomeScreenContent(
                     )
                     Text(
                         text = "GitHub",
-                        color = if (isGhSelected) Color(0xFF3FB950) else Color(0xFF94A3B8),
+                        color = if (isGhSelected) ThemeAccentGreen else ThemeTextSecondary,
                         fontWeight = if (isGhSelected) FontWeight.Bold else FontWeight.Medium,
                         fontSize = 14.sp
                     )
@@ -827,10 +1031,10 @@ private fun LeetCodeDetailView(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(22.dp))
-                .background(Color(0x28182438))
+                .background(ThemeCardBg)
                 .border(
                     1.dp,
-                    Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                    ThemeCardBorder,
                     RoundedCornerShape(22.dp)
                 )
                 .padding(14.dp)
@@ -845,8 +1049,8 @@ private fun LeetCodeDetailView(
                     modifier = Modifier
                         .weight(1f, fill = false)
                         .clip(RoundedCornerShape(14.dp))
-                        .background(Color(0x1AFFFFFF))
-                        .border(1.dp, Color(0x28FFFFFF), RoundedCornerShape(14.dp))
+                        .background(ThemeInnerBoxBg)
+                        .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(14.dp))
                         .clickable { onNavigateToSettings() }
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
@@ -861,7 +1065,7 @@ private fun LeetCodeDetailView(
                         )
                         Text(
                             text = if (stats.username.isNotBlank()) "@${stats.username}" else "@not_linked",
-                            color = Color.White,
+                            color = ThemeTextPrimary,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
@@ -872,26 +1076,13 @@ private fun LeetCodeDetailView(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                // Div Box 2: Connection Status Badge Container
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color(0x1AFFFFFF))
-                        .border(
-                            1.dp,
-                            if (stats.status == AccountStatus.CONNECTED) Color(0x4D22C55E) else Color(0x4DEF4444),
-                            RoundedCornerShape(14.dp)
-                        )
-                        .clickable { onNavigateToSettings() }
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                ) {
-                    AccountStatusBadge(
-                        status = stats.status,
-                        isVerifying = false,
-                        connectedText = "Connected",
-                        failedText = "Offline"
-                    )
-                }
+                AccountStatusBadge(
+                    status = stats.status,
+                    isVerifying = false,
+                    connectedText = "Connected",
+                    failedText = "Offline",
+                    onClick = onNavigateToSettings
+                )
             }
         }
 
@@ -901,8 +1092,8 @@ private fun LeetCodeDetailView(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(18.dp))
-                    .background(Color(0x22FFA116))
-                    .border(1.dp, Color(0x55FFA116), RoundedCornerShape(18.dp))
+                    .background(ThemeInnerBoxBg)
+                    .border(1.dp, ThemeCardBorder, RoundedCornerShape(18.dp))
                     .clickable { onNavigateToSettings() }
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
@@ -914,14 +1105,14 @@ private fun LeetCodeDetailView(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Link your LeetCode Account",
-                            color = Color(0xFFFFA116),
+                            color = ThemeAccentAmber,
                             fontSize = 13.5.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "Tap here to set your username in Settings & view live solved problems & heatmap.",
-                            color = Color(0xFFCBD5E1),
+                            color = ThemeTextSecondary,
                             fontSize = 11.5.sp
                         )
                     }
@@ -929,7 +1120,7 @@ private fun LeetCodeDetailView(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFFFA116))
+                            .background(ThemeAccentAmber)
                             .padding(horizontal = 10.dp, vertical = 6.dp)
                     ) {
                         Text(
@@ -948,10 +1139,10 @@ private fun LeetCodeDetailView(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(22.dp))
-                .background(Color(0x28182438))
+                .background(ThemeCardBg)
                 .border(
                     1.dp,
-                    Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                    ThemeCardBorder,
                     RoundedCornerShape(22.dp)
                 )
                 .padding(16.dp)
@@ -959,7 +1150,7 @@ private fun LeetCodeDetailView(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
                     text = "Solved Problems Gauge",
-                    color = Color.White,
+                    color = ThemeTextPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -993,10 +1184,10 @@ private fun LeetCodeDetailView(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(22.dp))
-                .background(Color(0x28182438))
+                .background(ThemeCardBg)
                 .border(
                     1.dp,
-                    Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                    ThemeCardBorder,
                     RoundedCornerShape(22.dp)
                 )
                 .padding(16.dp)
@@ -1029,8 +1220,8 @@ private fun DifficultyPill(label: String, solved: Int, max: Int, color: Color) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(Color(0x16FFFFFF))
-            .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(12.dp))
+            .background(ThemeInnerBoxBg)
+            .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(12.dp))
             .padding(horizontal = 10.dp, vertical = 7.dp)
     ) {
         Column {
@@ -1092,10 +1283,10 @@ private fun LeetCodeBubbleMapCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
-            .background(Color(0x28182438))
+            .background(ThemeCardBg)
             .border(
                 1.dp,
-                Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                ThemeCardBorder,
                 RoundedCornerShape(22.dp)
             )
             .padding(16.dp)
@@ -1108,13 +1299,13 @@ private fun LeetCodeBubbleMapCard(
             ) {
                 Text(
                     text = "Skills & Problem Topics Cloud",
-                    color = Color.White,
+                    color = ThemeTextPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = "${filteredTags.size} Topics",
-                    color = Color(0xFF94A3B8),
+                    color = ThemeTextSecondary,
                     fontSize = 11.sp
                 )
             }
@@ -1129,10 +1320,10 @@ private fun LeetCodeBubbleMapCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(if (isSelected) Color(0x33FFA116) else Color(0x1AFFFFFF))
+                            .background(if (isSelected) ThemeAccentAmber.copy(alpha = 0.2f) else ThemeInnerBoxBg)
                             .border(
                                 1.dp,
-                                if (isSelected) Color(0xFFFFA116) else Color(0x26FFFFFF),
+                                if (isSelected) ThemeAccentAmber else ThemeInnerBoxBorder,
                                 RoundedCornerShape(8.dp)
                             )
                             .clickable { selectedCategory = cat }
@@ -1140,7 +1331,7 @@ private fun LeetCodeBubbleMapCard(
                     ) {
                         Text(
                             text = cat,
-                            color = if (isSelected) Color(0xFFFFA116) else Color(0xFFCBD5E1),
+                            color = if (isSelected) ThemeAccentAmber else ThemeTextSecondary,
                             fontSize = 11.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                         )
@@ -1158,7 +1349,7 @@ private fun LeetCodeBubbleMapCard(
                 }
                 Text(
                     text = emptyMessage,
-                    color = Color(0xFF64748B),
+                    color = ThemeTextMuted,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
@@ -1179,18 +1370,11 @@ private fun LeetCodeBubbleMapCard(
 
 @Composable
 private fun TopicBubbleChip(tag: ProblemTopicTag) {
-    val chipBorderColor = when (tag.category.lowercase()) {
-        "advanced" -> Color(0xFFF43F5E)
-        "intermediate" -> Color(0xFFFFA116)
-        "fundamental" -> Color(0xFF38BDF8)
-        else -> Color(0x55FFFFFF)
-    }
-
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color(0x241E293B))
-            .border(1.dp, chipBorderColor.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(10.dp))
+            .background(ThemeInnerBoxBg)
+            .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(10.dp))
             .padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
         Row(
@@ -1199,21 +1383,21 @@ private fun TopicBubbleChip(tag: ProblemTopicTag) {
         ) {
             Text(
                 text = tag.name,
-                color = Color.White,
+                color = ThemeTextPrimary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium
             )
             Box(
                 modifier = Modifier
-                    .clip(CircleShape)
-                    .background(chipBorderColor.copy(alpha = 0.25f))
-                    .padding(horizontal = 6.dp, vertical = 1.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(ThemePillBg)
+                    .padding(horizontal = 5.dp, vertical = 1.dp)
             ) {
                 Text(
                     text = "${tag.solvedCount}",
-                    color = chipBorderColor,
+                    color = ThemeTextSecondary,
                     fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.SemiBold
                 )
             }
         }
@@ -1235,10 +1419,10 @@ private fun RecentSubmissionsCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
-            .background(Color(0x28182438))
+            .background(ThemeCardBg)
             .border(
                 1.dp,
-                Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                ThemeCardBorder,
                 RoundedCornerShape(22.dp)
             )
             .padding(16.dp)
@@ -1252,13 +1436,13 @@ private fun RecentSubmissionsCard(
                 Column(modifier = Modifier.weight(1f, fill = false)) {
                     Text(
                         text = "Recent Submissions",
-                        color = Color.White,
+                        color = ThemeTextPrimary,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
                         text = "Showing ${displayed.size} submissions",
-                        color = Color(0xFF94A3B8),
+                        color = ThemeTextSecondary,
                         fontSize = 11.sp
                     )
                 }
@@ -1267,7 +1451,8 @@ private fun RecentSubmissionsCard(
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0x20FFFFFF))
+                        .background(ThemeInnerBoxBg)
+                        .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(8.dp))
                         .padding(2.dp),
                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
@@ -1276,13 +1461,13 @@ private fun RecentSubmissionsCard(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(if (isSelected) Color(0xFFFFA116) else Color.Transparent)
+                                .background(if (isSelected) ThemeTextPrimary else Color.Transparent)
                                 .clickable { onFeedLimitSelected(limit) }
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
                                 text = "${limit.count}",
-                                color = if (isSelected) Color.Black else Color(0xFF94A3B8),
+                                color = if (isSelected) ThemeBgDark else ThemeTextSecondary,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -1299,7 +1484,7 @@ private fun RecentSubmissionsCard(
                 }
                 Text(
                     text = emptyMessage,
-                    color = Color(0xFF64748B),
+                    color = ThemeTextMuted,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
@@ -1310,8 +1495,8 @@ private fun RecentSubmissionsCard(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0x16FFFFFF))
-                                .border(1.dp, Color(0x20FFFFFF), RoundedCornerShape(12.dp))
+                                .background(ThemeInnerBoxBg)
+                                .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(12.dp))
                                 .padding(horizontal = 12.dp, vertical = 9.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
@@ -1319,7 +1504,7 @@ private fun RecentSubmissionsCard(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = sub.title,
-                                    color = Color.White,
+                                    color = ThemeTextPrimary,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium,
                                     maxLines = 1,
@@ -1328,7 +1513,7 @@ private fun RecentSubmissionsCard(
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = "${sub.lang} • ${formatTimestamp(sub.timestamp)}",
-                                    color = Color(0xFF94A3B8),
+                                    color = ThemeTextSecondary,
                                     fontSize = 10.5.sp
                                 )
                             }
@@ -1336,14 +1521,14 @@ private fun RecentSubmissionsCard(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(Color(0x3322C55E))
+                                    .background(ThemePillBg)
                                     .padding(horizontal = 7.dp, vertical = 3.dp)
                             ) {
                                 Text(
                                     text = sub.statusDisplay.ifBlank { "Accepted" },
-                                    color = Color(0xFF4ADE80),
+                                    color = ThemeTextSecondary,
                                     fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
                         }
@@ -1385,10 +1570,10 @@ private fun GitHubDetailView(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(22.dp))
-                .background(Color(0x28182438))
+                .background(ThemeCardBg)
                 .border(
                     1.dp,
-                    Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                    ThemeCardBorder,
                     RoundedCornerShape(22.dp)
                 )
                 .padding(14.dp)
@@ -1403,8 +1588,8 @@ private fun GitHubDetailView(
                     modifier = Modifier
                         .weight(1f, fill = false)
                         .clip(RoundedCornerShape(14.dp))
-                        .background(Color(0x1AFFFFFF))
-                        .border(1.dp, Color(0x28FFFFFF), RoundedCornerShape(14.dp))
+                        .background(ThemeInnerBoxBg)
+                        .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(14.dp))
                         .clickable { onNavigateToSettings() }
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
@@ -1419,7 +1604,7 @@ private fun GitHubDetailView(
                         )
                         Text(
                             text = if (stats.username.isNotBlank()) "@${stats.username}" else "@not_linked",
-                            color = Color.White,
+                            color = ThemeTextPrimary,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
@@ -1430,26 +1615,13 @@ private fun GitHubDetailView(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                // Div Box 2: Connection Status Badge Container
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color(0x1AFFFFFF))
-                        .border(
-                            1.dp,
-                            if (stats.status == AccountStatus.CONNECTED) Color(0x4D22C55E) else Color(0x4DEF4444),
-                            RoundedCornerShape(14.dp)
-                        )
-                        .clickable { onNavigateToSettings() }
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                ) {
-                    AccountStatusBadge(
-                        status = stats.status,
-                        isVerifying = false,
-                        connectedText = "Connected",
-                        failedText = "Offline"
-                    )
-                }
+                AccountStatusBadge(
+                    status = stats.status,
+                    isVerifying = false,
+                    connectedText = "Connected",
+                    failedText = "Offline",
+                    onClick = onNavigateToSettings
+                )
             }
         }
 
@@ -1459,8 +1631,8 @@ private fun GitHubDetailView(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(18.dp))
-                    .background(Color(0x2222C55E))
-                    .border(1.dp, Color(0x5522C55E), RoundedCornerShape(18.dp))
+                    .background(ThemeInnerBoxBg)
+                    .border(1.dp, ThemeCardBorder, RoundedCornerShape(18.dp))
                     .clickable { onNavigateToSettings() }
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
@@ -1472,14 +1644,14 @@ private fun GitHubDetailView(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Link your GitHub Account",
-                            color = Color(0xFF4ADE80),
+                            color = ThemeAccentGreen,
                             fontSize = 13.5.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "Tap here to configure your username & token in Settings to view radar & commits.",
-                            color = Color(0xFFCBD5E1),
+                            color = ThemeTextSecondary,
                             fontSize = 11.5.sp
                         )
                     }
@@ -1487,7 +1659,7 @@ private fun GitHubDetailView(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFF22C55E))
+                            .background(ThemeAccentGreen)
                             .padding(horizontal = 10.dp, vertical = 6.dp)
                     ) {
                         Text(
@@ -1506,10 +1678,10 @@ private fun GitHubDetailView(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(22.dp))
-                .background(Color(0x28182438))
+                .background(ThemeCardBg)
                 .border(
                     1.dp,
-                    Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                    ThemeCardBorder,
                     RoundedCornerShape(22.dp)
                 )
                 .padding(16.dp)
@@ -1517,7 +1689,7 @@ private fun GitHubDetailView(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
                     text = "Activity Radar & Contribution Types",
-                    color = Color.White,
+                    color = ThemeTextPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -1551,10 +1723,10 @@ private fun GitHubDetailView(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(22.dp))
-                .background(Color(0x28182438))
+                .background(ThemeCardBg)
                 .border(
                     1.dp,
-                    Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                    ThemeCardBorder,
                     RoundedCornerShape(22.dp)
                 )
                 .padding(16.dp)
@@ -1587,8 +1759,8 @@ private fun ContribMetricItem(label: String, count: Int, color: Color) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(Color(0x16FFFFFF))
-            .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(12.dp))
+            .background(ThemeInnerBoxBg)
+            .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(12.dp))
             .padding(horizontal = 10.dp, vertical = 7.dp)
     ) {
         Row(
@@ -1603,9 +1775,9 @@ private fun ContribMetricItem(label: String, count: Int, color: Color) {
                         .clip(CircleShape)
                         .background(color)
                 )
-                Text(text = label, color = Color(0xFFCBD5E1), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                Text(text = label, color = ThemeTextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
             }
-            Text(text = "$count", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(text = "$count", color = ThemeTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -1620,10 +1792,10 @@ private fun GitHubLanguagesCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
-            .background(Color(0x28182438))
+            .background(ThemeCardBg)
             .border(
                 1.dp,
-                Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                ThemeCardBorder,
                 RoundedCornerShape(22.dp)
             )
             .padding(16.dp)
@@ -1636,13 +1808,13 @@ private fun GitHubLanguagesCard(
             ) {
                 Text(
                     text = "Top Languages & Technologies",
-                    color = Color.White,
+                    color = ThemeTextPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = "${languages.size} Tracked",
-                    color = Color(0xFF94A3B8),
+                    color = ThemeTextSecondary,
                     fontSize = 11.sp
                 )
             }
@@ -1655,7 +1827,7 @@ private fun GitHubLanguagesCard(
                 }
                 Text(
                     text = emptyMessage,
-                    color = Color(0xFF64748B),
+                    color = ThemeTextMuted,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
@@ -1673,9 +1845,9 @@ private fun GitHubLanguagesCard(
                         }
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0x241E293B))
-                                .border(1.dp, parsedColor.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(ThemeInnerBoxBg)
+                                .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(10.dp))
                                 .padding(horizontal = 10.dp, vertical = 6.dp)
                         ) {
                             Row(
@@ -1690,21 +1862,21 @@ private fun GitHubLanguagesCard(
                                 )
                                 Text(
                                     text = lang.name,
-                                    color = Color.White,
+                                    color = ThemeTextPrimary,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium
                                 )
                                 Box(
                                     modifier = Modifier
-                                        .clip(CircleShape)
-                                        .background(parsedColor.copy(alpha = 0.25f))
-                                        .padding(horizontal = 6.dp, vertical = 1.dp)
-                                    ) {
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(ThemePillBg)
+                                        .padding(horizontal = 5.dp, vertical = 1.dp)
+                                ) {
                                     Text(
                                         text = "${lang.repoCount} repos",
-                                        color = parsedColor,
+                                        color = ThemeTextSecondary,
                                         fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.SemiBold
                                     )
                                 }
                             }
@@ -1731,10 +1903,10 @@ private fun RecentGitHubEventsCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
-            .background(Color(0x28182438))
+            .background(ThemeCardBg)
             .border(
                 1.dp,
-                Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                ThemeCardBorder,
                 RoundedCornerShape(22.dp)
             )
             .padding(16.dp)
@@ -1748,13 +1920,13 @@ private fun RecentGitHubEventsCard(
                 Column(modifier = Modifier.weight(1f, fill = false)) {
                     Text(
                         text = "Recent GitHub Activity",
-                        color = Color.White,
+                        color = ThemeTextPrimary,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
                         text = "Showing ${displayed.size} events",
-                        color = Color(0xFF94A3B8),
+                        color = ThemeTextSecondary,
                         fontSize = 11.sp
                     )
                 }
@@ -1763,7 +1935,8 @@ private fun RecentGitHubEventsCard(
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0x20FFFFFF))
+                        .background(ThemeInnerBoxBg)
+                        .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(8.dp))
                         .padding(2.dp),
                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
@@ -1772,13 +1945,13 @@ private fun RecentGitHubEventsCard(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(if (isSelected) Color(0xFF3FB950) else Color.Transparent)
+                                .background(if (isSelected) ThemeTextPrimary else Color.Transparent)
                                 .clickable { onFeedLimitSelected(limit) }
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
                                 text = "${limit.count}",
-                                color = if (isSelected) Color.Black else Color(0xFF94A3B8),
+                                color = if (isSelected) ThemeBgDark else ThemeTextSecondary,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -1795,7 +1968,7 @@ private fun RecentGitHubEventsCard(
                 }
                 Text(
                     text = emptyMessage,
-                    color = Color(0xFF64748B),
+                    color = ThemeTextMuted,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
@@ -1806,8 +1979,8 @@ private fun RecentGitHubEventsCard(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0x16FFFFFF))
-                                .border(1.dp, Color(0x20FFFFFF), RoundedCornerShape(12.dp))
+                                .background(ThemeInnerBoxBg)
+                                .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(12.dp))
                                 .padding(horizontal = 12.dp, vertical = 9.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
@@ -1815,7 +1988,7 @@ private fun RecentGitHubEventsCard(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = event.repoName,
-                                    color = Color(0xFF60A5FA),
+                                    color = ThemeTextPrimary,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium,
                                     maxLines = 1,
@@ -1824,7 +1997,7 @@ private fun RecentGitHubEventsCard(
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = "${event.actionSummary.ifBlank { event.type }} • ${formatIsoDate(event.createdAt)}",
-                                    color = Color(0xFF94A3B8),
+                                    color = ThemeTextSecondary,
                                     fontSize = 10.5.sp,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -1834,14 +2007,14 @@ private fun RecentGitHubEventsCard(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(Color(0x263FB950))
+                                    .background(ThemePillBg)
                                     .padding(horizontal = 7.dp, vertical = 3.dp)
                             ) {
                                 Text(
                                     text = event.type.replace("Event", ""),
-                                    color = Color(0xFF4ADE80),
+                                    color = ThemeTextSecondary,
                                     fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
                         }
@@ -1862,8 +2035,12 @@ private fun WidgetsScreenContent(
     dashboardData: WidgetDashboardData,
     selectedInterval: String,
     heatmapOrientation: String,
+    widgetWallpaperType: String,
     onIntervalSelected: (String) -> Unit,
     onOrientationSelected: (String) -> Unit,
+    onWidgetWallpaperTypeSelected: (String) -> Unit,
+    onSetWidgetSpecificWallpaper: (widgetKey: String, type: String) -> Unit = { _, _ -> },
+    getWidgetSpecificWallpaper: (widgetKey: String) -> String = { "DEFAULT" },
     onPinWidget: (Class<out AppWidgetProvider>) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -1872,10 +2049,10 @@ private fun WidgetsScreenContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(22.dp))
-                .background(Color(0x28182438))
+                .background(ThemeCardBg)
                 .border(
                     1.dp,
-                    Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                    ThemeCardBorder,
                     RoundedCornerShape(22.dp)
                 )
                 .padding(16.dp)
@@ -1889,13 +2066,13 @@ private fun WidgetsScreenContent(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Heatmap Orientation",
-                            color = Color.White,
+                            color = ThemeTextPrimary,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "Horizontal calendar grid or vertical 90° LeetCode style",
-                            color = Color(0xFF94A3B8),
+                            color = ThemeTextSecondary,
                             fontSize = 11.sp
                         )
                     }
@@ -1903,12 +2080,12 @@ private fun WidgetsScreenContent(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0x333B82F6))
+                            .background(ThemeAccentBlue.copy(alpha = 0.2f))
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(
                             text = if (heatmapOrientation == "vertical") "Vertical (90°)" else "Horizontal",
-                            color = Color(0xFF93C5FD),
+                            color = ThemeAccentBlue,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1
@@ -1926,10 +2103,10 @@ private fun WidgetsScreenContent(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(if (isHoriz) Color(0xFF2563EB) else Color(0x1AFFFFFF))
+                            .background(if (isHoriz) ThemeAccentBlue else ThemeInnerBoxBg)
                             .border(
                                 1.dp,
-                                if (isHoriz) Color(0xFF60A5FA) else Color(0x28FFFFFF),
+                                if (isHoriz) ThemeAccentBlue else ThemeInnerBoxBorder,
                                 RoundedCornerShape(12.dp)
                             )
                             .clickable { onOrientationSelected("horizontal") }
@@ -1938,7 +2115,7 @@ private fun WidgetsScreenContent(
                     ) {
                         Text(
                             text = "⊞ Horizontal",
-                            color = if (isHoriz) Color.White else Color(0xFFCBD5E1),
+                            color = if (isHoriz) Color.White else ThemeTextSecondary,
                             fontSize = 13.sp,
                             fontWeight = if (isHoriz) FontWeight.Bold else FontWeight.Medium
                         )
@@ -1949,10 +2126,10 @@ private fun WidgetsScreenContent(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(if (isVert) Color(0xFF2563EB) else Color(0x1AFFFFFF))
+                            .background(if (isVert) ThemeAccentBlue else ThemeInnerBoxBg)
                             .border(
                                 1.dp,
-                                if (isVert) Color(0xFF60A5FA) else Color(0x28FFFFFF),
+                                if (isVert) ThemeAccentBlue else ThemeInnerBoxBorder,
                                 RoundedCornerShape(12.dp)
                             )
                             .clickable { onOrientationSelected("vertical") }
@@ -1961,7 +2138,7 @@ private fun WidgetsScreenContent(
                     ) {
                         Text(
                             text = "⊟ Vertical (90°)",
-                            color = if (isVert) Color.White else Color(0xFFCBD5E1),
+                            color = if (isVert) Color.White else ThemeTextSecondary,
                             fontSize = 13.sp,
                             fontWeight = if (isVert) FontWeight.Bold else FontWeight.Medium
                         )
@@ -1970,21 +2147,115 @@ private fun WidgetsScreenContent(
 
                 Text(
                     text = "Controls launcher widgets and gallery previews instantly.",
-                    color = Color(0xFF64748B),
+                    color = ThemeTextMuted,
                     fontSize = 11.sp
                 )
             }
         }
 
-        // 2. Auto-Refresh Frequency Box (15 options: 1s to 1d)
+        // 1.5 Widget Background & Wallpaper Chassis Selector Box
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(22.dp))
-                .background(Color(0x28182438))
+                .background(ThemeCardBg)
                 .border(
                     1.dp,
-                    Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                    ThemeCardBorder,
+                    RoundedCornerShape(22.dp)
+                )
+                .padding(16.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Widget Chassis Background",
+                            color = ThemeTextPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Solid obsidian, frosted translucent, transparent, or wallpaper",
+                            color = ThemeTextSecondary,
+                            fontSize = 11.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(ThemeAccentGreen.copy(alpha = 0.2f))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = when (widgetWallpaperType) {
+                                "TRANSLUCENT" -> "Translucent Frost"
+                                "TRANSPARENT" -> "Transparent Glass"
+                                "MATCH_APP" -> "App Wallpaper"
+                                "CUSTOM" -> "Custom Photo"
+                                else -> "Obsidian Matte"
+                            },
+                            color = ThemeAccentGreen,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
+                    }
+                }
+
+                // Row of Pills: [ Obsidian ] | [ Frost ] | [ Clear ] | [ Wallpaper ]
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val styles = listOf(
+                        "DEFAULT" to "Obsidian",
+                        "TRANSLUCENT" to "Frost",
+                        "TRANSPARENT" to "Clear",
+                        "MATCH_APP" to "Wallpaper"
+                    )
+                    styles.forEach { (typeKey, label) ->
+                        val isSelected = (widgetWallpaperType == typeKey)
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isSelected) ThemeTextPrimary else ThemeInnerBoxBg)
+                                .border(
+                                    1.dp,
+                                    if (isSelected) ThemeTextPrimary else ThemeInnerBoxBorder,
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .clickable { onWidgetWallpaperTypeSelected(typeKey) }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = label,
+                                color = if (isSelected) ThemeBgDark else ThemeTextSecondary,
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Auto-Refresh Frequency Box (Segmented Toggle: 1m | 5m | 1h | 4h)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(22.dp))
+                .background(ThemeCardBg)
+                .border(
+                    1.dp,
+                    ThemeCardBorder,
                     RoundedCornerShape(22.dp)
                 )
                 .padding(16.dp)
@@ -1998,13 +2269,13 @@ private fun WidgetsScreenContent(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Auto-Refresh Frequency",
-                            color = Color.White,
+                            color = ThemeTextPrimary,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Select sync cadence (15 options: 1s to 1d)",
-                            color = Color(0xFF94A3B8),
+                            text = "Cadence for background widget and foreground sync",
+                            color = ThemeTextSecondary,
                             fontSize = 11.sp
                         )
                     }
@@ -2012,42 +2283,43 @@ private fun WidgetsScreenContent(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0x333B82F6))
+                            .background(ThemePillBg)
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "Current: $selectedInterval",
-                            color = Color(0xFF93C5FD),
+                            text = selectedInterval,
+                            color = ThemeTextSecondary,
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.SemiBold,
                             maxLines = 1
                         )
                     }
                 }
 
-                // 15 Options FlowRow
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                // 4-Option Segmented Toggle Switch: 1m | 5m | 1h | 4h
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(ThemeInnerBoxBg)
+                        .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(12.dp))
+                        .padding(3.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    MainScreenViewModel.REFRESH_INTERVALS.forEach { interval ->
-                        val isSelected = selectedInterval == interval
+                    listOf("1m", "5m", "1h", "4h").forEach { interval ->
+                        val isSelected = (selectedInterval == interval)
                         Box(
                             modifier = Modifier
+                                .weight(1f)
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(if (isSelected) Color(0xFF2563EB) else Color(0x1FFFFFFF))
-                                .border(
-                                    1.dp,
-                                    if (isSelected) Color(0xFF60A5FA) else Color(0x2EFFFFFF),
-                                    RoundedCornerShape(10.dp)
-                                )
+                                .background(if (isSelected) ThemeTextPrimary else Color.Transparent)
                                 .clickable { onIntervalSelected(interval) }
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = interval,
-                                color = if (isSelected) Color.White else Color(0xFFCBD5E1),
+                                color = if (isSelected) ThemeBgDark else ThemeTextSecondary,
                                 fontSize = 12.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                             )
@@ -2057,7 +2329,7 @@ private fun WidgetsScreenContent(
 
                 Text(
                     text = "Controls app foreground loop and background launcher widget auto-refresh.",
-                    color = Color(0xFF64748B),
+                    color = ThemeTextMuted,
                     fontSize = 10.5.sp
                 )
             }
@@ -2066,7 +2338,7 @@ private fun WidgetsScreenContent(
         // 3. Widget Gallery Header
         Text(
             text = "Multiple Widget Styles (Click to Pin)",
-            color = Color.White,
+            color = ThemeTextPrimary,
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold
         )
@@ -2076,6 +2348,9 @@ private fun WidgetsScreenContent(
             title = "Master Dev Life Dashboard (4x4)",
             subtitle = "Combined LeetCode gauge + GitHub radar + dual 12-month uniform heatmaps",
             tag = "Combined Hub",
+            widgetKey = "dev_activity",
+            currentWidgetWallpaper = getWidgetSpecificWallpaper("dev_activity"),
+            onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("dev_activity", it) },
             onClick = { onPinWidget(DevActivityWidgetProvider::class.java) },
             content = { WidgetVisualPreview(data = dashboardData, orientation = heatmapOrientation) }
         )
@@ -2085,6 +2360,9 @@ private fun WidgetsScreenContent(
             title = "LeetCode Dedicated Widget (4x2)",
             subtitle = "Dedicated 3/4 speedometer circle gauge and problem submission calendar",
             tag = "LeetCode",
+            widgetKey = "leetcode",
+            currentWidgetWallpaper = getWidgetSpecificWallpaper("leetcode"),
+            onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("leetcode", it) },
             onClick = { onPinWidget(LeetCodeWidgetProvider::class.java) },
             content = {
                 val lcCircle = remember(dashboardData.leetCode) {
@@ -2108,7 +2386,7 @@ private fun WidgetsScreenContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Image(bitmap = lcCircle, contentDescription = null, modifier = Modifier.weight(0.42f).fillMaxHeight())
-                    Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(Color(0x26FFFFFF)))
+                    Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(ThemeCardBorder))
                     Image(bitmap = lcHeatmap, contentDescription = null, modifier = Modifier.weight(0.58f).fillMaxHeight())
                 }
             }
@@ -2119,6 +2397,9 @@ private fun WidgetsScreenContent(
             title = "GitHub Dedicated Widget (4x2)",
             subtitle = "Dedicated contribution radar polygon and uniform commit activity heatmap",
             tag = "GitHub",
+            widgetKey = "github",
+            currentWidgetWallpaper = getWidgetSpecificWallpaper("github"),
+            onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("github", it) },
             onClick = { onPinWidget(GitHubWidgetProvider::class.java) },
             content = {
                 val ghRadar = remember(dashboardData.gitHub) {
@@ -2142,7 +2423,7 @@ private fun WidgetsScreenContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Image(bitmap = ghRadar, contentDescription = null, modifier = Modifier.weight(0.42f).fillMaxHeight())
-                    Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(Color(0x26FFFFFF)))
+                    Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(ThemeCardBorder))
                     Image(bitmap = ghHeatmap, contentDescription = null, modifier = Modifier.weight(0.58f).fillMaxHeight())
                 }
             }
@@ -2153,6 +2434,9 @@ private fun WidgetsScreenContent(
             title = "LeetCode Heatmap Widget (4x2)",
             subtitle = "Full-width dedicated LeetCode submission activity calendar",
             tag = "LC Heatmap",
+            widgetKey = "leetcode_heatmap",
+            currentWidgetWallpaper = getWidgetSpecificWallpaper("leetcode_heatmap"),
+            onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("leetcode_heatmap", it) },
             onClick = { onPinWidget(LeetCodeHeatmapWidgetProvider::class.java) },
             content = {
                 val lcHeatmap = remember(dashboardData.leetCode.submissionCalendar, heatmapOrientation) {
@@ -2178,6 +2462,9 @@ private fun WidgetsScreenContent(
             title = "GitHub Heatmap Widget (4x2)",
             subtitle = "Full-width dedicated GitHub emerald contribution activity calendar",
             tag = "GH Heatmap",
+            widgetKey = "github_heatmap",
+            currentWidgetWallpaper = getWidgetSpecificWallpaper("github_heatmap"),
+            onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("github_heatmap", it) },
             onClick = { onPinWidget(GitHubHeatmapWidgetProvider::class.java) },
             content = {
                 val ghHeatmap = remember(dashboardData.gitHub.contributionDays, heatmapOrientation) {
@@ -2203,6 +2490,9 @@ private fun WidgetsScreenContent(
             title = "Dev Combined Heatmap Widget (4x3)",
             subtitle = "Dual stacked LeetCode and GitHub contribution heatmaps in one widget",
             tag = "Dual Heatmap",
+            widgetKey = "combined_heatmap",
+            currentWidgetWallpaper = getWidgetSpecificWallpaper("combined_heatmap"),
+            onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("combined_heatmap", it) },
             onClick = { onPinWidget(CombinedHeatmapWidgetProvider::class.java) },
             content = {
                 val lcHeatmap = remember(dashboardData.leetCode.submissionCalendar, heatmapOrientation) {
@@ -2243,6 +2533,9 @@ private fun WidgetGalleryCard(
     title: String,
     subtitle: String,
     tag: String,
+    widgetKey: String? = null,
+    currentWidgetWallpaper: String = "DEFAULT",
+    onSelectWidgetWallpaper: (String) -> Unit = {},
     onClick: () -> Unit,
     content: @Composable () -> Unit
 ) {
@@ -2250,10 +2543,10 @@ private fun WidgetGalleryCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
-            .background(Color(0x28182438))
+            .background(ThemeCardBg)
             .border(
                 1.dp,
-                Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                ThemeCardBorder,
                 RoundedCornerShape(22.dp)
             )
             .clickable(onClick = onClick)
@@ -2268,13 +2561,13 @@ private fun WidgetGalleryCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = title,
-                        color = Color.White,
+                        color = ThemeTextPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
                         text = subtitle,
-                        color = Color(0xFF94A3B8),
+                        color = ThemeTextSecondary,
                         fontSize = 11.sp
                     )
                 }
@@ -2282,14 +2575,14 @@ private fun WidgetGalleryCard(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0x333B82F6))
+                        .background(ThemePillBg)
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = tag,
-                        color = Color(0xFF93C5FD),
+                        color = ThemeTextSecondary,
                         fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }
@@ -2299,20 +2592,66 @@ private fun WidgetGalleryCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0x1FFFFFFF))
-                    .border(1.dp, Color(0x26FFFFFF), RoundedCornerShape(16.dp))
+                    .background(ThemeInnerBoxBg)
+                    .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(16.dp))
                     .padding(8.dp)
             ) {
                 content()
+            }
+
+            // Per-Widget Wallpaper Selector Row
+            if (widgetKey != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Wallpaper:",
+                        color = ThemeTextSecondary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    listOf(
+                        "DEFAULT" to "Obsidian",
+                        "TRANSLUCENT" to "Frost",
+                        "TRANSPARENT" to "Clear",
+                        "MATCH_APP" to "App"
+                    ).forEach { (styleKey, label) ->
+                        val isSelected = currentWidgetWallpaper == styleKey
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) ThemeTextPrimary else ThemeInnerBoxBg)
+                                .border(
+                                    1.dp,
+                                    if (isSelected) ThemeTextPrimary else ThemeInnerBoxBorder,
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .clickable { onSelectWidgetWallpaper(styleKey) }
+                                .padding(vertical = 5.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = label,
+                                color = if (isSelected) ThemeBgDark else ThemeTextSecondary,
+                                fontSize = 10.5.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                            )
+                        }
+                    }
+                }
             }
 
             Button(
                 onClick = onClick,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF2563EB),
-                    contentColor = Color.White
+                    containerColor = ThemeCardBgElevated,
+                    contentColor = ThemeTextPrimary
                 ),
+                border = BorderStroke(1.dp, ThemeCardBorder),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(Icons.Default.Widgets, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -2347,6 +2686,7 @@ private fun SettingsScreenContent(
     onVerifyGitHub: () -> Unit,
     onSyncAll: () -> Unit,
     onCheckForUpdate: () -> Unit,
+    onOpenWallpaper: () -> Unit = {},
     onLogoutAll: () -> Unit
 ) {
     // Single Unified Settings Box / Card
@@ -2354,10 +2694,10 @@ private fun SettingsScreenContent(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
-            .background(Color(0x28182438))
+            .background(ThemeCardBg)
             .border(
                 1.dp,
-                Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                ThemeCardBorder,
                 RoundedCornerShape(22.dp)
             )
             .padding(16.dp)
@@ -2371,14 +2711,14 @@ private fun SettingsScreenContent(
             ) {
                 Text(
                     text = "Developer Accounts & Settings",
-                    color = Color.White,
+                    color = ThemeTextPrimary,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
 
                 Text(
                     text = "v${BuildConfig.VERSION_NAME}",
-                    color = Color(0xFF94A3B8),
+                    color = ThemeTextSecondary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -2389,8 +2729,8 @@ private fun SettingsScreenContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0x1FFFFFFF))
-                    .border(1.dp, Color(0x2EFFFFFF), RoundedCornerShape(16.dp))
+                    .background(ThemeInnerBoxBg)
+                    .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(16.dp))
                     .padding(12.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2410,7 +2750,7 @@ private fun SettingsScreenContent(
                             )
                             Text(
                                 text = "LeetCode",
-                                color = Color(0xFFFFA116),
+                                color = ThemeAccentAmber,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -2427,7 +2767,7 @@ private fun SettingsScreenContent(
                     if (dashboardData.leetCode.status == AccountStatus.FAILED && dashboardData.leetCode.statusMessage.isNotBlank()) {
                         Text(
                             text = dashboardData.leetCode.statusMessage,
-                            color = Color(0xFFF87171),
+                            color = ThemeAccentRed,
                             fontSize = 11.sp
                         )
                     }
@@ -2435,15 +2775,15 @@ private fun SettingsScreenContent(
                     OutlinedTextField(
                         value = leetCodeInput,
                         onValueChange = onLeetCodeChanged,
-                        label = { Text("username", color = Color(0xFF94A3B8)) },
-                        placeholder = { Text("e.g. sangrechy", color = Color(0xFF64748B)) },
+                        label = { Text("username", color = ThemeTextSecondary) },
+                        placeholder = { Text("e.g. sangrechy", color = ThemeTextMuted) },
                         trailingIcon = {
                             if (leetCodeInput.isNotEmpty()) {
                                 IconButton(onClick = { onLeetCodeChanged("") }) {
                                     Icon(
                                         imageVector = Icons.Default.Close,
                                         contentDescription = "Clear",
-                                        tint = Color(0xFF94A3B8),
+                                        tint = ThemeTextSecondary,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -2452,10 +2792,13 @@ private fun SettingsScreenContent(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFFFFA116),
-                            unfocusedBorderColor = Color(0x40FFFFFF)
+                            focusedTextColor = ThemeTextPrimary,
+                            unfocusedTextColor = ThemeTextPrimary,
+                            focusedBorderColor = ThemeTextPrimary,
+                            unfocusedBorderColor = ThemeInnerBoxBorder,
+                            focusedContainerColor = ThemeTextFieldBg,
+                            unfocusedContainerColor = ThemeTextFieldBg,
+                            cursorColor = ThemeTextPrimary
                         ),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                     )
@@ -2465,16 +2808,18 @@ private fun SettingsScreenContent(
                         enabled = !isVerifyingLc && !isSyncing,
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFFA116),
-                            contentColor = Color.Black
-                        )
+                            containerColor = ThemeCardBgElevated,
+                            contentColor = ThemeTextPrimary
+                        ),
+                        border = BorderStroke(1.dp, ThemeCardBorder),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         if (isVerifyingLc) {
-                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.Black)
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = ThemeTextPrimary)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Verifying...", fontWeight = FontWeight.Bold)
+                            Text("Verifying...", fontWeight = FontWeight.SemiBold)
                         } else {
-                            Text("Link & Verify LeetCode", fontWeight = FontWeight.Bold)
+                            Text("Link & Verify LeetCode", fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -2485,8 +2830,8 @@ private fun SettingsScreenContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0x1FFFFFFF))
-                    .border(1.dp, Color(0x2EFFFFFF), RoundedCornerShape(16.dp))
+                    .background(ThemeInnerBoxBg)
+                    .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(16.dp))
                     .padding(12.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2506,7 +2851,7 @@ private fun SettingsScreenContent(
                             )
                             Text(
                                 text = "GitHub",
-                                color = Color(0xFF3FB950),
+                                color = ThemeTextPrimary,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -2523,7 +2868,7 @@ private fun SettingsScreenContent(
                     if (dashboardData.gitHub.status == AccountStatus.FAILED && dashboardData.gitHub.statusMessage.isNotBlank()) {
                         Text(
                             text = dashboardData.gitHub.statusMessage,
-                            color = Color(0xFFF87171),
+                            color = ThemeAccentRed,
                             fontSize = 11.sp
                         )
                     }
@@ -2531,15 +2876,15 @@ private fun SettingsScreenContent(
                     OutlinedTextField(
                         value = gitHubInput,
                         onValueChange = onGitHubChanged,
-                        label = { Text("username", color = Color(0xFF94A3B8)) },
-                        placeholder = { Text("e.g. sangrechy", color = Color(0xFF64748B)) },
+                        label = { Text("username", color = ThemeTextSecondary) },
+                        placeholder = { Text("e.g. sangrechy", color = ThemeTextMuted) },
                         trailingIcon = {
                             if (gitHubInput.isNotEmpty()) {
                                 IconButton(onClick = { onGitHubChanged("") }) {
                                     Icon(
                                         imageVector = Icons.Default.Close,
                                         contentDescription = "Clear",
-                                        tint = Color(0xFF94A3B8),
+                                        tint = ThemeTextSecondary,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -2548,10 +2893,13 @@ private fun SettingsScreenContent(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFF3FB950),
-                            unfocusedBorderColor = Color(0x40FFFFFF)
+                            focusedTextColor = ThemeTextPrimary,
+                            unfocusedTextColor = ThemeTextPrimary,
+                            focusedBorderColor = ThemeTextPrimary,
+                            unfocusedBorderColor = ThemeInnerBoxBorder,
+                            focusedContainerColor = ThemeTextFieldBg,
+                            unfocusedContainerColor = ThemeTextFieldBg,
+                            cursorColor = ThemeTextPrimary
                         ),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                     )
@@ -2559,15 +2907,15 @@ private fun SettingsScreenContent(
                     OutlinedTextField(
                         value = tokenInput,
                         onValueChange = onTokenChanged,
-                        label = { Text("token (optional)", color = Color(0xFF94A3B8)) },
-                        placeholder = { Text("ghp_... for private contributions", color = Color(0xFF64748B)) },
+                        label = { Text("token (optional)", color = ThemeTextSecondary) },
+                        placeholder = { Text("ghp_... for private contributions & fast API sync", color = ThemeTextMuted) },
                         trailingIcon = {
                             if (tokenInput.isNotEmpty()) {
                                 IconButton(onClick = { onTokenChanged("") }) {
                                     Icon(
                                         imageVector = Icons.Default.Close,
                                         contentDescription = "Clear",
-                                        tint = Color(0xFF94A3B8),
+                                        tint = ThemeTextSecondary,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -2577,10 +2925,13 @@ private fun SettingsScreenContent(
                         modifier = Modifier.fillMaxWidth(),
                         visualTransformation = PasswordVisualTransformation(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFF3FB950),
-                            unfocusedBorderColor = Color(0x40FFFFFF)
+                            focusedTextColor = ThemeTextPrimary,
+                            unfocusedTextColor = ThemeTextPrimary,
+                            focusedBorderColor = ThemeTextPrimary,
+                            unfocusedBorderColor = ThemeInnerBoxBorder,
+                            focusedContainerColor = ThemeTextFieldBg,
+                            unfocusedContainerColor = ThemeTextFieldBg,
+                            cursorColor = ThemeTextPrimary
                         ),
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Password,
@@ -2599,11 +2950,11 @@ private fun SettingsScreenContent(
                             modifier = Modifier
                                 .size(8.dp)
                                 .clip(CircleShape)
-                                .background(if (hasToken) Color(0xFF22C55E) else Color(0xFF94A3B8))
+                                .background(if (hasToken) ThemeAccentGreen else ThemeTextMuted)
                         )
                         Text(
                             text = if (hasToken) "token: connected (private repo telemetry enabled)" else "token: disconnected (public contributions only)",
-                            color = if (hasToken) Color(0xFF4ADE80) else Color(0xFF94A3B8),
+                            color = ThemeTextSecondary,
                             fontSize = 11.sp
                         )
                     }
@@ -2613,16 +2964,18 @@ private fun SettingsScreenContent(
                         enabled = !isVerifyingGh && !isSyncing,
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF22C55E),
-                            contentColor = Color.Black
-                        )
+                            containerColor = ThemeCardBgElevated,
+                            contentColor = ThemeTextPrimary
+                        ),
+                        border = BorderStroke(1.dp, ThemeCardBorder),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         if (isVerifyingGh) {
-                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.Black)
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = ThemeTextPrimary)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Verifying...", fontWeight = FontWeight.Bold)
+                            Text("Verifying...", fontWeight = FontWeight.SemiBold)
                         } else {
-                            Text("Link & Verify GitHub", fontWeight = FontWeight.Bold)
+                            Text("Link & Verify GitHub", fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -2633,8 +2986,8 @@ private fun SettingsScreenContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0x1FFFFFFF))
-                    .border(1.dp, Color(0x2EFFFFFF), RoundedCornerShape(16.dp))
+                    .background(ThemeInnerBoxBg)
+                    .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(16.dp))
                     .padding(12.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2645,52 +2998,57 @@ private fun SettingsScreenContent(
                     ) {
                         Text(
                             text = "LeetCode Backup Repository",
-                            color = Color(0xFF93C5FD),
+                            color = ThemeTextPrimary,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0x333B82F6))
+                                .background(ThemePillBg)
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = "Git The Leet",
-                                color = Color(0xFF93C5FD),
+                                color = ThemeTextSecondary,
                                 fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
                     Text(
                         text = "GitHub repository storing your leetcode_problem/ folder and notes",
-                        color = Color(0xFF94A3B8),
+                        color = ThemeTextSecondary,
                         fontSize = 11.sp
                     )
                     OutlinedTextField(
                         value = backupRepoInput,
                         onValueChange = onBackupRepoChanged,
-                        label = { Text("Repository Name", color = Color(0xFF94A3B8)) },
-                        placeholder = { Text("e.g. project_git_the_leet", color = Color(0xFF64748B)) },
+                        label = { Text("Repository Name", color = ThemeTextSecondary) },
+                        placeholder = { Text("e.g. project_git_the_leet or username/repo", color = ThemeTextMuted) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFF3B82F6),
-                            unfocusedBorderColor = Color(0x40FFFFFF)
+                            focusedTextColor = ThemeTextPrimary,
+                            unfocusedTextColor = ThemeTextPrimary,
+                            focusedBorderColor = ThemeTextPrimary,
+                            unfocusedBorderColor = ThemeInnerBoxBorder,
+                            focusedContainerColor = ThemeTextFieldBg,
+                            unfocusedContainerColor = ThemeTextFieldBg,
+                            cursorColor = ThemeTextPrimary
                         )
                     )
                     Button(
                         onClick = { onSaveBackupRepo(backupRepoInput) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF1E3A8A),
-                            contentColor = Color.White
-                        )
+                            containerColor = ThemeCardBgElevated,
+                            contentColor = ThemeTextPrimary
+                        ),
+                        border = BorderStroke(1.dp, ThemeCardBorder),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Save Backup Repository", fontWeight = FontWeight.Bold)
+                        Text("Save Backup Repository", fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -2701,13 +3059,13 @@ private fun SettingsScreenContent(
                 enabled = !isSyncing,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF2563EB),
-                    contentColor = Color.White
+                    containerColor = ThemeTextPrimary,
+                    contentColor = ThemeBgDark
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 if (isSyncing) {
-                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = ThemeBgDark)
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Syncing...", fontWeight = FontWeight.Bold)
                 } else {
@@ -2715,7 +3073,25 @@ private fun SettingsScreenContent(
                 }
             }
 
-            HorizontalDivider(color = Color(0x26FFFFFF))
+            HorizontalDivider(color = ThemeCardBorder)
+
+            // App & Widget Wallpaper Studio Button
+            Button(
+                onClick = onOpenWallpaper,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ThemeCardBgElevated,
+                    contentColor = ThemeTextPrimary
+                ),
+                border = BorderStroke(1.dp, ThemeCardBorder),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.Wallpaper, contentDescription = null, modifier = Modifier.size(16.dp), tint = ThemeTextSecondary)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("App & Widget Wallpaper Studio", fontWeight = FontWeight.SemiBold)
+            }
+
+            HorizontalDivider(color = ThemeCardBorder)
 
             // Check for Update Button
             Button(
@@ -2723,38 +3099,39 @@ private fun SettingsScreenContent(
                 enabled = !isCheckingUpdate,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF1E293B),
-                    contentColor = Color.White
+                    containerColor = ThemeCardBgElevated,
+                    contentColor = ThemeTextPrimary
                 ),
+                border = BorderStroke(1.dp, ThemeCardBorder),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 if (isCheckingUpdate) {
-                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = ThemeTextPrimary)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Checking GitHub Releases...", fontWeight = FontWeight.SemiBold)
                 } else {
-                    Icon(Icons.Default.SystemUpdate, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFF60A5FA))
+                    Icon(Icons.Default.SystemUpdate, contentDescription = null, modifier = Modifier.size(16.dp), tint = ThemeTextSecondary)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Check for Update (GitHub Releases)", fontWeight = FontWeight.SemiBold)
                 }
             }
 
-            HorizontalDivider(color = Color(0x26FFFFFF))
+            HorizontalDivider(color = ThemeCardBorder)
 
             // Logout All Button
             Button(
                 onClick = onLogoutAll,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0x33DC2626),
-                    contentColor = Color(0xFFF87171)
+                    containerColor = Color(0x1AF43F5E),
+                    contentColor = Color(0xFFF43F5E)
                 ),
-                border = BorderStroke(1.dp, Color(0x66DC2626)),
+                border = BorderStroke(1.dp, Color(0x33F43F5E)),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Logout All Accounts", fontWeight = FontWeight.Bold)
+                Text("Logout All Accounts", fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -2774,10 +3151,10 @@ private fun MiniAccountChip(
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(if (isConnected) color.copy(alpha = 0.2f) else Color(0x1FFFFFFF))
+            .background(ThemeInnerBoxBg)
             .border(
                 1.dp,
-                if (isConnected) color.copy(alpha = 0.5f) else Color(0x2EFFFFFF),
+                ThemeInnerBoxBorder,
                 RoundedCornerShape(8.dp)
             )
             .padding(horizontal = 8.dp, vertical = 4.dp)
@@ -2790,11 +3167,11 @@ private fun MiniAccountChip(
                 modifier = Modifier
                     .size(6.dp)
                     .clip(CircleShape)
-                    .background(if (isConnected) color else Color(0xFF94A3B8))
+                    .background(if (isConnected) color else ThemeTextMuted)
             )
             Text(
                 text = name,
-                color = if (isConnected) Color.White else Color(0xFF94A3B8),
+                color = if (isConnected) ThemeTextPrimary else ThemeTextMuted,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -2807,27 +3184,38 @@ private fun AccountStatusBadge(
     status: AccountStatus,
     isVerifying: Boolean,
     connectedText: String,
-    failedText: String
+    failedText: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {}
 ) {
-    val (bgColor, borderColor, textColor, text) = when {
-        isVerifying -> Quadruple(Color(0x333B82F6), Color(0x663B82F6), Color(0xFF93C5FD), "Verifying...")
-        status == AccountStatus.CONNECTED -> Quadruple(Color(0x3322C55E), Color(0x6622C55E), Color(0xFF4ADE80), connectedText)
-        status == AccountStatus.FAILED -> Quadruple(Color(0x33EF4444), Color(0x66EF4444), Color(0xFFF87171), failedText)
-        else -> Quadruple(Color(0x26FFFFFF), Color(0x38FFFFFF), Color(0xFF94A3B8), "○ Not Linked")
+    val (dotColor, text) = when {
+        isVerifying -> Pair(ThemeAccentBlue, "Verifying...")
+        status == AccountStatus.CONNECTED -> Pair(ThemeAccentGreen, connectedText)
+        status == AccountStatus.FAILED -> Pair(ThemeAccentRed, failedText)
+        else -> Pair(ThemeTextMuted, "Not Linked")
     }
 
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(bgColor)
-            .border(1.dp, borderColor, RoundedCornerShape(8.dp))
-            .padding(horizontal = 8.dp, vertical = 3.dp)
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(ThemeInnerBoxBg)
+            .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(12.dp))
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(dotColor)
+        )
         Text(
             text = text,
-            color = textColor,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold
+            color = ThemeTextSecondary,
+            fontSize = 11.5.sp,
+            fontWeight = FontWeight.Medium
         )
     }
 }
@@ -2836,6 +3224,11 @@ private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third:
 
 @Composable
 fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizontal") {
+    var lcOffsetX by remember { mutableStateOf(0f) }
+    var lcOffsetY by remember { mutableStateOf(0f) }
+    var ghOffsetX by remember { mutableStateOf(0f) }
+    var ghOffsetY by remember { mutableStateOf(0f) }
+
     val lcCircle = remember(data.leetCode) {
         WidgetBitmapRenderer.renderLeetCodeCircle(data.leetCode, sizePx = 360).asImageBitmap()
     }
@@ -2867,10 +3260,10 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(26.dp))
-            .background(Color(0x28182438))
+            .background(ThemeCardBgElevated)
             .border(
                 1.5.dp,
-                Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                ThemeCardBorder,
                 RoundedCornerShape(26.dp)
             )
             .padding(12.dp)
@@ -2901,17 +3294,25 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
                     )
                 }
                 Text(
-                    text = "Live Glass Preview",
+                    text = "Live Glass Preview (Drag Cards)",
                     color = Color(0xFFCBD5E1),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Medium
                 )
             }
 
-            // Top Card: LeetCode Glass Card
+            // Top Card: LeetCode Glass Card (Movable via Drag)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .offset { IntOffset(lcOffsetX.roundToInt(), lcOffsetY.roundToInt()) }
+                    .pointerInput(Unit) {
+                        detectDragGestures { change, dragAmount ->
+                            change.consume()
+                            lcOffsetX = (lcOffsetX + dragAmount.x).coerceIn(-100f, 100f)
+                            lcOffsetY = (lcOffsetY + dragAmount.y).coerceIn(-50f, 50f)
+                        }
+                    }
                     .clip(RoundedCornerShape(20.dp))
                     .background(Color(0x26FFFFFF))
                     .border(
@@ -2986,10 +3387,18 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
                 }
             }
 
-            // Bottom Card: GitHub Glass Card
+            // Bottom Card: GitHub Glass Card (Movable via Drag)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .offset { IntOffset(ghOffsetX.roundToInt(), ghOffsetY.roundToInt()) }
+                    .pointerInput(Unit) {
+                        detectDragGestures { change, dragAmount ->
+                            change.consume()
+                            ghOffsetX = (ghOffsetX + dragAmount.x).coerceIn(-100f, 100f)
+                            ghOffsetY = (ghOffsetY + dragAmount.y).coerceIn(-50f, 50f)
+                        }
+                    }
                     .clip(RoundedCornerShape(20.dp))
                     .background(Color(0x26FFFFFF))
                     .border(

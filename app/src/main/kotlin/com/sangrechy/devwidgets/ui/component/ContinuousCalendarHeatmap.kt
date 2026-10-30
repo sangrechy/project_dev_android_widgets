@@ -43,6 +43,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.draw.shadow
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -56,7 +59,7 @@ fun ContinuousCalendarHeatmap(
 ) {
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
-    var selectedInfo by remember { mutableStateOf<String?>(null) }
+    var selectedDay by remember { mutableStateOf<HeatmapDayInfo?>(null) }
 
     val density = LocalDensity.current
     var hasInitiallyScrolled by remember { mutableStateOf(false) }
@@ -159,38 +162,49 @@ fun ContinuousCalendarHeatmap(
     val monthStepPx = with(density) { (cardWidth + cardSpacing).toPx() }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        // Summary Header Row in Glass Container
+        // Summary Header Row (Collision-Free Minimalist Layout)
+        val currentYear = remember { Calendar.getInstance().get(Calendar.YEAR) }
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0x1EFFFFFF))
-                    .border(1.dp, Color(0x28FFFFFF), RoundedCornerShape(10.dp))
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
-            ) {
-                Text(
-                    text = if (isLeetCode) "Submission Heatmap" else "Contribution Heatmap",
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            Text(
+                text = if (isLeetCode) "Submissions" else "Contributions",
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold
+            )
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // Year & count summary: e.g. 2026: 398
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0x18FFFFFF))
+                        .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 9.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "$currentYear: $totalSubmissions",
+                        color = Color(0xFFE2E8F0),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
                 // Scroll Left / Previous Month
                 Box(
                     modifier = Modifier
-                        .size(28.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0x1FFFFFFF))
-                        .border(1.dp, Color(0x28FFFFFF), RoundedCornerShape(8.dp))
+                        .size(26.dp)
+                        .clip(RoundedCornerShape(7.dp))
+                        .background(Color(0x14FFFFFF))
+                        .border(1.dp, Color(0x18FFFFFF), RoundedCornerShape(7.dp))
                         .clickable {
                             coroutineScope.launch {
                                 scrollState.animateScrollBy(-monthStepPx)
@@ -202,17 +216,17 @@ fun ContinuousCalendarHeatmap(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Scroll Left",
                         tint = Color(0xFFCBD5E1),
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(13.dp)
                     )
                 }
 
                 // Scroll Right / Next Month
                 Box(
                     modifier = Modifier
-                        .size(28.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0x1FFFFFFF))
-                        .border(1.dp, Color(0x28FFFFFF), RoundedCornerShape(8.dp))
+                        .size(26.dp)
+                        .clip(RoundedCornerShape(7.dp))
+                        .background(Color(0x14FFFFFF))
+                        .border(1.dp, Color(0x18FFFFFF), RoundedCornerShape(7.dp))
                         .clickable {
                             coroutineScope.launch {
                                 scrollState.animateScrollBy(monthStepPx)
@@ -224,66 +238,10 @@ fun ContinuousCalendarHeatmap(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = "Scroll Right",
                         tint = Color(0xFFCBD5E1),
-                        modifier = Modifier.size(14.dp)
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (isLeetCode) Color(0x2EFFA116) else Color(0x2E22C55E))
-                        .border(
-                            1.dp,
-                            if (isLeetCode) Color(0x66FFA116) else Color(0x6622C55E),
-                            RoundedCornerShape(10.dp)
-                        )
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
-                ) {
-                    Text(
-                        text = "$totalSubmissions in 1 yr • $activeDays days",
-                        color = if (isLeetCode) Color(0xFFFFA116) else Color(0xFF4ADE80),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
+                        modifier = Modifier.size(13.dp)
                     )
                 }
             }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Selected Cell Info Banner with Dismiss button
-        selectedInfo?.let { info ->
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0x263B82F6))
-                    .border(1.dp, Color(0x5560A5FA), RoundedCornerShape(10.dp))
-                    .padding(horizontal = 12.dp, vertical = 7.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = info,
-                        color = Color(0xFF93C5FD),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Dismiss",
-                        tint = Color(0xFF93C5FD),
-                        modifier = Modifier
-                            .size(16.dp)
-                            .clickable { selectedInfo = null }
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
         }
 
         // Horizontally Scrollable Heatmap with Distinct Separated Month Cards
@@ -394,12 +352,34 @@ fun ContinuousCalendarHeatmap(
                                                             if (day.count > 0) Color(0x40FFFFFF) else Color(0x18FFFFFF),
                                                             RoundedCornerShape(3.dp)
                                                         )
-                                                        .pointerInput(day) {
-                                                            detectTapGestures {
-                                                                selectedInfo = "${day.displayDate}: ${day.count} ${if (isLeetCode) "submission(s)" else "contribution(s)"}"
+                                                        .clickable {
+                                                            selectedDay = if (selectedDay == day) null else day
+                                                        }
+                                                ) {
+                                                    if (selectedDay == day) {
+                                                        Popup(
+                                                            alignment = Alignment.TopCenter,
+                                                            offset = IntOffset(0, -70),
+                                                            onDismissRequest = { selectedDay = null }
+                                                        ) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .shadow(8.dp, RoundedCornerShape(8.dp))
+                                                                    .clip(RoundedCornerShape(8.dp))
+                                                                    .background(Color(0xF2161922))
+                                                                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(8.dp))
+                                                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                                            ) {
+                                                                Text(
+                                                                    text = "${day.displayDate}: ${day.count}",
+                                                                    color = Color.White,
+                                                                    fontSize = 11.sp,
+                                                                    fontWeight = FontWeight.Medium
+                                                                )
                                                             }
                                                         }
-                                                )
+                                                    }
+                                                }
                                             } else {
                                                 // Subtle placeholder dot to guarantee identical month shapes
                                                 Box(

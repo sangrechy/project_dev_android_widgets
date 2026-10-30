@@ -47,6 +47,7 @@ class LeetCodeWidgetProvider : AppWidgetProvider() {
 
         fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, data: WidgetDashboardData) {
             val views = RemoteViews(context.packageName, R.layout.widget_leetcode)
+            WidgetWallpaperHelper.applyWallpaper(context, views, 340, 200, widgetKey = "LEETCODE")
             val prefs = WidgetPreferences(context)
             val lcCircle = WidgetBitmapRenderer.renderLeetCodeCircle(data.leetCode, sizePx = 360)
             val lcHeatmap = WidgetBitmapRenderer.renderHeatmap(

@@ -126,6 +126,7 @@ class DevActivityWidgetProvider : AppWidgetProvider() {
         ): RemoteViews {
             val layoutId = if (heightDp < 220) R.layout.widget_dev_activity_compact else R.layout.widget_dev_activity
             val views = RemoteViews(context.packageName, layoutId)
+            WidgetWallpaperHelper.applyWallpaper(context, views, widthDp, heightDp, widgetKey = "DEV_ACTIVITY")
 
             val sectionHeightDp = ((heightDp - 56) / 2).coerceAtLeast(80)
             val visualRowHeightDp = (sectionHeightDp - 36).coerceAtLeast(60)

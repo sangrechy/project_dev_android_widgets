@@ -67,7 +67,8 @@ data class AppUpdateInfo(
     val releaseName: String = "",
     val releaseNotes: String = "",
     val downloadUrl: String = "",
-    val releaseHtmlUrl: String = ""
+    val releaseHtmlUrl: String = "",
+    val error: String? = null
 )
 
 data class WidgetDashboardData(

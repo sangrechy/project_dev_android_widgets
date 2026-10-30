@@ -89,6 +89,7 @@ import com.sangrechy.devwidgets.data.model.ProblemDifficultyFilter
 import com.sangrechy.devwidgets.data.model.ProblemNote
 import com.sangrechy.devwidgets.data.model.ProblemsPlatform
 import com.sangrechy.devwidgets.data.model.ProblemsSubTab
+import com.sangrechy.devwidgets.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -127,7 +128,6 @@ fun ProblemsScreenContent(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var showNewGeneralNoteDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -171,54 +171,20 @@ fun ProblemsScreenContent(
                 GeneralNotesSection(
                     notes = generalNotes,
                     onSelectNote = onSelectGeneralNote,
-                    onCreateNewNote = { showNewGeneralNoteDialog = true }
+                    onCreateNewNote = {
+                        onSelectGeneralNote(
+                            CustomNote(
+                                id = "",
+                                title = "New Note",
+                                content = "# Notes\n\n- Key algorithm steps\n- Time & Space complexity\n",
+                                category = "General",
+                                lastModifiedMillis = System.currentTimeMillis()
+                            )
+                        )
+                    }
                 )
             }
         }
-    }
-
-    // Problem Detail Dialog (when a problem is selected)
-    selectedProblemDetail?.let { problem ->
-        LeetCodeProblemDetailDialog(
-            problem = problem,
-            activeNoteIndex = activeProblemNoteIndex,
-            onDismiss = { onSelectProblem(null) },
-            onActiveNoteIndexChanged = onActiveProblemNoteIndexChanged,
-            onDownloadOffline = { onDownloadProblemOffline(problem.folderName, problem.titleSlug) },
-            onDeleteOffline = { onDeleteProblemOffline(problem.folderName) },
-            onSaveNote = { filename, content -> onSaveProblemNote(problem.folderName, filename, content) },
-            onDeleteNote = { filename -> onDeleteProblemNote(problem.folderName, filename) }
-        )
-    }
-
-    // General Note Editor Dialog (when clicked or creating)
-    if (selectedGeneralNote != null || showNewGeneralNoteDialog) {
-        val noteToEdit = selectedGeneralNote ?: CustomNote(
-            id = "",
-            title = "New Note",
-            content = "# Notes\n\n- Key algorithm steps\n- Time & Space complexity\n",
-            category = "General",
-            lastModifiedMillis = System.currentTimeMillis()
-        )
-
-        GeneralNoteEditorDialog(
-            note = noteToEdit,
-            isNew = selectedGeneralNote == null,
-            onDismiss = {
-                onSelectGeneralNote(null)
-                showNewGeneralNoteDialog = false
-            },
-            onSave = { updated ->
-                onSaveGeneralNote(updated)
-                onSelectGeneralNote(null)
-                showNewGeneralNoteDialog = false
-            },
-            onDelete = { id ->
-                onDeleteGeneralNote(id)
-                onSelectGeneralNote(null)
-                showNewGeneralNoteDialog = false
-            }
-        )
     }
 }
 
@@ -235,10 +201,10 @@ private fun PlatformToggleCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(Color(0x28182438))
+            .background(ThemeCardBg)
             .border(
                 1.dp,
-                Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                ThemeCardBorder,
                 RoundedCornerShape(20.dp)
             )
             .padding(8.dp)
@@ -254,7 +220,7 @@ private fun PlatformToggleCard(
                     .clip(RoundedCornerShape(14.dp))
                     .then(
                         if (selectedPlatform == ProblemsPlatform.LEETCODE) {
-                            Modifier.background(Brush.horizontalGradient(listOf(Color(0xFFFFA116), Color(0xFFFF7A00))))
+                            Modifier.background(Brush.horizontalGradient(listOf(ThemeAccentAmber, Color(0xFFFF7A00))))
                         } else {
                             Modifier.background(Color.Transparent)
                         }
@@ -270,12 +236,12 @@ private fun PlatformToggleCard(
                     Icon(
                         imageVector = Icons.Default.Code,
                         contentDescription = "LeetCode",
-                        tint = if (selectedPlatform == ProblemsPlatform.LEETCODE) Color.Black else Color(0xFF94A3B8),
+                        tint = if (selectedPlatform == ProblemsPlatform.LEETCODE) Color.Black else ThemeTextSecondary,
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
                         text = "LeetCode",
-                        color = if (selectedPlatform == ProblemsPlatform.LEETCODE) Color.Black else Color(0xFFCBD5E1),
+                        color = if (selectedPlatform == ProblemsPlatform.LEETCODE) Color.Black else ThemeTextSecondary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -287,7 +253,8 @@ private fun PlatformToggleCard(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0x14FFFFFF))
+                    .background(ThemeInnerBoxBg)
+                    .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(14.dp))
                     .padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -297,19 +264,19 @@ private fun PlatformToggleCard(
                 ) {
                     Text(
                         text = "Codeforces",
-                        color = Color(0xFF64748B),
+                        color = ThemeTextMuted,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0x3364748B))
+                            .background(ThemeCardBorder)
                             .padding(horizontal = 5.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = "Soon",
-                            color = Color(0xFF94A3B8),
+                            color = ThemeTextSecondary,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -333,8 +300,8 @@ private fun SubTabCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0x1F1E293B))
-            .border(1.dp, Color(0x2EFFFFFF), RoundedCornerShape(16.dp))
+            .background(ThemeTopBarBg)
+            .border(1.dp, ThemeTopBarBorder, RoundedCornerShape(16.dp))
             .padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
@@ -345,7 +312,12 @@ private fun SubTabCard(
                     .weight(1f)
                     .clip(RoundedCornerShape(12.dp))
                     .background(
-                        if (isSelected) Color(0x383B82F6) else Color.Transparent
+                        if (isSelected) ThemeCardBgElevated else Color.Transparent
+                    )
+                    .border(
+                        1.dp,
+                        if (isSelected) ThemeAccentBlue.copy(alpha = 0.5f) else Color.Transparent,
+                        RoundedCornerShape(12.dp)
                     )
                     .clickable { onSubTabSelected(tab) }
                     .padding(vertical = 8.dp),
@@ -358,12 +330,12 @@ private fun SubTabCard(
                     Icon(
                         imageVector = if (tab == ProblemsSubTab.PROBLEMS) Icons.Default.Description else Icons.Default.NoteAlt,
                         contentDescription = tab.name,
-                        tint = if (isSelected) Color(0xFF93C5FD) else Color(0xFF94A3B8),
+                        tint = if (isSelected) ThemeAccentBlue else ThemeTextSecondary,
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
                         text = if (tab == ProblemsSubTab.PROBLEMS) "Problems Bank" else "Notes",
-                        color = if (isSelected) Color(0xFF93C5FD) else Color(0xFF94A3B8),
+                        color = if (isSelected) ThemeAccentBlue else ThemeTextSecondary,
                         fontSize = 13.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                     )
@@ -395,140 +367,116 @@ private fun LeetCodeProblemsSection(
     onDownloadProblemOffline: (folderName: String, titleSlug: String) -> Unit,
     onDeleteProblemOffline: (folderName: String) -> Unit
 ) {
-    var showBackupSettings by remember { mutableStateOf(false) }
+    var showAddProblemModal by remember { mutableStateOf(false) }
+    var addProblemInput by remember { mutableStateOf("") }
 
-    // Backup Repository Sync Card
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(Color(0x28182438))
-            .border(
-                1.dp,
-                Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
-                RoundedCornerShape(18.dp)
-            )
-            .padding(14.dp)
+    // Top Action Bar with Problem Count and + Add Problem Button
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(Color(0x263FB950)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Sync,
-                            contentDescription = "Sync",
-                            tint = Color(0xFF3FB950),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    Column {
-                        Text(
-                            text = "GitHub Backup Sync",
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Repo: ${backupRepoInput.ifBlank { "project_git_the_leet" }}",
-                            color = Color(0xFF94A3B8),
-                            fontSize = 11.sp
-                        )
-                    }
-                }
+        Text(
+            text = "${problems.size} Problems Saved",
+            color = ThemeTextSecondary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium
+        )
 
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    IconButton(
-                        onClick = { showBackupSettings = !showBackupSettings },
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (showBackupSettings) Icons.Default.ExpandLess else Icons.Default.Edit,
-                            contentDescription = "Edit Repo",
-                            tint = Color(0xFF94A3B8),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+        Button(
+            onClick = { showAddProblemModal = true },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = ThemeCardBgElevated,
+                contentColor = ThemeTextPrimary
+            ),
+            shape = RoundedCornerShape(10.dp),
+            border = BorderStroke(1.dp, ThemeCardBorder),
+            modifier = Modifier.height(34.dp)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(15.dp))
+            Spacer(modifier = Modifier.width(4.dp))
+            Text("Add Problem", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
 
-                    Button(
-                        onClick = onSyncFromGitHubBackup,
-                        enabled = !isSyncingBackupRepo,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF238636)),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.height(34.dp)
-                    ) {
-                        if (isSyncingBackupRepo) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(14.dp),
-                                strokeWidth = 2.dp,
-                                color = Color.White
-                            )
-                        } else {
-                            Text("Sync", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-
-            if (showBackupSettings) {
-                HorizontalDivider(color = Color(0x1FFFFFFF))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+    // Add Problem Modal Dialog
+    if (showAddProblemModal) {
+        AlertDialog(
+            onDismissRequest = {
+                showAddProblemModal = false
+                addProblemInput = ""
+            },
+            title = {
+                Text("Add Problem Offline", fontWeight = FontWeight.Bold, color = ThemeTextPrimary, fontSize = 16.sp)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Enter a LeetCode problem title slug (e.g. 'two-sum') or full problem URL. Unsolved problems are fully supported.",
+                        color = ThemeTextSecondary,
+                        fontSize = 12.sp
+                    )
                     OutlinedTextField(
-                        value = backupRepoInput,
-                        onValueChange = onBackupRepoChanged,
-                        label = { Text("Backup Repo Name", fontSize = 11.sp) },
-                        placeholder = { Text("project_git_the_leet", fontSize = 11.sp) },
+                        value = addProblemInput,
+                        onValueChange = { addProblemInput = it },
+                        placeholder = { Text("e.g. two-sum or https://leetcode.com/problems/...", color = ThemeTextMuted, fontSize = 12.sp) },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFF3B82F6),
-                            unfocusedBorderColor = Color(0x40FFFFFF)
+                            focusedTextColor = ThemeTextPrimary,
+                            unfocusedTextColor = ThemeTextPrimary,
+                            focusedContainerColor = ThemeTextFieldBg,
+                            unfocusedContainerColor = ThemeTextFieldBg,
+                            focusedBorderColor = ThemeAccentBlue,
+                            unfocusedBorderColor = ThemeTextFieldBorder
                         ),
-                        modifier = Modifier.weight(1f)
-                    )
-                    Button(
-                        onClick = {
-                            onSaveBackupRepo(backupRepoInput)
-                            showBackupSettings = false
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E3A8A)),
                         shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.height(48.dp)
-                    ) {
-                        Text("Save", fontSize = 12.sp)
-                    }
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
-            }
-        }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val trimmed = addProblemInput.trim()
+                        val slug = trimmed.removeSuffix("/").substringAfterLast("/").lowercase()
+                        if (slug.isNotBlank()) {
+                            onDownloadProblemOffline(slug, slug)
+                            showAddProblemModal = false
+                            addProblemInput = ""
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ThemeAccentBlue,
+                        contentColor = Color.Black
+                    ),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Download", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showAddProblemModal = false
+                    addProblemInput = ""
+                }) {
+                    Text("Cancel", color = ThemeTextSecondary)
+                }
+            },
+            containerColor = ThemeCardBgElevated,
+            shape = RoundedCornerShape(18.dp)
+        )
     }
 
     // Search Bar
     OutlinedTextField(
         value = searchQuery,
         onValueChange = onSearchQueryChanged,
-        placeholder = { Text("Search by problem name, ID, or slug...", fontSize = 13.sp, color = Color(0xFF64748B)) },
+        placeholder = { Text("Search by problem name, ID, or slug...", fontSize = 13.sp, color = ThemeTextMuted) },
         leadingIcon = {
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = "Search",
-                tint = Color(0xFF94A3B8),
+                tint = ThemeTextSecondary,
                 modifier = Modifier.size(18.dp)
             )
         },
@@ -538,7 +486,7 @@ private fun LeetCodeProblemsSection(
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Clear",
-                        tint = Color(0xFF94A3B8),
+                        tint = ThemeTextSecondary,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -546,12 +494,12 @@ private fun LeetCodeProblemsSection(
         },
         singleLine = true,
         colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White,
-            focusedContainerColor = Color(0x28182438),
-            unfocusedContainerColor = Color(0x28182438),
-            focusedBorderColor = Color(0xFF3B82F6),
-            unfocusedBorderColor = Color(0x2EFFFFFF)
+            focusedTextColor = ThemeTextPrimary,
+            unfocusedTextColor = ThemeTextPrimary,
+            focusedContainerColor = ThemeTextFieldBg,
+            unfocusedContainerColor = ThemeTextFieldBg,
+            focusedBorderColor = ThemeAccentBlue,
+            unfocusedBorderColor = ThemeTextFieldBorder
         ),
         shape = RoundedCornerShape(14.dp),
         modifier = Modifier.fillMaxWidth()
@@ -567,9 +515,9 @@ private fun LeetCodeProblemsSection(
         ProblemDifficultyFilter.entries.forEach { filter ->
             val isSelected = filter == difficultyFilter
             val chipColor = when (filter) {
-                ProblemDifficultyFilter.ALL -> Color(0xFF3B82F6)
+                ProblemDifficultyFilter.ALL -> ThemeAccentBlue
                 ProblemDifficultyFilter.EASY -> Color(0xFF00B8A3)
-                ProblemDifficultyFilter.MEDIUM -> Color(0xFFFFC01E)
+                ProblemDifficultyFilter.MEDIUM -> ThemeAccentAmber
                 ProblemDifficultyFilter.HARD -> Color(0xFFFF375F)
                 ProblemDifficultyFilter.DOWNLOADED -> Color(0xFFA855F7)
             }
@@ -578,11 +526,11 @@ private fun LeetCodeProblemsSection(
                 modifier = Modifier
                     .clip(RoundedCornerShape(10.dp))
                     .background(
-                        if (isSelected) chipColor.copy(alpha = 0.25f) else Color(0x14FFFFFF)
+                        if (isSelected) chipColor.copy(alpha = 0.2f) else ThemeInnerBoxBg
                     )
                     .border(
                         1.dp,
-                        if (isSelected) chipColor else Color(0x24FFFFFF),
+                        if (isSelected) chipColor else ThemeInnerBoxBorder,
                         RoundedCornerShape(10.dp)
                     )
                     .clickable { onDifficultyFilterSelected(filter) }
@@ -590,7 +538,7 @@ private fun LeetCodeProblemsSection(
             ) {
                 Text(
                     text = filter.label,
-                    color = if (isSelected) chipColor else Color(0xFFCBD5E1),
+                    color = if (isSelected) chipColor else ThemeTextSecondary,
                     fontSize = 12.sp,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                 )
@@ -710,10 +658,10 @@ private fun ProblemItemCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0x28182438))
+            .background(ThemeCardBg)
             .border(
                 1.dp,
-                Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                ThemeCardBorder,
                 RoundedCornerShape(16.dp)
             )
             .clickable(onClick = onClick)
@@ -733,14 +681,14 @@ private fun ProblemItemCard(
                 ) {
                     Text(
                         text = "#${problem.frontendId}",
-                        color = Color(0xFF94A3B8),
+                        color = ThemeTextSecondary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace
                     )
                     Text(
                         text = problem.title,
-                        color = Color.White,
+                        color = ThemeTextPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -779,12 +727,13 @@ private fun ProblemItemCard(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(Color(0x1FFFFFFF))
+                                .background(ThemeInnerBoxBg)
+                                .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(4.dp))
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = tag,
-                                color = Color(0xFFCBD5E1),
+                                color = ThemeTextSecondary,
                                 fontSize = 10.sp
                             )
                         }
@@ -792,7 +741,7 @@ private fun ProblemItemCard(
                     if (problem.topicTags.size > 2) {
                         Text(
                             text = "+${problem.topicTags.size - 2}",
-                            color = Color(0xFF64748B),
+                            color = ThemeTextMuted,
                             fontSize = 10.sp
                         )
                     }
@@ -807,12 +756,12 @@ private fun ProblemItemCard(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(Color(0x333B82F6))
+                                .background(ThemeAccentBlue.copy(alpha = 0.2f))
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = problem.solutionLanguage,
-                                color = Color(0xFF93C5FD),
+                                color = ThemeAccentBlue,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -827,12 +776,12 @@ private fun ProblemItemCard(
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = "Offline Available",
-                                tint = Color(0xFF10B981),
+                                tint = ThemeAccentGreen,
                                 modifier = Modifier.size(13.dp)
                             )
                             Text(
                                 text = "Offline",
-                                color = Color(0xFF10B981),
+                                color = ThemeAccentGreen,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium
                             )
@@ -884,7 +833,7 @@ private fun ProblemItemCard(
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun LeetCodeProblemDetailDialog(
+fun LeetCodeProblemDetailView(
     problem: OfflineProblem,
     activeNoteIndex: Int,
     onDismiss: () -> Unit,
@@ -892,7 +841,8 @@ fun LeetCodeProblemDetailDialog(
     onDownloadOffline: () -> Unit,
     onDeleteOffline: () -> Unit,
     onSaveNote: (filename: String, content: String) -> Unit,
-    onDeleteNote: (filename: String) -> Unit
+    onDeleteNote: (filename: String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = Description, 1 = Code, 2 = Notes
@@ -901,29 +851,23 @@ fun LeetCodeProblemDetailDialog(
     var showDeleteConfirmation by remember { mutableStateOf(false) }
 
     val diffColor = when (problem.difficulty.lowercase()) {
-        "easy" -> Color(0xFF00B8A3)
-        "hard" -> Color(0xFFFF375F)
-        else -> Color(0xFFFFC01E)
+        "easy" -> ThemeAccentGreen
+        "hard" -> ThemeAccentRed
+        else -> ThemeAccentAmber
     }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(22.dp),
+        color = ThemeCardBgElevated,
+        border = BorderStroke(1.dp, ThemeCardBorder)
     ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = 28.dp, bottom = 12.dp, start = 12.dp, end = 12.dp),
-            shape = RoundedCornerShape(20.dp),
-            color = Color(0xFF1E1E1E), // Authentic dark LeetCode background
-            border = BorderStroke(1.dp, Color(0xFF333333))
-        ) {
-            Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
                 // Top Action Bar
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFF262626))
+                        .background(ThemeTopBarBg)
                         .padding(horizontal = 14.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
@@ -935,7 +879,7 @@ fun LeetCodeProblemDetailDialog(
                     ) {
                         Text(
                             text = "#${problem.frontendId}. ${problem.title}",
-                            color = Color.White,
+                            color = ThemeTextPrimary,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
@@ -969,7 +913,7 @@ fun LeetCodeProblemDetailDialog(
                                 Icon(
                                     imageVector = Icons.Default.Delete,
                                     contentDescription = "Remove Offline Cache",
-                                    tint = Color(0xFFEF4444),
+                                    tint = ThemeAccentRed,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -981,7 +925,7 @@ fun LeetCodeProblemDetailDialog(
                                 Icon(
                                     imageVector = Icons.Default.Download,
                                     contentDescription = "Download Offline",
-                                    tint = Color(0xFF38BDF8),
+                                    tint = ThemeAccentBlue,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -994,7 +938,7 @@ fun LeetCodeProblemDetailDialog(
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Close",
-                                tint = Color(0xFF9CA3AF),
+                                tint = ThemeTextSecondary,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -1005,7 +949,7 @@ fun LeetCodeProblemDetailDialog(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFF282828))
+                        .background(ThemeInnerBoxBg)
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
@@ -1016,14 +960,14 @@ fun LeetCodeProblemDetailDialog(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSelected) Color(0xFF3E3E3E) else Color.Transparent)
+                                .background(if (isSelected) ThemeCardBgElevated else Color.Transparent)
                                 .clickable { selectedTab = index }
                                 .padding(vertical = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = tabTitle,
-                                color = if (isSelected) Color.White else Color(0xFF9CA3AF),
+                                color = if (isSelected) ThemeTextPrimary else ThemeTextSecondary,
                                 fontSize = 13.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                             )
@@ -1031,7 +975,7 @@ fun LeetCodeProblemDetailDialog(
                     }
                 }
 
-                HorizontalDivider(color = Color(0xFF333333))
+                HorizontalDivider(color = ThemeCardBorder)
 
                 // Tab Content
                 Box(
@@ -1054,31 +998,30 @@ fun LeetCodeProblemDetailDialog(
                 }
             }
         }
-    }
 
     // Modal to create a new note file
     if (showNewNoteModal) {
         AlertDialog(
             onDismissRequest = { showNewNoteModal = false },
-            containerColor = Color(0xFF262626),
-            title = { Text("New Note File", color = Color.White, fontWeight = FontWeight.Bold) },
+            containerColor = ThemeCardBg,
+            title = { Text("New Note File", color = ThemeTextPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
                         text = "Enter a file name for this problem's note (saved in notes/):",
-                        color = Color(0xFFD1D5DB),
+                        color = ThemeTextSecondary,
                         fontSize = 13.sp
                     )
                     OutlinedTextField(
                         value = newNoteFilename,
                         onValueChange = { newNoteFilename = it },
-                        placeholder = { Text("approach2.md, intuition.md...", color = Color(0xFF6B7280)) },
+                        placeholder = { Text("approach2.md, intuition.md...", color = ThemeTextMuted) },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color(0xFF3B82F6),
-                            unfocusedBorderColor = Color(0xFF4B5563)
+                            focusedTextColor = ThemeTextPrimary,
+                            unfocusedTextColor = ThemeTextPrimary,
+                            focusedBorderColor = ThemeAccentBlue,
+                            unfocusedBorderColor = ThemeInnerBoxBorder
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -1092,14 +1035,14 @@ fun LeetCodeProblemDetailDialog(
                         newNoteFilename = ""
                         showNewNoteModal = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))
+                    colors = ButtonDefaults.buttonColors(containerColor = ThemeAccentBlue)
                 ) {
                     Text("Create Note")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showNewNoteModal = false }) {
-                    Text("Cancel", color = Color(0xFF9CA3AF))
+                    Text("Cancel", color = ThemeTextMuted)
                 }
             }
         )
@@ -1108,12 +1051,12 @@ fun LeetCodeProblemDetailDialog(
     if (showDeleteConfirmation) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },
-            containerColor = Color(0xFF262626),
-            title = { Text("Remove Offline Problem?", color = Color.White, fontWeight = FontWeight.Bold) },
+            containerColor = ThemeCardBg,
+            title = { Text("Remove Offline Problem?", color = ThemeTextPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Text(
                     "Are you sure you want to remove #${problem.frontendId} ${problem.title} from offline storage?",
-                    color = Color(0xFFD1D5DB),
+                    color = ThemeTextSecondary,
                     fontSize = 14.sp
                 )
             },
@@ -1123,14 +1066,14 @@ fun LeetCodeProblemDetailDialog(
                         showDeleteConfirmation = false
                         onDeleteOffline()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
+                    colors = ButtonDefaults.buttonColors(containerColor = ThemeAccentRed)
                 ) {
                     Text("Remove")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirmation = false }) {
-                    Text("Cancel", color = Color(0xFF9CA3AF))
+                    Text("Cancel", color = ThemeTextMuted)
                 }
             }
         )
@@ -1194,31 +1137,31 @@ private fun LeetCodeDescriptionTab(problem: OfflineProblem) {
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
             <style>
               body {
-                background-color: #1E1E1E;
-                color: #EFF1F6;
+                background-color: #141519;
+                color: #F1F5F9;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
                 font-size: 14px;
                 line-height: 1.6;
-                padding: 0px;
+                padding: 12px;
                 margin: 0;
               }
               code {
-                background-color: #2D2D2D;
-                color: #F87171;
-                padding: 2px 5px;
+                background-color: #0C0D11;
+                color: #7DD3FC;
+                padding: 2px 6px;
                 border-radius: 4px;
                 font-family: monospace;
                 font-size: 13px;
               }
               pre {
-                background-color: #262626;
-                border: 1px solid #3E3E3E;
-                border-radius: 8px;
+                background-color: #0C0D11;
+                border: 1px solid #272A34;
+                border-radius: 10px;
                 padding: 12px;
                 overflow-x: auto;
                 font-family: monospace;
                 font-size: 13px;
-                color: #EFF1F6;
+                color: #F1F5F9;
                 line-height: 1.5;
               }
               strong {
@@ -1248,7 +1191,7 @@ private fun LeetCodeDescriptionTab(problem: OfflineProblem) {
         AndroidView(
             factory = { ctx ->
                 WebView(ctx).apply {
-                    setBackgroundColor(0x00000000)
+                    setBackgroundColor(android.graphics.Color.parseColor("#141519"))
                     webViewClient = WebViewClient()
                     settings.javaScriptEnabled = false
                     settings.loadWithOverviewMode = true
@@ -1357,13 +1300,14 @@ private fun LeetCodeCodeTab(problem: OfflineProblem) {
             ) {
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xFF2563EB))
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(ThemePillBg)
+                        .border(1.dp, ThemeCardBorder, RoundedCornerShape(8.dp))
                         .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
                     Text(
                         text = problem.solutionLanguage.ifBlank { "Code" }.uppercase(),
-                        color = Color.White,
+                        color = ThemeTextPrimary,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -1372,7 +1316,7 @@ private fun LeetCodeCodeTab(problem: OfflineProblem) {
                 if (problem.runtime.isNotBlank()) {
                     Text(
                         text = "${problem.runtime} ${if (problem.runtimePercentile.isNotBlank()) "(${problem.runtimePercentile})" else ""}",
-                        color = Color(0xFF10B981),
+                        color = ThemeAccentGreen,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -1387,7 +1331,7 @@ private fun LeetCodeCodeTab(problem: OfflineProblem) {
                     Toast.makeText(context, "Solution code copied!", Toast.LENGTH_SHORT).show()
                 },
                 shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, Color(0xFF4B5563)),
+                border = BorderStroke(1.dp, ThemeCardBorder),
                 modifier = Modifier.height(32.dp)
             ) {
                 Row(
@@ -1397,10 +1341,10 @@ private fun LeetCodeCodeTab(problem: OfflineProblem) {
                     Icon(
                         imageVector = Icons.Default.ContentCopy,
                         contentDescription = "Copy",
-                        tint = Color(0xFF93C5FD),
+                        tint = ThemeAccentBlue,
                         modifier = Modifier.size(14.dp)
                     )
-                    Text("Copy Code", color = Color(0xFF93C5FD), fontSize = 11.sp)
+                    Text("Copy Code", color = ThemeTextPrimary, fontSize = 11.sp)
                 }
             }
         }
@@ -1410,9 +1354,9 @@ private fun LeetCodeCodeTab(problem: OfflineProblem) {
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color(0xFF141414))
-                .border(1.dp, Color(0xFF333333), RoundedCornerShape(10.dp))
+                .clip(RoundedCornerShape(12.dp))
+                .background(ThemeCodeBlockBg)
+                .border(1.dp, ThemeTextFieldBorder, RoundedCornerShape(12.dp))
                 .verticalScroll(scrollState)
                 .padding(12.dp)
         ) {
@@ -1493,10 +1437,10 @@ private fun LeetCodeNotesTab(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(if (isSelected) Color(0xFF3B82F6) else Color(0xFF2D2D2D))
+                        .background(if (isSelected) ThemePillBg else Color.Transparent)
                         .border(
                             1.dp,
-                            if (isSelected) Color(0xFF60A5FA) else Color(0xFF404040),
+                            if (isSelected) ThemeCardBorder else ThemeInnerBoxBorder,
                             RoundedCornerShape(8.dp)
                         )
                         .clickable { onActiveNoteIndexChanged(index) }
@@ -1509,14 +1453,14 @@ private fun LeetCodeNotesTab(
                         Icon(
                             imageVector = Icons.Default.NoteAlt,
                             contentDescription = null,
-                            tint = if (isSelected) Color.White else Color(0xFF9CA3AF),
+                            tint = if (isSelected) ThemeAccentBlue else ThemeTextSecondary,
                             modifier = Modifier.size(13.dp)
                         )
                         Text(
                             text = note.filename,
-                            color = if (isSelected) Color.White else Color(0xFFCBD5E1),
+                            color = if (isSelected) ThemeTextPrimary else ThemeTextSecondary,
                             fontSize = 12.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                         )
                     }
                 }
@@ -1526,8 +1470,8 @@ private fun LeetCodeNotesTab(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0x1FFFFFFF))
-                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(8.dp))
+                    .background(ThemePillBg)
+                    .border(1.dp, ThemeCardBorder, RoundedCornerShape(8.dp))
                     .clickable(onClick = onAddNewNote)
                     .padding(horizontal = 10.dp, vertical = 6.dp)
             ) {
@@ -1538,10 +1482,10 @@ private fun LeetCodeNotesTab(
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = "New Note",
-                        tint = Color(0xFF38BDF8),
+                        tint = ThemeAccentBlue,
                         modifier = Modifier.size(14.dp)
                     )
-                    Text("+ Note", color = Color(0xFF38BDF8), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("+ Note", color = ThemeAccentBlue, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -1601,14 +1545,14 @@ private fun LeetCodeNotesTab(
             OutlinedTextField(
                 value = noteContent,
                 onValueChange = { noteContent = it },
-                placeholder = { Text("Write intuition, edge cases, complexity analysis here...", color = Color(0xFF6B7280)) },
+                placeholder = { Text("Write intuition, edge cases, complexity analysis here...", color = ThemeTextMuted) },
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color(0xFFE5E7EB),
-                    unfocusedTextColor = Color(0xFFE5E7EB),
-                    focusedContainerColor = Color(0xFF141414),
-                    unfocusedContainerColor = Color(0xFF141414),
-                    focusedBorderColor = Color(0xFF3B82F6),
-                    unfocusedBorderColor = Color(0xFF333333)
+                    focusedTextColor = ThemeTextPrimary,
+                    unfocusedTextColor = ThemeTextPrimary,
+                    focusedContainerColor = ThemeTextEditorBg,
+                    unfocusedContainerColor = ThemeTextEditorBg,
+                    focusedBorderColor = ThemeAccentBlue,
+                    unfocusedBorderColor = ThemeTextFieldBorder
                 ),
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier
@@ -1704,14 +1648,14 @@ private fun GeneralNotesSection(
         ) {
             Text(
                 text = "${notes.size} Standalone Notes",
-                color = Color(0xFF94A3B8),
+                color = ThemeTextSecondary,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium
             )
 
             Button(
                 onClick = onCreateNewNote,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6)),
+                colors = ButtonDefaults.buttonColors(containerColor = ThemeAccentBlue),
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.height(34.dp)
             ) {
@@ -1735,7 +1679,8 @@ private fun GeneralNotesSection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0x1F1E293B))
+                    .background(ThemeCardBg)
+                    .border(BorderStroke(1.dp, ThemeCardBorder), RoundedCornerShape(16.dp))
                     .padding(24.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -1746,18 +1691,18 @@ private fun GeneralNotesSection(
                     Icon(
                         imageVector = Icons.Default.NoteAlt,
                         contentDescription = null,
-                        tint = Color(0xFF64748B),
+                        tint = ThemeTextMuted,
                         modifier = Modifier.size(36.dp)
                     )
                     Text(
                         text = "No general notes yet",
-                        color = Color(0xFF94A3B8),
+                        color = ThemeTextPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
                         text = "Store custom cheatsheets, algorithm patterns, or interview templates.",
-                        color = Color(0xFF64748B),
+                        color = ThemeTextSecondary,
                         fontSize = 12.sp
                     )
                 }
@@ -1784,10 +1729,10 @@ private fun GeneralNoteCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0x28182438))
+            .background(ThemeCardBg)
             .border(
                 1.dp,
-                Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color(0x12FFFFFF))),
+                ThemeCardBorder,
                 RoundedCornerShape(16.dp)
             )
             .clickable(onClick = onClick)
@@ -1801,7 +1746,7 @@ private fun GeneralNoteCard(
             ) {
                 Text(
                     text = note.title,
-                    color = Color.White,
+                    color = ThemeTextPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
@@ -1811,7 +1756,7 @@ private fun GeneralNoteCard(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = dateStr,
-                    color = Color(0xFF64748B),
+                    color = ThemeTextMuted,
                     fontSize = 10.sp,
                     maxLines = 1
                 )
@@ -1821,7 +1766,7 @@ private fun GeneralNoteCard(
             val preview = note.content.lines().filter { it.isNotBlank() && !it.startsWith("#") }.take(2).joinToString(" ")
             Text(
                 text = preview.ifBlank { "Click to view note content..." },
-                color = Color(0xFF94A3B8),
+                color = ThemeTextSecondary,
                 fontSize = 12.sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -1836,35 +1781,30 @@ private fun GeneralNoteCard(
 // -----------------------------------------------------------------------------
 
 @Composable
-fun GeneralNoteEditorDialog(
+fun GeneralNoteEditorView(
     note: CustomNote,
     isNew: Boolean,
     onDismiss: () -> Unit,
     onSave: (CustomNote) -> Unit,
-    onDelete: (String) -> Unit
+    onDelete: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var title by remember { mutableStateOf(note.title) }
     var content by remember { mutableStateOf(note.content) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(22.dp),
+        color = ThemeCardBgElevated,
+        border = BorderStroke(1.dp, ThemeCardBorder)
     ) {
-        Surface(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp),
-            shape = RoundedCornerShape(20.dp),
-            color = Color(0xFF131D31),
-            border = BorderStroke(1.dp, Color(0x3360A5FA))
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
                 // Header Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1873,7 +1813,7 @@ fun GeneralNoteEditorDialog(
                 ) {
                     Text(
                         text = if (isNew) "New Note" else "Edit Note",
-                        color = Color.White,
+                        color = ThemeTextPrimary,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -1884,7 +1824,7 @@ fun GeneralNoteEditorDialog(
                                 Icon(
                                     imageVector = Icons.Default.Delete,
                                     contentDescription = "Delete",
-                                    tint = Color(0xFFEF4444)
+                                    tint = ThemeAccentRed
                                 )
                             }
                         }
@@ -1893,7 +1833,7 @@ fun GeneralNoteEditorDialog(
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Close",
-                                tint = Color(0xFF94A3B8)
+                                tint = ThemeTextSecondary
                             )
                         }
                     }
@@ -1906,11 +1846,14 @@ fun GeneralNoteEditorDialog(
                     label = { Text("Note Title", fontSize = 12.sp) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFF3B82F6),
-                        unfocusedBorderColor = Color(0x33FFFFFF)
+                        focusedTextColor = ThemeTextPrimary,
+                        unfocusedTextColor = ThemeTextPrimary,
+                        focusedBorderColor = ThemeAccentBlue,
+                        unfocusedBorderColor = ThemeTextFieldBorder,
+                        focusedContainerColor = ThemeTextFieldBg,
+                        unfocusedContainerColor = ThemeTextFieldBg
                     ),
+                    shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -1920,11 +1863,14 @@ fun GeneralNoteEditorDialog(
                     onValueChange = { content = it },
                     label = { Text("Markdown / Text Content", fontSize = 12.sp) },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFF3B82F6),
-                        unfocusedBorderColor = Color(0x33FFFFFF)
+                        focusedTextColor = ThemeTextPrimary,
+                        unfocusedTextColor = ThemeTextPrimary,
+                        focusedBorderColor = ThemeAccentBlue,
+                        unfocusedBorderColor = ThemeTextFieldBorder,
+                        focusedContainerColor = ThemeTextEditorBg,
+                        unfocusedContainerColor = ThemeTextEditorBg
                     ),
+                    shape = RoundedCornerShape(10.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
@@ -1940,7 +1886,7 @@ fun GeneralNoteEditorDialog(
                         )
                         onSave(updated)
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6)),
+                    colors = ButtonDefaults.buttonColors(containerColor = ThemeAccentBlue),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -1948,17 +1894,16 @@ fun GeneralNoteEditorDialog(
                 }
             }
         }
-    }
 
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            containerColor = Color(0xFF1E293B),
-            title = { Text("Delete Note?", color = Color.White, fontWeight = FontWeight.Bold) },
+            containerColor = ThemeCardBg,
+            title = { Text("Delete Note?", color = ThemeTextPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Text(
                     "Are you sure you want to delete '$title'?",
-                    color = Color(0xFFCBD5E1),
+                    color = ThemeTextSecondary,
                     fontSize = 14.sp
                 )
             },
@@ -1968,14 +1913,14 @@ fun GeneralNoteEditorDialog(
                         showDeleteConfirm = false
                         onDelete(note.id)
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
+                    colors = ButtonDefaults.buttonColors(containerColor = ThemeAccentRed)
                 ) {
                     Text("Delete")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("Cancel", color = Color(0xFF94A3B8))
+                    Text("Cancel", color = ThemeTextMuted)
                 }
             }
         )

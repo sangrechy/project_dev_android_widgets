@@ -485,16 +485,24 @@ class DevApiService(private val okHttpClient: OkHttpClient = defaultClient()) {
             }
     }
 
-    suspend fun checkForAppUpdate(currentVersion: String): AppUpdateInfo = withContext(Dispatchers.IO) {
-        val req = Request.Builder()
+    suspend fun checkForAppUpdate(currentVersion: String, token: String = ""): AppUpdateInfo = withContext(Dispatchers.IO) {
+        val reqBuilder = Request.Builder()
             .url("https://api.github.com/repos/sangrechy/project_dev_android_widgets/releases/latest")
             .header("Accept", "application/vnd.github.v3+json")
             .header("User-Agent", "DevWidgets-Android")
-            .build()
+        if (token.isNotBlank()) {
+            reqBuilder.header("Authorization", "Bearer ${token.trim()}")
+        }
+        val req = reqBuilder.build()
         try {
             okHttpClient.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) {
-                    return@withContext AppUpdateInfo(hasUpdate = false)
+                    val errMsg = when (resp.code) {
+                        403 -> "GitHub API rate limit exceeded. Add a GitHub token in Settings."
+                        404 -> "Release repository not found."
+                        else -> "HTTP ${resp.code}: Failed to reach GitHub release API"
+                    }
+                    return@withContext AppUpdateInfo(hasUpdate = false, error = errMsg)
                 }
                 val body = resp.body?.string() ?: "{}"
                 val json = JSONObject(body)
@@ -528,12 +536,16 @@ class DevApiService(private val okHttpClient: OkHttpClient = defaultClient()) {
                     releaseName = name,
                     releaseNotes = notes,
                     downloadUrl = apkUrl,
-                    releaseHtmlUrl = htmlUrl
+                    releaseHtmlUrl = htmlUrl,
+                    error = null
                 )
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            AppUpdateInfo(hasUpdate = false)
+            AppUpdateInfo(
+                hasUpdate = false,
+                error = e.localizedMessage ?: "Unable to connect to GitHub releases"
+            )
         }
     }
 

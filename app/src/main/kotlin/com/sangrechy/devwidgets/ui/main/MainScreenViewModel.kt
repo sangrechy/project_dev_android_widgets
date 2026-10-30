@@ -20,11 +20,16 @@ import com.sangrechy.devwidgets.data.model.ProblemDifficultyFilter
 import com.sangrechy.devwidgets.data.model.ProblemNote
 import com.sangrechy.devwidgets.data.model.ProblemsPlatform
 import com.sangrechy.devwidgets.data.model.ProblemsSubTab
+import com.sangrechy.devwidgets.data.WallpaperManager
+import com.sangrechy.devwidgets.data.WallpaperPreset
+import com.sangrechy.devwidgets.widget.WidgetManagerHelper
+import kotlinx.coroutines.Dispatchers
 
 enum class AppScreen(val title: String) {
     HOME("Home"),
     PROBLEMS("Problems"),
     WIDGETS("Widgets"),
+    WALLPAPER("Wallpaper"),
     SETTINGS("Settings")
 }
 
@@ -144,6 +149,31 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
     private val _isSyncingBackupRepo = MutableStateFlow(false)
     val isSyncingBackupRepo: StateFlow<Boolean> = _isSyncingBackupRepo.asStateFlow()
 
+    // Wallpaper configuration flows
+    private val _appWallpaperType = MutableStateFlow(repository.getAppWallpaperType())
+    val appWallpaperType: StateFlow<String> = _appWallpaperType.asStateFlow()
+
+    private val _appWallpaperPreset = MutableStateFlow(repository.getAppWallpaperPreset())
+    val appWallpaperPreset: StateFlow<String> = _appWallpaperPreset.asStateFlow()
+
+    private val _appWallpaperDim = MutableStateFlow(repository.getAppWallpaperDim())
+    val appWallpaperDim: StateFlow<Float> = _appWallpaperDim.asStateFlow()
+
+    private val _appWallpaperCustomPath = MutableStateFlow(repository.getAppWallpaperCustomPath())
+    val appWallpaperCustomPath: StateFlow<String> = _appWallpaperCustomPath.asStateFlow()
+
+    private val _widgetWallpaperType = MutableStateFlow(repository.getWidgetWallpaperType())
+    val widgetWallpaperType: StateFlow<String> = _widgetWallpaperType.asStateFlow()
+
+    private val _widgetWallpaperPreset = MutableStateFlow(repository.getWidgetWallpaperPreset())
+    val widgetWallpaperPreset: StateFlow<String> = _widgetWallpaperPreset.asStateFlow()
+
+    private val _widgetWallpaperDim = MutableStateFlow(repository.getWidgetWallpaperDim())
+    val widgetWallpaperDim: StateFlow<Float> = _widgetWallpaperDim.asStateFlow()
+
+    private val _widgetWallpaperCustomPath = MutableStateFlow(repository.getWidgetWallpaperCustomPath())
+    val widgetWallpaperCustomPath: StateFlow<String> = _widgetWallpaperCustomPath.asStateFlow()
+
     init {
         loadProblems()
         loadGeneralNotes()
@@ -229,6 +259,46 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
         }
     }
 
+    fun syncSilently() {
+        viewModelScope.launch {
+            repository.syncData()
+        }
+    }
+
+    fun refreshCurrentScreen() {
+        viewModelScope.launch {
+            _isSyncing.value = true
+            when (_currentScreen.value) {
+                AppScreen.HOME, AppScreen.SETTINGS -> {
+                    val result = repository.syncData()
+                    _isSyncing.value = false
+                    if (result.isSuccess) {
+                        _syncMessage.value = "Profiles refreshed successfully!"
+                    } else {
+                        _syncMessage.value = "Sync failed: ${result.exceptionOrNull()?.localizedMessage ?: "Network error"}"
+                    }
+                }
+                AppScreen.WIDGETS -> {
+                    val result = repository.syncData()
+                    _isSyncing.value = false
+                    _syncMessage.value = "Widgets and data refreshed!"
+                }
+                AppScreen.PROBLEMS -> {
+                    loadProblems()
+                    loadGeneralNotes()
+                    val result = repository.syncData()
+                    _isSyncing.value = false
+                    _syncMessage.value = "Problem bank & notes refreshed!"
+                }
+                AppScreen.WALLPAPER -> {
+                    _isSyncing.value = false
+                    applyWidgetWallpaperToAllWidgets()
+                    _syncMessage.value = "Wallpaper & widgets synchronized!"
+                }
+            }
+        }
+    }
+
     fun useSampleData() {
         _leetCodeInput.value = "sangrechy"
         _gitHubInput.value = "sangrechy"
@@ -274,7 +344,11 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
                 _showUpdateDialog.value = true
             } else {
                 if (manual) {
-                    _syncMessage.value = "You are on the latest version (${BuildConfig.VERSION_NAME})!"
+                    if (!info.error.isNullOrBlank()) {
+                        _syncMessage.value = "Update check: ${info.error}"
+                    } else {
+                        _syncMessage.value = "You are on the latest version (${BuildConfig.VERSION_NAME})!"
+                    }
                 }
             }
         }
@@ -424,19 +498,23 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
         val owner = _gitHubInput.value.trim().removePrefix("@")
         val token = _gitHubTokenInput.value.trim()
 
-        if (owner.isBlank()) {
-            _syncMessage.value = "Please configure your GitHub username first in Settings."
-            return
-        }
         if (repo.isBlank()) {
             _syncMessage.value = "Please specify a backup repository name (e.g. project_git_the_leet or leetcode-backup)."
             return
         }
 
+        val targetOwner = if (repo.contains("/")) repo.substringBefore("/").trim() else owner
+        val targetRepo = if (repo.contains("/")) repo.substringAfter("/").trim() else repo
+
+        if (targetOwner.isBlank()) {
+            _syncMessage.value = "Please configure your GitHub username in Settings or enter owner/repo."
+            return
+        }
+
         viewModelScope.launch {
             _isSyncingBackupRepo.value = true
-            _syncMessage.value = "Syncing LeetCode backup from GitHub ($owner/$repo)..."
-            val result = problemRepo.syncFromGitHubBackupRepo(owner, repo, token)
+            _syncMessage.value = "Syncing LeetCode backup from GitHub ($targetOwner/$targetRepo)..."
+            val result = problemRepo.syncFromGitHubBackupRepo(targetOwner, targetRepo, token)
             _isSyncingBackupRepo.value = false
             if (result.isSuccess) {
                 val count = result.getOrDefault(0)
@@ -470,6 +548,93 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
             loadGeneralNotes()
             _syncMessage.value = "Deleted note"
         }
+    }
+
+    // --- Wallpaper Actions ---
+
+    fun setAppWallpaperDefault() {
+        repository.setAppWallpaperType("NONE")
+        _appWallpaperType.value = "NONE"
+        _syncMessage.value = "App wallpaper reset to Obsidian theme"
+    }
+
+    fun setAppWallpaperPreset(presetId: String) {
+        repository.setAppWallpaperType("PRESET")
+        repository.setAppWallpaperPreset(presetId)
+        _appWallpaperType.value = "PRESET"
+        _appWallpaperPreset.value = presetId
+        _syncMessage.value = "Wallpaper updated!"
+    }
+
+    fun setAppWallpaperCustomFromUri(uri: android.net.Uri) {
+        viewModelScope.launch {
+            val path = repository.saveCustomWallpaperFromUri(uri, forWidget = false)
+            if (path != null) {
+                repository.setAppWallpaperType("CUSTOM")
+                repository.setAppWallpaperCustomPath(path)
+                _appWallpaperType.value = "CUSTOM"
+                _appWallpaperCustomPath.value = path
+                _syncMessage.value = "Custom wallpaper applied!"
+            } else {
+                _syncMessage.value = "Failed to load custom wallpaper image"
+            }
+        }
+    }
+
+    fun setAppWallpaperDim(dim: Float) {
+        val clamped = dim.coerceIn(0.1f, 0.95f)
+        repository.setAppWallpaperDim(clamped)
+        _appWallpaperDim.value = clamped
+    }
+
+    fun setWidgetWallpaperType(type: String) {
+        repository.setWidgetWallpaperType(type)
+        _widgetWallpaperType.value = type
+        applyWidgetWallpaperToAllWidgets()
+        _syncMessage.value = "Widget background style updated!"
+    }
+
+    fun getWidgetWallpaperTypeFor(widgetKey: String): String {
+        return repository.getWidgetWallpaperTypeFor(widgetKey)
+    }
+
+    fun setWidgetWallpaperTypeFor(widgetKey: String, type: String) {
+        repository.setWidgetWallpaperTypeFor(widgetKey, type)
+        applyWidgetWallpaperToAllWidgets()
+        _syncMessage.value = "Updated $widgetKey wallpaper"
+    }
+
+    fun setWidgetWallpaperPreset(presetId: String) {
+        repository.setWidgetWallpaperPreset(presetId)
+        _widgetWallpaperPreset.value = presetId
+        applyWidgetWallpaperToAllWidgets()
+    }
+
+    fun setWidgetWallpaperDim(dim: Float) {
+        val clamped = dim.coerceIn(0.1f, 0.95f)
+        repository.setWidgetWallpaperDim(clamped)
+        _widgetWallpaperDim.value = clamped
+        applyWidgetWallpaperToAllWidgets()
+    }
+
+    fun setWidgetWallpaperCustomFromUri(uri: android.net.Uri) {
+        viewModelScope.launch {
+            val path = repository.saveCustomWallpaperFromUri(uri, forWidget = true)
+            if (path != null) {
+                repository.setWidgetWallpaperType("CUSTOM")
+                repository.setWidgetWallpaperCustomPath(path)
+                _widgetWallpaperType.value = "CUSTOM"
+                _widgetWallpaperCustomPath.value = path
+                applyWidgetWallpaperToAllWidgets()
+                _syncMessage.value = "Custom widget wallpaper applied!"
+            } else {
+                _syncMessage.value = "Failed to load custom widget image"
+            }
+        }
+    }
+
+    fun applyWidgetWallpaperToAllWidgets() {
+        repository.updateAllWidgets()
     }
 
     fun dismissMessage() {

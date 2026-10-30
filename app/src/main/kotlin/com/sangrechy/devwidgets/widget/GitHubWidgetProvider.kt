@@ -47,6 +47,7 @@ class GitHubWidgetProvider : AppWidgetProvider() {
 
         fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, data: WidgetDashboardData) {
             val views = RemoteViews(context.packageName, R.layout.widget_github)
+            WidgetWallpaperHelper.applyWallpaper(context, views, 340, 200, widgetKey = "GITHUB")
             val prefs = WidgetPreferences(context)
             val ghRadar = WidgetBitmapRenderer.renderGitHubTypeMap(data.gitHub, sizePx = 360)
             val ghHeatmap = WidgetBitmapRenderer.renderHeatmap(

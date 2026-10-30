@@ -27,10 +27,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = primaryDark,
-    primaryContainer = primaryContainerDark,
-    secondary = secondaryDark,
-    tertiary = tertiaryDark
+    primary = ThemeAccentBlue,
+    primaryContainer = ThemeCardBgElevated,
+    secondary = ThemeAccentAmber,
+    tertiary = ThemeAccentGreen,
+    background = ThemeBgTop,
+    surface = ThemeCardBg,
+    surfaceVariant = ThemeInnerBoxBg,
+    onBackground = ThemeTextPrimary,
+    onSurface = ThemeTextPrimary,
+    outline = ThemeCardBorder
 )
 
 private val LightColorScheme = lightColorScheme(

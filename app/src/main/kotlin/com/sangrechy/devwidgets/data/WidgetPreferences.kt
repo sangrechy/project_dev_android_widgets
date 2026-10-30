@@ -44,6 +44,67 @@ class WidgetPreferences(context: Context) {
         get() = prefs.getString(KEY_IGNORED_UPDATE, "") ?: ""
         set(value) = prefs.edit().putString(KEY_IGNORED_UPDATE, value).apply()
 
+    // Wallpaper configuration
+    var appWallpaperType: String
+        get() = prefs.getString(KEY_APP_WALLPAPER_TYPE, "NONE") ?: "NONE"
+        set(value) = prefs.edit().putString(KEY_APP_WALLPAPER_TYPE, value).apply()
+
+    var appWallpaperPreset: String
+        get() = prefs.getString(KEY_APP_WALLPAPER_PRESET, "OBSIDIAN_CORE") ?: "OBSIDIAN_CORE"
+        set(value) = prefs.edit().putString(KEY_APP_WALLPAPER_PRESET, value).apply()
+
+    var appWallpaperCustomPath: String
+        get() = prefs.getString(KEY_APP_WALLPAPER_CUSTOM_PATH, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_APP_WALLPAPER_CUSTOM_PATH, value).apply()
+
+    var appWallpaperDim: Float
+        get() = prefs.getFloat(KEY_APP_WALLPAPER_DIM, 0.65f)
+        set(value) = prefs.edit().putFloat(KEY_APP_WALLPAPER_DIM, value).apply()
+
+    var widgetWallpaperType: String
+        get() = prefs.getString(KEY_WIDGET_WALLPAPER_TYPE, "DEFAULT") ?: "DEFAULT"
+        set(value) = prefs.edit().putString(KEY_WIDGET_WALLPAPER_TYPE, value).apply()
+
+    var widgetWallpaperPreset: String
+        get() = prefs.getString(KEY_WIDGET_WALLPAPER_PRESET, "OBSIDIAN_CORE") ?: "OBSIDIAN_CORE"
+        set(value) = prefs.edit().putString(KEY_WIDGET_WALLPAPER_PRESET, value).apply()
+
+    var widgetWallpaperCustomPath: String
+        get() = prefs.getString(KEY_WIDGET_WALLPAPER_CUSTOM_PATH, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_WIDGET_WALLPAPER_CUSTOM_PATH, value).apply()
+
+    var widgetWallpaperDim: Float
+        get() = prefs.getFloat(KEY_WIDGET_WALLPAPER_DIM, 0.55f)
+        set(value) = prefs.edit().putFloat(KEY_WIDGET_WALLPAPER_DIM, value).apply()
+
+    fun getWidgetWallpaperTypeFor(widgetKey: String): String {
+        return prefs.getString("KEY_WIDGET_WALLPAPER_TYPE_$widgetKey", null) ?: widgetWallpaperType
+    }
+    fun setWidgetWallpaperTypeFor(widgetKey: String, type: String) {
+        prefs.edit().putString("KEY_WIDGET_WALLPAPER_TYPE_$widgetKey", type).apply()
+    }
+
+    fun getWidgetWallpaperPresetFor(widgetKey: String): String {
+        return prefs.getString("KEY_WIDGET_WALLPAPER_PRESET_$widgetKey", null) ?: widgetWallpaperPreset
+    }
+    fun setWidgetWallpaperPresetFor(widgetKey: String, preset: String) {
+        prefs.edit().putString("KEY_WIDGET_WALLPAPER_PRESET_$widgetKey", preset).apply()
+    }
+
+    fun getWidgetWallpaperCustomPathFor(widgetKey: String): String {
+        return prefs.getString("KEY_WIDGET_WALLPAPER_CUSTOM_PATH_$widgetKey", null) ?: widgetWallpaperCustomPath
+    }
+    fun setWidgetWallpaperCustomPathFor(widgetKey: String, path: String) {
+        prefs.edit().putString("KEY_WIDGET_WALLPAPER_CUSTOM_PATH_$widgetKey", path).apply()
+    }
+
+    fun getWidgetWallpaperDimFor(widgetKey: String): Float {
+        return prefs.getFloat("KEY_WIDGET_WALLPAPER_DIM_$widgetKey", widgetWallpaperDim)
+    }
+    fun setWidgetWallpaperDimFor(widgetKey: String, dim: Float) {
+        prefs.edit().putFloat("KEY_WIDGET_WALLPAPER_DIM_$widgetKey", dim).apply()
+    }
+
     fun clearAll() {
         prefs.edit()
             .remove(KEY_LEETCODE_USERNAME)
@@ -430,5 +491,13 @@ class WidgetPreferences(context: Context) {
         private const val KEY_REFRESH_INTERVAL = "auto_refresh_interval"
         private const val KEY_HEATMAP_ORIENTATION = "heatmap_orientation"
         private const val KEY_IGNORED_UPDATE = "ignored_update_version"
+        private const val KEY_APP_WALLPAPER_TYPE = "app_wallpaper_type"
+        private const val KEY_APP_WALLPAPER_PRESET = "app_wallpaper_preset"
+        private const val KEY_APP_WALLPAPER_CUSTOM_PATH = "app_wallpaper_custom_path"
+        private const val KEY_APP_WALLPAPER_DIM = "app_wallpaper_dim"
+        private const val KEY_WIDGET_WALLPAPER_TYPE = "widget_wallpaper_type"
+        private const val KEY_WIDGET_WALLPAPER_PRESET = "widget_wallpaper_preset"
+        private const val KEY_WIDGET_WALLPAPER_CUSTOM_PATH = "widget_wallpaper_custom_path"
+        private const val KEY_WIDGET_WALLPAPER_DIM = "widget_wallpaper_dim"
     }
 }

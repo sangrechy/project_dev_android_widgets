@@ -18,6 +18,8 @@ import com.sangrechy.devwidgets.data.model.GitHubStats
 import com.sangrechy.devwidgets.data.model.LeetCodeStats
 import com.sangrechy.devwidgets.widget.DevActivityWidgetProvider
 
+import android.net.Uri
+
 interface DataRepository {
     val dashboardData: Flow<WidgetDashboardData>
     fun getSavedUsernames(): Triple<String, String, String> // leetCode, gitHub, token
@@ -37,6 +39,29 @@ interface DataRepository {
     fun getGitHubBackupRepo(): String
     fun setGitHubBackupRepo(repo: String)
     suspend fun logoutAll()
+
+    fun getAppWallpaperType(): String
+    fun setAppWallpaperType(type: String)
+    fun getAppWallpaperPreset(): String
+    fun setAppWallpaperPreset(preset: String)
+    fun getAppWallpaperDim(): Float
+    fun setAppWallpaperDim(dim: Float)
+    fun getAppWallpaperCustomPath(): String
+    fun setAppWallpaperCustomPath(path: String)
+
+    fun getWidgetWallpaperType(): String
+    fun setWidgetWallpaperType(type: String)
+    fun getWidgetWallpaperTypeFor(widgetKey: String): String
+    fun setWidgetWallpaperTypeFor(widgetKey: String, type: String)
+    fun getWidgetWallpaperPreset(): String
+    fun setWidgetWallpaperPreset(preset: String)
+    fun getWidgetWallpaperDim(): Float
+    fun setWidgetWallpaperDim(dim: Float)
+    fun getWidgetWallpaperCustomPath(): String
+    fun setWidgetWallpaperCustomPath(path: String)
+
+    suspend fun saveCustomWallpaperFromUri(uri: Uri, forWidget: Boolean): String?
+    fun updateAllWidgets()
 }
 
 class DefaultDataRepository(private val context: Context) : DataRepository {
@@ -150,7 +175,8 @@ class DefaultDataRepository(private val context: Context) : DataRepository {
 
     override suspend fun checkForUpdates(): AppUpdateInfo {
         val currentVer = BuildConfig.VERSION_NAME
-        return apiService.checkForAppUpdate(currentVer)
+        val token = prefs.gitHubToken.trim()
+        return apiService.checkForAppUpdate(currentVer, token)
     }
 
     override fun getIgnoredUpdateVersion(): String {
@@ -190,4 +216,43 @@ class DefaultDataRepository(private val context: Context) : DataRepository {
         _dashboardData.value = emptyData
         com.sangrechy.devwidgets.widget.WidgetManagerHelper.updateAll(context, emptyData)
     }
+
+    override fun getAppWallpaperType(): String = prefs.appWallpaperType
+    override fun setAppWallpaperType(type: String) { prefs.appWallpaperType = type }
+    override fun getAppWallpaperPreset(): String = prefs.appWallpaperPreset
+    override fun setAppWallpaperPreset(preset: String) { prefs.appWallpaperPreset = preset }
+    override fun getAppWallpaperDim(): Float = prefs.appWallpaperDim
+    override fun setAppWallpaperDim(dim: Float) { prefs.appWallpaperDim = dim }
+    override fun getAppWallpaperCustomPath(): String = prefs.appWallpaperCustomPath
+    override fun setAppWallpaperCustomPath(path: String) { prefs.appWallpaperCustomPath = path }
+
+    override fun getWidgetWallpaperType(): String = prefs.widgetWallpaperType
+    override fun setWidgetWallpaperType(type: String) { prefs.widgetWallpaperType = type }
+    override fun getWidgetWallpaperTypeFor(widgetKey: String): String = prefs.getWidgetWallpaperTypeFor(widgetKey)
+    override fun setWidgetWallpaperTypeFor(widgetKey: String, type: String) { prefs.setWidgetWallpaperTypeFor(widgetKey, type) }
+    override fun getWidgetWallpaperPreset(): String = prefs.widgetWallpaperPreset
+    override fun setWidgetWallpaperPreset(preset: String) { prefs.widgetWallpaperPreset = preset }
+    override fun getWidgetWallpaperDim(): Float = prefs.widgetWallpaperDim
+    override fun setWidgetWallpaperDim(dim: Float) { prefs.widgetWallpaperDim = dim }
+    override fun getWidgetWallpaperCustomPath(): String = prefs.widgetWallpaperCustomPath
+    override fun setWidgetWallpaperCustomPath(path: String) { prefs.widgetWallpaperCustomPath = path }
+
+    override suspend fun saveCustomWallpaperFromUri(uri: Uri, forWidget: Boolean): String? = withContext(Dispatchers.IO) {
+        try {
+            val stream = context.contentResolver.openInputStream(uri)
+            if (stream != null) {
+                WallpaperManager.saveCustomWallpaper(context, stream, forWidget)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    override fun updateAllWidgets() {
+        val data = prefs.getDashboardData()
+        com.sangrechy.devwidgets.widget.WidgetManagerHelper.updateAll(context, data)
+    }
 }
+

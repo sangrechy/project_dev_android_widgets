@@ -216,43 +216,75 @@ class OfflineProblemRepository(
         repo: String,
         token: String
     ): Result<Int> = withContext(Dispatchers.IO) {
-        val cleanOwner = owner.trim()
-        val cleanRepo = repo.trim()
+        val (cleanOwner, cleanRepo) = if (repo.contains("/")) {
+            val pOwner = repo.substringBefore("/").trim()
+            val pRepo = repo.substringAfter("/").trim()
+            Pair(pOwner.ifBlank { owner.trim() }, pRepo)
+        } else {
+            Pair(owner.trim(), repo.trim())
+        }
+
         if (cleanOwner.isBlank() || cleanRepo.isBlank()) {
-            return@withContext Result.failure(Exception("GitHub username and repository name are required."))
+            return@withContext Result.failure(Exception("GitHub username/owner and repository name are required."))
         }
 
         try {
-            // 1. Get default branch tree (try main, then master)
-            val treeUrl = "https://api.github.com/repos/$cleanOwner/$cleanRepo/git/trees/main?recursive=1"
-            val reqBuilder = Request.Builder()
-                .url(treeUrl)
+            // 1. Detect default branch from repository info
+            val repoInfoReq = Request.Builder()
+                .url("https://api.github.com/repos/$cleanOwner/$cleanRepo")
                 .header("Accept", "application/vnd.github.v3+json")
                 .header("User-Agent", "DevLife-Android")
-            if (token.isNotBlank()) {
-                reqBuilder.header("Authorization", "token ${token.trim()}")
+                .apply { if (token.isNotBlank()) header("Authorization", "Bearer ${token.trim()}") }
+                .build()
+
+            val detectedBranch = try {
+                okHttpClient.newCall(repoInfoReq).execute().use { resp ->
+                    if (resp.isSuccessful) {
+                        val obj = JSONObject(resp.body?.string() ?: "{}")
+                        obj.optString("default_branch", "main").ifBlank { "main" }
+                    } else "main"
+                }
+            } catch (_: Exception) { "main" }
+
+            // 2. Fetch Git tree recursively
+            val branchesToTry = listOf(detectedBranch, "main", "master").distinct()
+            var treeBody: String? = null
+            var lastHttpCode = 0
+
+            for (branch in branchesToTry) {
+                val treeUrl = "https://api.github.com/repos/$cleanOwner/$cleanRepo/git/trees/$branch?recursive=1"
+                val reqBuilder = Request.Builder()
+                    .url(treeUrl)
+                    .header("Accept", "application/vnd.github.v3+json")
+                    .header("User-Agent", "DevLife-Android")
+                if (token.isNotBlank()) {
+                    reqBuilder.header("Authorization", "Bearer ${token.trim()}")
+                }
+
+                try {
+                    okHttpClient.newCall(reqBuilder.build()).execute().use { resp ->
+                        lastHttpCode = resp.code
+                        if (resp.isSuccessful) {
+                            treeBody = resp.body?.string()
+                            return@use
+                        }
+                    }
+                } catch (_: Exception) {}
+
+                if (treeBody != null) break
             }
 
-            var treeResponse = okHttpClient.newCall(reqBuilder.build()).execute()
-            if (!treeResponse.isSuccessful && treeResponse.code == 404) {
-                // Fallback to master
-                treeResponse.close()
-                val masterUrl = "https://api.github.com/repos/$cleanOwner/$cleanRepo/git/trees/master?recursive=1"
-                treeResponse = okHttpClient.newCall(reqBuilder.url(masterUrl).build()).execute()
+            if (treeBody == null) {
+                val msg = when (lastHttpCode) {
+                    401 -> "GitHub token is invalid or unauthorized."
+                    403 -> "GitHub API rate limit exceeded. Check token permissions."
+                    404 -> "Repository '$cleanOwner/$cleanRepo' not found or is private."
+                    else -> "Failed to access repository '$cleanOwner/$cleanRepo' (HTTP $lastHttpCode)"
+                }
+                return@withContext Result.failure(Exception(msg))
             }
 
-            if (!treeResponse.isSuccessful) {
-                val errCode = treeResponse.code
-                treeResponse.close()
-                return@withContext Result.failure(
-                    Exception("Failed to access repository '$cleanOwner/$cleanRepo' (HTTP $errCode)")
-                )
-            }
-
-            val body = treeResponse.body?.string() ?: ""
-            treeResponse.close()
-
-            val root = JSONObject(body)
+            val root = JSONObject(treeBody ?: "{}")
             val tree = root.optJSONArray("tree") ?: JSONArray()
             var importedCount = 0
 
@@ -271,28 +303,30 @@ class OfflineProblemRepository(
                 val blobUrl = entry.optString("url")
                 if (blobUrl.isBlank()) continue
 
-                // Download blob content
-                val blobReqBuilder = Request.Builder()
-                    .url(blobUrl)
-                    .header("Accept", "application/vnd.github.v3+json")
-                    .header("User-Agent", "DevLife-Android")
-                if (token.isNotBlank()) {
-                    blobReqBuilder.header("Authorization", "token ${token.trim()}")
-                }
+                try {
+                    // Download blob content
+                    val blobReqBuilder = Request.Builder()
+                        .url(blobUrl)
+                        .header("Accept", "application/vnd.github.v3+json")
+                        .header("User-Agent", "DevLife-Android")
+                    if (token.isNotBlank()) {
+                        blobReqBuilder.header("Authorization", "Bearer ${token.trim()}")
+                    }
 
-                val blobResp = okHttpClient.newCall(blobReqBuilder.build()).execute()
-                if (blobResp.isSuccessful) {
-                    val blobJson = JSONObject(blobResp.body?.string() ?: "")
-                    val base64Content = blobJson.optString("content").replace("\n", "").replace("\r", "")
-                    val bytes = android.util.Base64.decode(base64Content, android.util.Base64.DEFAULT)
-                    val textContent = String(bytes, Charsets.UTF_8)
+                    okHttpClient.newCall(blobReqBuilder.build()).execute().use { blobResp ->
+                        if (blobResp.isSuccessful) {
+                            val blobJson = JSONObject(blobResp.body?.string() ?: "")
+                            val base64Content = blobJson.optString("content").replace("\n", "").replace("\r", "")
+                            val bytes = android.util.Base64.decode(base64Content, android.util.Base64.DEFAULT)
+                            val textContent = String(bytes, Charsets.UTF_8)
 
-                    val targetFile = File(baseProblemsDir, "$folderName/$subPath")
-                    targetFile.parentFile?.mkdirs()
-                    targetFile.writeText(textContent)
-                    importedCount++
-                }
-                blobResp.close()
+                            val targetFile = File(baseProblemsDir, "$folderName/$subPath")
+                            targetFile.parentFile?.mkdirs()
+                            targetFile.writeText(textContent)
+                            importedCount++
+                        }
+                    }
+                } catch (_: Exception) {}
             }
 
             Result.success(importedCount)
