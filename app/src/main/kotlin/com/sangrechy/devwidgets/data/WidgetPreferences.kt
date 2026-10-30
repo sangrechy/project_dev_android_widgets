@@ -28,6 +28,10 @@ class WidgetPreferences(context: Context) {
         get() = prefs.getString(KEY_GITHUB_TOKEN, "") ?: ""
         set(value) = prefs.edit().putString(KEY_GITHUB_TOKEN, value.trim()).apply()
 
+    var gitHubBackupRepo: String
+        get() = prefs.getString(KEY_GITHUB_BACKUP_REPO, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_GITHUB_BACKUP_REPO, value.trim()).apply()
+
     var autoRefreshInterval: String
         get() = prefs.getString(KEY_REFRESH_INTERVAL, "1h") ?: "1h"
         set(value) = prefs.edit().putString(KEY_REFRESH_INTERVAL, value).apply()
@@ -421,6 +425,7 @@ class WidgetPreferences(context: Context) {
         private const val KEY_LEETCODE_USERNAME = "leetcode_username"
         private const val KEY_GITHUB_USERNAME = "github_username"
         private const val KEY_GITHUB_TOKEN = "github_token"
+        private const val KEY_GITHUB_BACKUP_REPO = "github_backup_repo"
         private const val KEY_CACHED_DASHBOARD = "cached_dashboard_json"
         private const val KEY_REFRESH_INTERVAL = "auto_refresh_interval"
         private const val KEY_HEATMAP_ORIENTATION = "heatmap_orientation"

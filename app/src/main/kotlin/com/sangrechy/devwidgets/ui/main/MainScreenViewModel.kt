@@ -14,9 +14,16 @@ import kotlinx.coroutines.launch
 
 import com.sangrechy.devwidgets.BuildConfig
 import com.sangrechy.devwidgets.data.model.AppUpdateInfo
+import com.sangrechy.devwidgets.data.model.CustomNote
+import com.sangrechy.devwidgets.data.model.OfflineProblem
+import com.sangrechy.devwidgets.data.model.ProblemDifficultyFilter
+import com.sangrechy.devwidgets.data.model.ProblemNote
+import com.sangrechy.devwidgets.data.model.ProblemsPlatform
+import com.sangrechy.devwidgets.data.model.ProblemsSubTab
 
 enum class AppScreen(val title: String) {
     HOME("Home"),
+    PROBLEMS("Problems"),
     WIDGETS("Widgets"),
     SETTINGS("Settings")
 }
@@ -98,6 +105,49 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
             SharingStarted.WhileSubscribed(5000),
             WidgetDashboardData()
         )
+
+    private val problemRepo = repository.problemRepository
+
+    private val _problemsPlatform = MutableStateFlow(ProblemsPlatform.LEETCODE)
+    val problemsPlatform: StateFlow<ProblemsPlatform> = _problemsPlatform.asStateFlow()
+
+    private val _problemsSubTab = MutableStateFlow(ProblemsSubTab.PROBLEMS)
+    val problemsSubTab: StateFlow<ProblemsSubTab> = _problemsSubTab.asStateFlow()
+
+    private val _problemsSearchQuery = MutableStateFlow("")
+    val problemsSearchQuery: StateFlow<String> = _problemsSearchQuery.asStateFlow()
+
+    private val _difficultyFilter = MutableStateFlow(ProblemDifficultyFilter.ALL)
+    val difficultyFilter: StateFlow<ProblemDifficultyFilter> = _difficultyFilter.asStateFlow()
+
+    private val _problemsList = MutableStateFlow<List<OfflineProblem>>(emptyList())
+    val problemsList: StateFlow<List<OfflineProblem>> = _problemsList.asStateFlow()
+
+    private val _isLoadingProblems = MutableStateFlow(false)
+    val isLoadingProblems: StateFlow<Boolean> = _isLoadingProblems.asStateFlow()
+
+    private val _selectedProblemDetail = MutableStateFlow<OfflineProblem?>(null)
+    val selectedProblemDetail: StateFlow<OfflineProblem?> = _selectedProblemDetail.asStateFlow()
+
+    private val _activeProblemNoteIndex = MutableStateFlow(0)
+    val activeProblemNoteIndex: StateFlow<Int> = _activeProblemNoteIndex.asStateFlow()
+
+    private val _generalNotesList = MutableStateFlow<List<CustomNote>>(emptyList())
+    val generalNotesList: StateFlow<List<CustomNote>> = _generalNotesList.asStateFlow()
+
+    private val _selectedGeneralNote = MutableStateFlow<CustomNote?>(null)
+    val selectedGeneralNote: StateFlow<CustomNote?> = _selectedGeneralNote.asStateFlow()
+
+    private val _backupRepoInput = MutableStateFlow(repository.getGitHubBackupRepo())
+    val backupRepoInput: StateFlow<String> = _backupRepoInput.asStateFlow()
+
+    private val _isSyncingBackupRepo = MutableStateFlow(false)
+    val isSyncingBackupRepo: StateFlow<Boolean> = _isSyncingBackupRepo.asStateFlow()
+
+    init {
+        loadProblems()
+        loadGeneralNotes()
+    }
 
     fun onLeetCodeInputChanged(value: String) {
         _leetCodeInput.value = value
@@ -259,6 +309,166 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
             _showLogoutDialog.value = false
             _currentScreen.value = AppScreen.HOME
             _syncMessage.value = "Logged out from all developer accounts."
+        }
+    }
+
+    fun loadProblems() {
+        viewModelScope.launch {
+            _isLoadingProblems.value = true
+            _problemsList.value = problemRepo.getProblems()
+            _isLoadingProblems.value = false
+        }
+    }
+
+    fun loadGeneralNotes() {
+        viewModelScope.launch {
+            _generalNotesList.value = problemRepo.getGeneralNotes()
+        }
+    }
+
+    fun setProblemsPlatform(platform: ProblemsPlatform) {
+        _problemsPlatform.value = platform
+    }
+
+    fun setProblemsSubTab(subTab: ProblemsSubTab) {
+        _problemsSubTab.value = subTab
+    }
+
+    fun setProblemsSearchQuery(query: String) {
+        _problemsSearchQuery.value = query
+    }
+
+    fun setDifficultyFilter(filter: ProblemDifficultyFilter) {
+        _difficultyFilter.value = filter
+    }
+
+    fun selectProblem(problem: OfflineProblem?) {
+        _selectedProblemDetail.value = problem
+        _activeProblemNoteIndex.value = 0
+    }
+
+    fun setActiveProblemNoteIndex(index: Int) {
+        _activeProblemNoteIndex.value = index
+    }
+
+    fun downloadProblemOffline(folderName: String, titleSlug: String) {
+        viewModelScope.launch {
+            _syncMessage.value = "Downloading offline data for $folderName..."
+            val result = problemRepo.downloadProblemOffline(folderName, titleSlug)
+            if (result.isSuccess) {
+                val updated = result.getOrNull()
+                _syncMessage.value = "Downloaded $folderName for offline access!"
+                loadProblems()
+                if (_selectedProblemDetail.value?.folderName == folderName) {
+                    _selectedProblemDetail.value = updated
+                }
+            } else {
+                _syncMessage.value = "Failed to download offline: ${result.exceptionOrNull()?.message ?: "Unknown error"}"
+            }
+        }
+    }
+
+    fun deleteProblemOffline(folderName: String) {
+        viewModelScope.launch {
+            val success = problemRepo.deleteProblemOffline(folderName)
+            if (success) {
+                _syncMessage.value = "Removed $folderName from offline storage"
+                loadProblems()
+                if (_selectedProblemDetail.value?.folderName == folderName) {
+                    _selectedProblemDetail.value = null
+                }
+            }
+        }
+    }
+
+    fun saveProblemNote(folderName: String, filename: String, content: String) {
+        viewModelScope.launch {
+            val savedNote = problemRepo.saveProblemNote(folderName, filename, content)
+            val updated = problemRepo.getProblemDetail(folderName)
+            if (updated != null) {
+                _selectedProblemDetail.value = updated
+                val idx = updated.notes.indexOfFirst { it.filename == savedNote.filename }
+                if (idx != -1) _activeProblemNoteIndex.value = idx
+            }
+            loadProblems()
+            _syncMessage.value = "Saved note '${savedNote.filename}'"
+        }
+    }
+
+    fun deleteProblemNote(folderName: String, filename: String) {
+        viewModelScope.launch {
+            problemRepo.deleteProblemNote(folderName, filename)
+            val updated = problemRepo.getProblemDetail(folderName)
+            if (updated != null) {
+                _selectedProblemDetail.value = updated
+                _activeProblemNoteIndex.value = 0
+            }
+            loadProblems()
+            _syncMessage.value = "Deleted note '$filename'"
+        }
+    }
+
+    fun onBackupRepoInputChanged(value: String) {
+        _backupRepoInput.value = value
+    }
+
+    fun saveBackupRepo(repo: String) {
+        val trimmed = repo.trim()
+        _backupRepoInput.value = trimmed
+        repository.setGitHubBackupRepo(trimmed)
+        _syncMessage.value = "Backup repository updated to '$trimmed'"
+    }
+
+    fun syncFromGitHubBackupRepo() {
+        val repo = _backupRepoInput.value.trim()
+        val owner = _gitHubInput.value.trim().removePrefix("@")
+        val token = _gitHubTokenInput.value.trim()
+
+        if (owner.isBlank()) {
+            _syncMessage.value = "Please configure your GitHub username first in Settings."
+            return
+        }
+        if (repo.isBlank()) {
+            _syncMessage.value = "Please specify a backup repository name (e.g. project_git_the_leet or leetcode-backup)."
+            return
+        }
+
+        viewModelScope.launch {
+            _isSyncingBackupRepo.value = true
+            _syncMessage.value = "Syncing LeetCode backup from GitHub ($owner/$repo)..."
+            val result = problemRepo.syncFromGitHubBackupRepo(owner, repo, token)
+            _isSyncingBackupRepo.value = false
+            if (result.isSuccess) {
+                val count = result.getOrDefault(0)
+                _syncMessage.value = "Successfully synced $count files from $owner/$repo!"
+                loadProblems()
+            } else {
+                _syncMessage.value = "GitHub backup sync failed: ${result.exceptionOrNull()?.message ?: "Check repository name or permissions"}"
+            }
+        }
+    }
+
+    fun selectGeneralNote(note: CustomNote?) {
+        _selectedGeneralNote.value = note
+    }
+
+    fun saveGeneralNote(note: CustomNote) {
+        viewModelScope.launch {
+            val saved = problemRepo.saveGeneralNote(note)
+            loadGeneralNotes()
+            _selectedGeneralNote.value = saved
+            _syncMessage.value = "Saved note '${saved.title}'"
+        }
+    }
+
+    fun deleteGeneralNote(id: String) {
+        viewModelScope.launch {
+            problemRepo.deleteGeneralNote(id)
+            if (_selectedGeneralNote.value?.id == id) {
+                _selectedGeneralNote.value = null
+            }
+            loadGeneralNotes()
+            _syncMessage.value = "Deleted note"
         }
     }
 

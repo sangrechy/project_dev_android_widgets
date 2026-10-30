@@ -33,14 +33,24 @@ interface DataRepository {
     fun setRefreshInterval(interval: String)
     fun getHeatmapOrientation(): String
     fun setHeatmapOrientation(orientation: String)
+    val problemRepository: ProblemRepository
+    fun getGitHubBackupRepo(): String
+    fun setGitHubBackupRepo(repo: String)
     suspend fun logoutAll()
 }
 
 class DefaultDataRepository(private val context: Context) : DataRepository {
     private val prefs = WidgetPreferences(context)
     private val apiService = DevApiService()
+    override val problemRepository: ProblemRepository = OfflineProblemRepository(context)
     private val _dashboardData = MutableStateFlow(prefs.getDashboardData())
     override val dashboardData: Flow<WidgetDashboardData> = _dashboardData.asStateFlow()
+
+    override fun getGitHubBackupRepo(): String = prefs.gitHubBackupRepo
+
+    override fun setGitHubBackupRepo(repo: String) {
+        prefs.gitHubBackupRepo = repo.trim()
+    }
 
     override fun getSavedUsernames(): Triple<String, String, String> {
         return Triple(prefs.leetCodeUsername, prefs.gitHubUsername, prefs.gitHubToken)

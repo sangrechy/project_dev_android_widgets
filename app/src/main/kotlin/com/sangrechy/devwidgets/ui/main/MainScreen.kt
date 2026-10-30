@@ -34,6 +34,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
@@ -41,6 +42,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Widgets
+import com.sangrechy.devwidgets.ui.problems.ProblemsScreenContent
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -138,6 +140,19 @@ fun MainScreen(
     val isVerifyingLc by viewModel.isVerifyingLeetCode.collectAsStateWithLifecycle()
     val isVerifyingGh by viewModel.isVerifyingGitHub.collectAsStateWithLifecycle()
     val isCheckingUpdate by viewModel.isCheckingUpdate.collectAsStateWithLifecycle()
+
+    val problemsPlatform by viewModel.problemsPlatform.collectAsStateWithLifecycle()
+    val problemsSubTab by viewModel.problemsSubTab.collectAsStateWithLifecycle()
+    val problemsSearchQuery by viewModel.problemsSearchQuery.collectAsStateWithLifecycle()
+    val difficultyFilter by viewModel.difficultyFilter.collectAsStateWithLifecycle()
+    val problemsList by viewModel.problemsList.collectAsStateWithLifecycle()
+    val isLoadingProblems by viewModel.isLoadingProblems.collectAsStateWithLifecycle()
+    val selectedProblemDetail by viewModel.selectedProblemDetail.collectAsStateWithLifecycle()
+    val activeProblemNoteIndex by viewModel.activeProblemNoteIndex.collectAsStateWithLifecycle()
+    val generalNotesList by viewModel.generalNotesList.collectAsStateWithLifecycle()
+    val selectedGeneralNote by viewModel.selectedGeneralNote.collectAsStateWithLifecycle()
+    val backupRepoInput by viewModel.backupRepoInput.collectAsStateWithLifecycle()
+    val isSyncingBackupRepo by viewModel.isSyncingBackupRepo.collectAsStateWithLifecycle()
 
     val syncMessage by viewModel.syncMessage.collectAsStateWithLifecycle()
     val dashboardData by viewModel.dashboardData.collectAsStateWithLifecycle()
@@ -258,6 +273,24 @@ fun MainScreen(
                 )
 
                 NavigationDrawerItem(
+                    label = { Text("Problems", fontWeight = FontWeight.SemiBold) },
+                    selected = currentScreen == AppScreen.PROBLEMS,
+                    onClick = {
+                        viewModel.setScreen(AppScreen.PROBLEMS)
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    icon = { Icon(Icons.Default.Code, contentDescription = "Problems") },
+                    colors = NavigationDrawerItemDefaults.colors(
+                        selectedContainerColor = Color(0x333B82F6),
+                        selectedTextColor = Color(0xFF93C5FD),
+                        selectedIconColor = Color(0xFF60A5FA),
+                        unselectedTextColor = Color(0xFFCBD5E1),
+                        unselectedIconColor = Color(0xFF94A3B8)
+                    ),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
+                )
+
+                NavigationDrawerItem(
                     label = { Text("Widgets", fontWeight = FontWeight.SemiBold) },
                     selected = currentScreen == AppScreen.WIDGETS,
                     onClick = {
@@ -367,6 +400,7 @@ fun MainScreen(
                             Text(
                                 text = when (currentScreen) {
                                     AppScreen.HOME -> "User Insights & Activity"
+                                    AppScreen.PROBLEMS -> "Offline Problem Bank & Notes"
                                     AppScreen.WIDGETS -> "Widget Gallery & Sync"
                                     AppScreen.SETTINGS -> "Accounts & Configuration"
                                 },
@@ -460,6 +494,37 @@ fun MainScreen(
                             onNavigateToSettings = { viewModel.setScreen(AppScreen.SETTINGS) }
                         )
 
+                        AppScreen.PROBLEMS -> ProblemsScreenContent(
+                            platform = problemsPlatform,
+                            subTab = problemsSubTab,
+                            searchQuery = problemsSearchQuery,
+                            difficultyFilter = difficultyFilter,
+                            problems = problemsList,
+                            isLoadingProblems = isLoadingProblems,
+                            selectedProblemDetail = selectedProblemDetail,
+                            activeProblemNoteIndex = activeProblemNoteIndex,
+                            generalNotes = generalNotesList,
+                            selectedGeneralNote = selectedGeneralNote,
+                            backupRepoInput = backupRepoInput,
+                            isSyncingBackupRepo = isSyncingBackupRepo,
+                            onPlatformSelected = viewModel::setProblemsPlatform,
+                            onSubTabSelected = viewModel::setProblemsSubTab,
+                            onSearchQueryChanged = viewModel::setProblemsSearchQuery,
+                            onDifficultyFilterSelected = viewModel::setDifficultyFilter,
+                            onSelectProblem = viewModel::selectProblem,
+                            onActiveProblemNoteIndexChanged = viewModel::setActiveProblemNoteIndex,
+                            onDownloadProblemOffline = viewModel::downloadProblemOffline,
+                            onDeleteProblemOffline = viewModel::deleteProblemOffline,
+                            onSaveProblemNote = viewModel::saveProblemNote,
+                            onDeleteProblemNote = viewModel::deleteProblemNote,
+                            onBackupRepoChanged = viewModel::onBackupRepoInputChanged,
+                            onSaveBackupRepo = viewModel::saveBackupRepo,
+                            onSyncFromGitHubBackup = viewModel::syncFromGitHubBackupRepo,
+                            onSelectGeneralNote = viewModel::selectGeneralNote,
+                            onSaveGeneralNote = viewModel::saveGeneralNote,
+                            onDeleteGeneralNote = viewModel::deleteGeneralNote
+                        )
+
                         AppScreen.WIDGETS -> WidgetsScreenContent(
                             dashboardData = dashboardData,
                             selectedInterval = selectedInterval,
@@ -474,6 +539,7 @@ fun MainScreen(
                             leetCodeInput = leetCodeInput,
                             gitHubInput = gitHubInput,
                             tokenInput = tokenInput,
+                            backupRepoInput = backupRepoInput,
                             isSyncing = isSyncing,
                             isVerifyingLc = isVerifyingLc,
                             isVerifyingGh = isVerifyingGh,
@@ -481,6 +547,8 @@ fun MainScreen(
                             onLeetCodeChanged = viewModel::onLeetCodeInputChanged,
                             onGitHubChanged = viewModel::onGitHubInputChanged,
                             onTokenChanged = viewModel::onGitHubTokenChanged,
+                            onBackupRepoChanged = viewModel::onBackupRepoInputChanged,
+                            onSaveBackupRepo = viewModel::saveBackupRepo,
                             onVerifyLeetCode = viewModel::verifyLeetCode,
                             onVerifyGitHub = viewModel::verifyGitHub,
                             onSyncAll = {
@@ -2265,6 +2333,7 @@ private fun SettingsScreenContent(
     leetCodeInput: String,
     gitHubInput: String,
     tokenInput: String,
+    backupRepoInput: String,
     isSyncing: Boolean,
     isVerifyingLc: Boolean,
     isVerifyingGh: Boolean,
@@ -2272,6 +2341,8 @@ private fun SettingsScreenContent(
     onLeetCodeChanged: (String) -> Unit,
     onGitHubChanged: (String) -> Unit,
     onTokenChanged: (String) -> Unit,
+    onBackupRepoChanged: (String) -> Unit,
+    onSaveBackupRepo: (String) -> Unit,
     onVerifyLeetCode: () -> Unit,
     onVerifyGitHub: () -> Unit,
     onSyncAll: () -> Unit,
@@ -2553,6 +2624,73 @@ private fun SettingsScreenContent(
                         } else {
                             Text("Link & Verify GitHub", fontWeight = FontWeight.Bold)
                         }
+                    }
+                }
+            }
+
+            // 3. LeetCode Backup Repository (project_git_the_leet integration)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0x1FFFFFFF))
+                    .border(1.dp, Color(0x2EFFFFFF), RoundedCornerShape(16.dp))
+                    .padding(12.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "LeetCode Backup Repository",
+                            color = Color(0xFF93C5FD),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0x333B82F6))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "Git The Leet",
+                                color = Color(0xFF93C5FD),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    Text(
+                        text = "GitHub repository storing your leetcode_problem/ folder and notes",
+                        color = Color(0xFF94A3B8),
+                        fontSize = 11.sp
+                    )
+                    OutlinedTextField(
+                        value = backupRepoInput,
+                        onValueChange = onBackupRepoChanged,
+                        label = { Text("Repository Name", color = Color(0xFF94A3B8)) },
+                        placeholder = { Text("e.g. project_git_the_leet", color = Color(0xFF64748B)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color(0xFF3B82F6),
+                            unfocusedBorderColor = Color(0x40FFFFFF)
+                        )
+                    )
+                    Button(
+                        onClick = { onSaveBackupRepo(backupRepoInput) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF1E3A8A),
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text("Save Backup Repository", fontWeight = FontWeight.Bold)
                     }
                 }
             }
