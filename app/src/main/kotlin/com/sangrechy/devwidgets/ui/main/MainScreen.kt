@@ -134,6 +134,8 @@ import com.sangrechy.devwidgets.widget.CombinedHeatmapWidgetProvider
 import com.sangrechy.devwidgets.widget.DevActivityWidgetProvider
 import com.sangrechy.devwidgets.widget.GitHubHeatmapWidgetProvider
 import com.sangrechy.devwidgets.widget.GitHubWidgetProvider
+import com.sangrechy.devwidgets.widget.LeetCodeCircleWidgetProvider
+import com.sangrechy.devwidgets.widget.GitHubCircleWidgetProvider
 import com.sangrechy.devwidgets.widget.LeetCodeHeatmapWidgetProvider
 import com.sangrechy.devwidgets.widget.LeetCodeWidgetProvider
 import com.sangrechy.devwidgets.widget.WidgetBitmapRenderer
@@ -2346,29 +2348,129 @@ private fun WidgetsScreenContent(
 
         // 3. Widget Gallery Header
         Text(
-            text = "Multiple Widget Styles (Click to Pin)",
+            text = "Official Widget Styles (7 Styles • Click to Pin)",
             color = ThemeTextPrimary,
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold
         )
 
-        // 1. Combined Hub
+        // 1. LeetCode Heatmap (Heatmap Only)
         WidgetGalleryCard(
-            title = "Master Dev Life Dashboard (4x4)",
-            subtitle = "Combined LeetCode gauge + GitHub radar + dual 12-month uniform heatmaps",
-            tag = "Combined Hub",
-            widgetKey = "dev_activity",
-            currentWidgetWallpaper = getWidgetSpecificWallpaper("dev_activity"),
-            onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("dev_activity", it) },
-            onClick = { onPinWidget(DevActivityWidgetProvider::class.java) },
-            content = { WidgetVisualPreview(data = dashboardData, orientation = heatmapOrientation) }
+            title = "LeetCode Heatmap (4x2)",
+            subtitle = "Full-width dedicated LeetCode submission activity calendar",
+            tag = "LC Heatmap",
+            widgetKey = "leetcode_heatmap",
+            currentWidgetWallpaper = getWidgetSpecificWallpaper("leetcode_heatmap"),
+            onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("leetcode_heatmap", it) },
+            onClick = { onPinWidget(LeetCodeHeatmapWidgetProvider::class.java) },
+            content = {
+                val lcHeatmap = remember(dashboardData.leetCode.submissionCalendar, heatmapOrientation) {
+                    WidgetBitmapRenderer.renderHeatmap(
+                        dashboardData.leetCode.submissionCalendar,
+                        isLeetCode = true,
+                        widthPx = 680,
+                        heightPx = 340,
+                        weeksCount = 52,
+                        orientation = heatmapOrientation
+                    ).asImageBitmap()
+                }
+                Image(
+                    bitmap = lcHeatmap,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxWidth().height(110.dp)
+                )
+            }
         )
 
-        // 2. LeetCode Dedicated
+        // 2. GitHub Heatmap (Heatmap Only)
         WidgetGalleryCard(
-            title = "LeetCode Dedicated Widget (4x2)",
-            subtitle = "Dedicated 3/4 speedometer circle gauge and problem submission calendar",
-            tag = "LeetCode",
+            title = "GitHub Heatmap (4x2)",
+            subtitle = "Full-width dedicated GitHub emerald contribution activity calendar",
+            tag = "GH Heatmap",
+            widgetKey = "github_heatmap",
+            currentWidgetWallpaper = getWidgetSpecificWallpaper("github_heatmap"),
+            onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("github_heatmap", it) },
+            onClick = { onPinWidget(GitHubHeatmapWidgetProvider::class.java) },
+            content = {
+                val ghHeatmap = remember(dashboardData.gitHub.contributionDays, heatmapOrientation) {
+                    WidgetBitmapRenderer.renderHeatmap(
+                        dashboardData.gitHub.contributionDays,
+                        isLeetCode = false,
+                        widthPx = 680,
+                        heightPx = 340,
+                        weeksCount = 52,
+                        orientation = heatmapOrientation
+                    ).asImageBitmap()
+                }
+                Image(
+                    bitmap = ghHeatmap,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxWidth().height(110.dp)
+                )
+            }
+        )
+
+        // 3. LeetCode Circle (Circle Only)
+        WidgetGalleryCard(
+            title = "LeetCode Solved Circle (2x2)",
+            subtitle = "Dedicated 3/4 circular speedometer gauge showing solved problems breakdown",
+            tag = "LC Circle",
+            widgetKey = "leetcode_circle",
+            currentWidgetWallpaper = getWidgetSpecificWallpaper("leetcode_circle"),
+            onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("leetcode_circle", it) },
+            onClick = { onPinWidget(LeetCodeCircleWidgetProvider::class.java) },
+            content = {
+                val lcCircle = remember(dashboardData.leetCode) {
+                    WidgetBitmapRenderer.renderLeetCodeCircle(dashboardData.leetCode, sizePx = 360).asImageBitmap()
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(115.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        bitmap = lcCircle,
+                        contentDescription = "LeetCode Circle",
+                        modifier = Modifier.fillMaxHeight()
+                    )
+                }
+            }
+        )
+
+        // 4. GitHub Circle (Circle Only)
+        WidgetGalleryCard(
+            title = "GitHub Contribution Circle (2x2)",
+            subtitle = "Dedicated contribution radar polygon with commits, PRs, issues, reviews",
+            tag = "GH Circle",
+            widgetKey = "github_circle",
+            currentWidgetWallpaper = getWidgetSpecificWallpaper("github_circle"),
+            onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("github_circle", it) },
+            onClick = { onPinWidget(GitHubCircleWidgetProvider::class.java) },
+            content = {
+                val ghCircle = remember(dashboardData.gitHub) {
+                    WidgetBitmapRenderer.renderGitHubTypeMap(dashboardData.gitHub, sizePx = 360).asImageBitmap()
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(115.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        bitmap = ghCircle,
+                        contentDescription = "GitHub Circle",
+                        modifier = Modifier.fillMaxHeight()
+                    )
+                }
+            }
+        )
+
+        // 5. LeetCode Full (Circle + Heatmap)
+        WidgetGalleryCard(
+            title = "LeetCode Full: Circle + Heatmap (4x2)",
+            subtitle = "Speedometer circle gauge and 52-week submission calendar side-by-side",
+            tag = "LC Full",
             widgetKey = "leetcode",
             currentWidgetWallpaper = getWidgetSpecificWallpaper("leetcode"),
             onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("leetcode", it) },
@@ -2401,11 +2503,11 @@ private fun WidgetsScreenContent(
             }
         )
 
-        // 3. GitHub Dedicated
+        // 6. GitHub Full (Circle + Heatmap)
         WidgetGalleryCard(
-            title = "GitHub Dedicated Widget (4x2)",
-            subtitle = "Dedicated contribution radar polygon and uniform commit activity heatmap",
-            tag = "GitHub",
+            title = "GitHub Full: Circle + Heatmap (4x2)",
+            subtitle = "Contribution radar polygon and 52-week activity heatmap side-by-side",
+            tag = "GH Full",
             widgetKey = "github",
             currentWidgetWallpaper = getWidgetSpecificWallpaper("github"),
             onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("github", it) },
@@ -2438,101 +2540,16 @@ private fun WidgetsScreenContent(
             }
         )
 
-        // 4. LeetCode Heatmap Dedicated
+        // 7. Combined All: Master Dev Life (4x4)
         WidgetGalleryCard(
-            title = "LeetCode Heatmap Widget (4x2)",
-            subtitle = "Full-width dedicated LeetCode submission activity calendar",
-            tag = "LC Heatmap",
-            widgetKey = "leetcode_heatmap",
-            currentWidgetWallpaper = getWidgetSpecificWallpaper("leetcode_heatmap"),
-            onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("leetcode_heatmap", it) },
-            onClick = { onPinWidget(LeetCodeHeatmapWidgetProvider::class.java) },
-            content = {
-                val lcHeatmap = remember(dashboardData.leetCode.submissionCalendar, heatmapOrientation) {
-                    WidgetBitmapRenderer.renderHeatmap(
-                        dashboardData.leetCode.submissionCalendar,
-                        isLeetCode = true,
-                        widthPx = 680,
-                        heightPx = 340,
-                        weeksCount = 52,
-                        orientation = heatmapOrientation
-                    ).asImageBitmap()
-                }
-                Image(
-                    bitmap = lcHeatmap,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxWidth().height(110.dp)
-                )
-            }
-        )
-
-        // 5. GitHub Heatmap Dedicated
-        WidgetGalleryCard(
-            title = "GitHub Heatmap Widget (4x2)",
-            subtitle = "Full-width dedicated GitHub emerald contribution activity calendar",
-            tag = "GH Heatmap",
-            widgetKey = "github_heatmap",
-            currentWidgetWallpaper = getWidgetSpecificWallpaper("github_heatmap"),
-            onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("github_heatmap", it) },
-            onClick = { onPinWidget(GitHubHeatmapWidgetProvider::class.java) },
-            content = {
-                val ghHeatmap = remember(dashboardData.gitHub.contributionDays, heatmapOrientation) {
-                    WidgetBitmapRenderer.renderHeatmap(
-                        dashboardData.gitHub.contributionDays,
-                        isLeetCode = false,
-                        widthPx = 680,
-                        heightPx = 340,
-                        weeksCount = 52,
-                        orientation = heatmapOrientation
-                    ).asImageBitmap()
-                }
-                Image(
-                    bitmap = ghHeatmap,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxWidth().height(110.dp)
-                )
-            }
-        )
-
-        // 6. Dev Combined Heatmap
-        WidgetGalleryCard(
-            title = "Dev Combined Heatmap Widget (4x3)",
-            subtitle = "Dual stacked LeetCode and GitHub contribution heatmaps in one widget",
-            tag = "Dual Heatmap",
-            widgetKey = "combined_heatmap",
-            currentWidgetWallpaper = getWidgetSpecificWallpaper("combined_heatmap"),
-            onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("combined_heatmap", it) },
-            onClick = { onPinWidget(CombinedHeatmapWidgetProvider::class.java) },
-            content = {
-                val lcHeatmap = remember(dashboardData.leetCode.submissionCalendar, heatmapOrientation) {
-                    WidgetBitmapRenderer.renderHeatmap(
-                        dashboardData.leetCode.submissionCalendar,
-                        isLeetCode = true,
-                        widthPx = 680,
-                        heightPx = 220,
-                        weeksCount = 52,
-                        orientation = heatmapOrientation
-                    ).asImageBitmap()
-                }
-                val ghHeatmap = remember(dashboardData.gitHub.contributionDays, heatmapOrientation) {
-                    WidgetBitmapRenderer.renderHeatmap(
-                        dashboardData.gitHub.contributionDays,
-                        isLeetCode = false,
-                        widthPx = 680,
-                        heightPx = 220,
-                        weeksCount = 52,
-                        orientation = heatmapOrientation
-                    ).asImageBitmap()
-                }
-                Column(
-                    modifier = Modifier.fillMaxWidth().height(120.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Image(bitmap = lcHeatmap, contentDescription = null, modifier = Modifier.fillMaxWidth().weight(1f))
-                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0x26FFFFFF)))
-                    Image(bitmap = ghHeatmap, contentDescription = null, modifier = Modifier.fillMaxWidth().weight(1f))
-                }
-            }
+            title = "Combined All: Master Dev Life (4x4)",
+            subtitle = "Master dashboard with LeetCode & GitHub gauges and dual uniform heatmaps",
+            tag = "Combined All",
+            widgetKey = "dev_activity",
+            currentWidgetWallpaper = getWidgetSpecificWallpaper("dev_activity"),
+            onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("dev_activity", it) },
+            onClick = { onPinWidget(DevActivityWidgetProvider::class.java) },
+            content = { WidgetVisualPreview(data = dashboardData, orientation = heatmapOrientation) }
         )
     }
 }
@@ -2558,7 +2575,6 @@ private fun WidgetGalleryCard(
                 ThemeCardBorder,
                 RoundedCornerShape(22.dp)
             )
-            .clickable(onClick = onClick)
             .padding(14.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -3243,6 +3259,7 @@ private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third:
 
 @Composable
 fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizontal") {
+    var isReversed by remember { mutableStateOf(false) }
     var lcOffsetX by remember { mutableStateOf(0f) }
     var lcOffsetY by remember { mutableStateOf(0f) }
     var ghOffsetX by remember { mutableStateOf(0f) }
@@ -3287,8 +3304,8 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
             )
             .padding(12.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            // Header with Chibi Jane logo
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Header with Dev Life brand and Interactive Div Controls (Swap & Reset)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -3299,220 +3316,344 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(
                         painter = painterResource(R.drawable.ic_skill_jane),
-                        contentDescription = "Chibi Jane Logo",
+                        contentDescription = "Dev Life",
                         modifier = Modifier
                             .size(20.dp)
                             .padding(end = 6.dp)
                     )
                     Text(
-                        text = "Dev Life",
-                        color = Color(0xFFFFFFFF),
+                        text = "Dev Life (Movable Divs)",
+                        color = Color.White,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.5.sp
                     )
                 }
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text(
-                        text = "Live Glass Preview (Drag Cards)",
-                        color = Color(0xFFCBD5E1),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    if (lcOffsetX != 0f || lcOffsetY != 0f || ghOffsetX != 0f || ghOffsetY != 0f) {
+                    // ⇄ Swap Top / Bottom Div Positions
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0x2E38BDF8))
+                            .border(1.dp, Color(0x6638BDF8), RoundedCornerShape(8.dp))
+                            .clickable { isReversed = !isReversed }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
                         Text(
-                            text = "Reset",
+                            text = if (isReversed) "⇅ GH on Top" else "⇅ LC on Top",
                             color = ThemeAccentBlue,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // Reset button
+                    if (lcOffsetX != 0f || lcOffsetY != 0f || ghOffsetX != 0f || ghOffsetY != 0f || isReversed) {
+                        Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0x3338BDF8))
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0x33EF4444))
+                                .border(1.dp, Color(0x66EF4444), RoundedCornerShape(8.dp))
                                 .clickable {
                                     lcOffsetX = 0f
                                     lcOffsetY = 0f
                                     ghOffsetX = 0f
                                     ghOffsetY = 0f
+                                    isReversed = false
                                 }
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
-                }
-            }
-
-            // Top Card: LeetCode Glass Card (Movable via Drag)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .offset { IntOffset(lcOffsetX.roundToInt(), lcOffsetY.roundToInt()) }
-                    .pointerInput(Unit) {
-                        detectDragGestures { change, dragAmount ->
-                            change.consume()
-                            lcOffsetX = (lcOffsetX + dragAmount.x).coerceIn(-100f, 100f)
-                            lcOffsetY = (lcOffsetY + dragAmount.y).coerceIn(-50f, 50f)
-                        }
-                    }
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0x26FFFFFF))
-                    .border(
-                        1.dp,
-                        Color(0x38FFFFFF),
-                        RoundedCornerShape(20.dp)
-                    )
-                    .padding(10.dp)
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
-                            Image(
-                                painter = painterResource(R.drawable.ic_leetcode_logo),
-                                contentDescription = "LeetCode",
-                                modifier = Modifier.size(15.dp)
-                            )
                             Text(
-                                text = "LeetCode",
-                                color = Color(0xFFFFA116),
+                                text = "Reset",
+                                color = Color(0xFFF87171),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
-                        Text(
-                            text = if (data.leetCode.status == AccountStatus.FAILED)
-                                "@${data.leetCode.username.ifBlank { "dev" }} (Offline)"
-                            else
-                                "@${data.leetCode.username.ifBlank { "dev" }}",
-                            color = Color(0xFF94A3B8),
-                            fontSize = 9.5.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    // Side-by-side: 3/4 Circular Gauge (Left 42%) + Divider + Month-Aware Heatmap (Right 58%)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(130.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Image(
-                            bitmap = lcCircle,
-                            contentDescription = "LeetCode Count",
-                            modifier = Modifier
-                                .weight(0.42f)
-                                .fillMaxHeight()
-                        )
-                        Box(
-                            modifier = Modifier
-                                .width(1.dp)
-                                .fillMaxHeight()
-                                .background(Color(0x26FFFFFF))
-                        )
-                        Image(
-                            bitmap = lcHeatmap,
-                            contentDescription = "LeetCode Heatmap",
-                            modifier = Modifier
-                                .weight(0.58f)
-                                .fillMaxHeight()
-                        )
                     }
                 }
             }
 
-            // Bottom Card: GitHub Glass Card (Movable via Drag)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .offset { IntOffset(ghOffsetX.roundToInt(), ghOffsetY.roundToInt()) }
-                    .pointerInput(Unit) {
-                        detectDragGestures { change, dragAmount ->
-                            change.consume()
-                            ghOffsetX = (ghOffsetX + dragAmount.x).coerceIn(-100f, 100f)
-                            ghOffsetY = (ghOffsetY + dragAmount.y).coerceIn(-50f, 50f)
+            // Composables for each Div
+            val renderLeetCodeDiv: @Composable () -> Unit = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .offset { IntOffset(lcOffsetX.roundToInt(), lcOffsetY.roundToInt()) }
+                        .pointerInput(Unit) {
+                            detectDragGestures { change, dragAmount ->
+                                change.consume()
+                                lcOffsetX = (lcOffsetX + dragAmount.x).coerceIn(-120f, 120f)
+                                lcOffsetY = (lcOffsetY + dragAmount.y).coerceIn(-80f, 80f)
+                            }
                         }
-                    }
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0x26FFFFFF))
-                    .border(
-                        1.dp,
-                        Color(0x38FFFFFF),
-                        RoundedCornerShape(20.dp)
-                    )
-                    .padding(10.dp)
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0x26FFFFFF))
+                        .border(
+                            1.dp,
+                            Color(0x38FFFFFF),
+                            RoundedCornerShape(20.dp)
+                        )
+                        .padding(10.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Image(
+                                    painter = painterResource(R.drawable.ic_leetcode_logo),
+                                    contentDescription = "LeetCode",
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Text(
+                                    text = "LeetCode",
+                                    color = Color(0xFFFFA116),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (data.leetCode.status == AccountStatus.FAILED)
+                                        "@${data.leetCode.username.ifBlank { "dev" }} (Offline)"
+                                    else
+                                        "@${data.leetCode.username.ifBlank { "dev" }}",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 9.5.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            // Directional Nudge Arrows
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0x26FFFFFF))
+                                        .clickable { lcOffsetX = (lcOffsetX - 15f).coerceIn(-120f, 120f) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("←", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0x26FFFFFF))
+                                        .clickable { lcOffsetX = (lcOffsetX + 15f).coerceIn(-120f, 120f) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("→", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0x26FFFFFF))
+                                        .clickable { lcOffsetY = (lcOffsetY - 10f).coerceIn(-80f, 80f) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("↑", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0x26FFFFFF))
+                                        .clickable { lcOffsetY = (lcOffsetY + 10f).coerceIn(-80f, 80f) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("↓", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+
+                        // Side-by-side: 3/4 Circular Gauge (Left 42%) + Divider + Month-Aware Heatmap (Right 58%)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(125.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Image(
-                                painter = painterResource(R.drawable.ic_github_logo),
-                                contentDescription = "GitHub",
-                                modifier = Modifier.size(15.dp)
+                                bitmap = lcCircle,
+                                contentDescription = "LeetCode Count",
+                                modifier = Modifier
+                                    .weight(0.42f)
+                                    .fillMaxHeight()
                             )
-                            Text(
-                                text = "GitHub",
-                                color = Color(0xFF3FB950),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
+                            Box(
+                                modifier = Modifier
+                                    .width(1.dp)
+                                    .fillMaxHeight()
+                                    .background(Color(0x26FFFFFF))
+                            )
+                            Image(
+                                bitmap = lcHeatmap,
+                                contentDescription = "LeetCode Heatmap",
+                                modifier = Modifier
+                                    .weight(0.58f)
+                                    .fillMaxHeight()
                             )
                         }
-                        Text(
-                            text = if (data.gitHub.status == AccountStatus.FAILED)
-                                "@${data.gitHub.username.ifBlank { "dev" }} (Offline)"
-                            else
-                                "@${data.gitHub.username.ifBlank { "dev" }}",
-                            color = Color(0xFF94A3B8),
-                            fontSize = 9.5.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    // Side-by-side: Spider Radar Activity (Left 42%) + Divider + Month-Aware Heatmap (Right 58%)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(130.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Image(
-                            bitmap = ghTypeMap,
-                            contentDescription = "GitHub Type Map",
-                            modifier = Modifier
-                                .weight(0.42f)
-                                .fillMaxHeight()
-                        )
-                        Box(
-                            modifier = Modifier
-                                .width(1.dp)
-                                .fillMaxHeight()
-                                .background(Color(0x26FFFFFF))
-                        )
-                        Image(
-                            bitmap = ghHeatmap,
-                            contentDescription = "GitHub Heatmap",
-                            modifier = Modifier
-                                .weight(0.58f)
-                                .fillMaxHeight()
-                        )
                     }
                 }
+            }
+
+            val renderGitHubDiv: @Composable () -> Unit = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .offset { IntOffset(ghOffsetX.roundToInt(), ghOffsetY.roundToInt()) }
+                        .pointerInput(Unit) {
+                            detectDragGestures { change, dragAmount ->
+                                change.consume()
+                                ghOffsetX = (ghOffsetX + dragAmount.x).coerceIn(-120f, 120f)
+                                ghOffsetY = (ghOffsetY + dragAmount.y).coerceIn(-80f, 80f)
+                            }
+                        }
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0x26FFFFFF))
+                        .border(
+                            1.dp,
+                            Color(0x38FFFFFF),
+                            RoundedCornerShape(20.dp)
+                        )
+                        .padding(10.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Image(
+                                    painter = painterResource(R.drawable.ic_github_logo),
+                                    contentDescription = "GitHub",
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Text(
+                                    text = "GitHub",
+                                    color = Color(0xFF3FB950),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (data.gitHub.status == AccountStatus.FAILED)
+                                        "@${data.gitHub.username.ifBlank { "dev" }} (Offline)"
+                                    else
+                                        "@${data.gitHub.username.ifBlank { "dev" }}",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 9.5.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            // Directional Nudge Arrows
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0x26FFFFFF))
+                                        .clickable { ghOffsetX = (ghOffsetX - 15f).coerceIn(-120f, 120f) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("←", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0x26FFFFFF))
+                                        .clickable { ghOffsetX = (ghOffsetX + 15f).coerceIn(-120f, 120f) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("→", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0x26FFFFFF))
+                                        .clickable { ghOffsetY = (ghOffsetY - 10f).coerceIn(-80f, 80f) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("↑", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0x26FFFFFF))
+                                        .clickable { ghOffsetY = (ghOffsetY + 10f).coerceIn(-80f, 80f) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("↓", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+
+                        // Side-by-side: Spider Radar Activity (Left 42%) + Divider + Month-Aware Heatmap (Right 58%)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(125.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Image(
+                                bitmap = ghTypeMap,
+                                contentDescription = "GitHub Type Map",
+                                modifier = Modifier
+                                    .weight(0.42f)
+                                    .fillMaxHeight()
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .width(1.dp)
+                                    .fillMaxHeight()
+                                    .background(Color(0x26FFFFFF))
+                            )
+                            Image(
+                                bitmap = ghHeatmap,
+                                contentDescription = "GitHub Heatmap",
+                                modifier = Modifier
+                                    .weight(0.58f)
+                                    .fillMaxHeight()
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Display in configured order (Top div then Bottom div)
+            if (!isReversed) {
+                renderLeetCodeDiv()
+                renderGitHubDiv()
+            } else {
+                renderGitHubDiv()
+                renderLeetCodeDiv()
             }
         }
     }

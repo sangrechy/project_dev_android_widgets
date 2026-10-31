@@ -33,6 +33,16 @@ object WidgetManagerHelper {
             e.printStackTrace()
         }
         try {
+            LeetCodeCircleWidgetProvider.updateAllWidgets(appContext, data)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        try {
+            GitHubCircleWidgetProvider.updateAllWidgets(appContext, data)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        try {
             CombinedHeatmapWidgetProvider.updateAllWidgets(appContext, data)
         } catch (e: Exception) {
             e.printStackTrace()

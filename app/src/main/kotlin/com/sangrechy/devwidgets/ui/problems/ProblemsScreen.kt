@@ -30,10 +30,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import android.content.Intent
+import android.net.Uri
+import android.view.View
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Code
@@ -46,6 +50,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.NoteAlt
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
@@ -846,8 +851,8 @@ private fun ProblemItemCard(
 ) {
     val diffColor = when (problem.difficulty.lowercase()) {
         "easy" -> Color(0xFF00B8A3)
-        "hard" -> Color(0xFFFF375F)
-        else -> Color(0xFFFFC01E)
+        "hard" -> Color(0xFFEF4743)
+        else -> Color(0xFFFFA116)
     }
 
     Box(
@@ -863,162 +868,190 @@ private fun ProblemItemCard(
             .clickable(onClick = onClick)
             .padding(14.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            // Header Row: Problem ID + Title + Difficulty Tag
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = "#${problem.frontendId}",
-                        color = ThemeTextSecondary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    Text(
-                        text = problem.title,
-                        color = ThemeTextPrimary,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Left Difficulty Accent Indicator Bar
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .height(48.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(diffColor)
+            )
 
-                // Difficulty Pill
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(diffColor.copy(alpha = 0.2f))
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
-                    Text(
-                        text = problem.difficulty,
-                        color = diffColor,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            // Tags & Meta Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Topic tags excerpt
+                // Header Row: Problem ID + Title + Difficulty Tag
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    problem.topicTags.take(2).forEach { tag ->
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(ThemeInnerBoxBg)
-                                .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(4.dp))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = tag,
-                                color = ThemeTextSecondary,
-                                fontSize = 10.sp
-                            )
-                        }
-                    }
-                    if (problem.topicTags.size > 2) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
                         Text(
-                            text = "+${problem.topicTags.size - 2}",
-                            color = ThemeTextMuted,
-                            fontSize = 10.sp
+                            text = "#${problem.frontendId}",
+                            color = ThemeTextSecondary,
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Text(
+                            text = problem.title,
+                            color = ThemeTextPrimary,
+                            fontSize = 14.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    // Difficulty Pill
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(diffColor.copy(alpha = 0.2f))
+                            .border(1.dp, diffColor.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = problem.difficulty,
+                            color = diffColor,
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
 
-                // Offline Status & Language
+                // Tags & Meta Row
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (problem.solutionLanguage.isNotBlank()) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(ThemeAccentBlue.copy(alpha = 0.2f))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
+                    // Topic tags excerpt
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        problem.topicTags.take(2).forEach { tag ->
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(ThemeInnerBoxBg)
+                                    .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = tag,
+                                    color = ThemeTextSecondary,
+                                    fontSize = 10.sp
+                                )
+                            }
+                        }
+                        if (problem.topicTags.size > 2) {
                             Text(
-                                text = problem.solutionLanguage,
-                                color = ThemeAccentBlue,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.SemiBold
+                                text = "+${problem.topicTags.size - 2}",
+                                color = ThemeTextMuted,
+                                fontSize = 10.sp
                             )
                         }
                     }
 
-                    if (problem.isDownloadedOffline) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(3.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = "Offline Available",
-                                tint = ThemeAccentGreen,
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Text(
-                                text = "Offline",
-                                color = ThemeAccentGreen,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium
-                            )
+                    // Offline Status & Language
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (problem.solutionLanguage.isNotBlank()) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(ThemeAccentBlue.copy(alpha = 0.2f))
+                                    .border(1.dp, ThemeAccentBlue.copy(alpha = 0.35f), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = problem.solutionLanguage,
+                                    color = ThemeAccentBlue,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                         }
-                    } else {
-                        IconButton(
-                            onClick = onDownloadOffline,
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Download,
-                                contentDescription = "Download Offline",
-                                tint = Color(0xFF38BDF8),
-                                modifier = Modifier.size(16.dp)
-                            )
+
+                        if (problem.isDownloadedOffline) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "Offline Available",
+                                    tint = ThemeAccentGreen,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Text(
+                                    text = "Offline",
+                                    color = ThemeAccentGreen,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        } else {
+                            IconButton(
+                                onClick = onDownloadOffline,
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Download,
+                                    contentDescription = "Download Offline",
+                                    tint = Color(0xFF38BDF8),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
+                    }
+                }
+
+                // Notes counter badge if problem has notes
+                if (problem.notes.isNotEmpty()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.NoteAlt,
+                            contentDescription = "Notes",
+                            tint = Color(0xFFFBBF24),
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Text(
+                            text = "${problem.notes.size} note${if (problem.notes.size > 1) "s" else ""}: ${problem.notes.joinToString { it.title }}",
+                            color = Color(0xFFFDE68A),
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
 
-            // Notes counter badge if problem has notes
-            if (problem.notes.isNotEmpty()) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.NoteAlt,
-                        contentDescription = "Notes",
-                        tint = Color(0xFFFBBF24),
-                        modifier = Modifier.size(12.dp)
-                    )
-                    Text(
-                        text = "${problem.notes.size} note${if (problem.notes.size > 1) "s" else ""}: ${problem.notes.joinToString { it.title }}",
-                        color = Color(0xFFFDE68A),
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
+            // Right Chevron Click Affordance
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = ThemeTextMuted,
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }
@@ -1059,87 +1092,108 @@ fun LeetCodeProblemDetailView(
         border = BorderStroke(1.dp, ThemeCardBorder)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-                // Top Action Bar
+            // Top Action Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ThemeTopBarBg)
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(ThemeTopBarBg)
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.weight(1f)
+                    Text(
+                        text = "#${problem.frontendId}. ${problem.title}",
+                        color = ThemeTextPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(diffColor.copy(alpha = 0.2f))
+                            .border(1.dp, diffColor.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = "#${problem.frontendId}. ${problem.title}",
-                            color = ThemeTextPrimary,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            text = problem.difficulty,
+                            color = diffColor,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
                         )
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(diffColor.copy(alpha = 0.2f))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = problem.difficulty,
-                                color = diffColor,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                    }
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    // Open on LeetCode web button
+                    IconButton(
+                        onClick = {
+                            val url = if (problem.problemUrl.isNotBlank()) problem.problemUrl
+                            else "https://leetcode.com/problems/${problem.titleSlug}/"
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            }
+                            context.startActivity(intent)
+                        },
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                            contentDescription = "Open in LeetCode",
+                            tint = ThemeAccentAmber,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        // Offline download or remove button
-                        if (problem.isDownloadedOffline) {
-                            IconButton(
-                                onClick = { showDeleteConfirmation = true },
-                                modifier = Modifier.size(34.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "Remove Offline Cache",
-                                    tint = ThemeAccentRed,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        } else {
-                            IconButton(
-                                onClick = onDownloadOffline,
-                                modifier = Modifier.size(34.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Download,
-                                    contentDescription = "Download Offline",
-                                    tint = ThemeAccentBlue,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-
+                    // Offline download or remove button
+                    if (problem.isDownloadedOffline) {
                         IconButton(
-                            onClick = onDismiss,
+                            onClick = { showDeleteConfirmation = true },
                             modifier = Modifier.size(34.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = ThemeTextSecondary,
-                                modifier = Modifier.size(20.dp)
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Remove Offline Cache",
+                                tint = ThemeAccentRed,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    } else {
+                        IconButton(
+                            onClick = onDownloadOffline,
+                            modifier = Modifier.size(34.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = "Download Offline",
+                                tint = ThemeAccentBlue,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = ThemeTextSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
+            }
 
                 // Authentic 3-Tab Bar (Description | Solution Code | Notes)
                 Row(
@@ -1374,6 +1428,25 @@ private fun LeetCodeDescriptionTab(problem: OfflineProblem) {
                 margin-top: 8px;
                 margin-bottom: 8px;
               }
+              img {
+                max-width: 100%;
+                height: auto;
+                border-radius: 8px;
+                margin: 8px 0;
+              }
+              table {
+                border-collapse: collapse;
+                width: 100%;
+                margin: 10px 0;
+              }
+              th, td {
+                border: 1px solid #272A34;
+                padding: 6px 10px;
+                text-align: left;
+              }
+              th {
+                background-color: #1E212B;
+              }
             </style>
             </head>
             <body>
@@ -1389,6 +1462,8 @@ private fun LeetCodeDescriptionTab(problem: OfflineProblem) {
                 WebView(ctx).apply {
                     setBackgroundColor(android.graphics.Color.parseColor("#141519"))
                     webViewClient = WebViewClient()
+                    isNestedScrollingEnabled = true
+                    overScrollMode = View.OVER_SCROLL_NEVER
                     settings.javaScriptEnabled = false
                     settings.loadWithOverviewMode = true
                     settings.useWideViewPort = false
