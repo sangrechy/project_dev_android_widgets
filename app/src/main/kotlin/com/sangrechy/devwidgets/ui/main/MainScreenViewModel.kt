@@ -688,6 +688,11 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
         repository.setWidgetOuterDivSize(widgetKey, size)
         applyWidgetWallpaperToAllWidgets()
     }
+    fun getWidgetInsideDivColor(widgetKey: String): String = repository.getWidgetInsideDivColor(widgetKey)
+    fun setWidgetInsideDivColor(widgetKey: String, color: String) {
+        repository.setWidgetInsideDivColor(widgetKey, color)
+        applyWidgetWallpaperToAllWidgets()
+    }
 
     fun setWidgetWallpaperPreset(presetId: String) {
         repository.setWidgetWallpaperPreset(presetId)

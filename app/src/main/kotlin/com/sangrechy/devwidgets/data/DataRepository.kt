@@ -66,6 +66,8 @@ interface DataRepository {
     fun getWidgetElementOffsetY(widgetKey: String): Float
     fun getWidgetOuterDivSize(widgetKey: String): String
     fun setWidgetOuterDivSize(widgetKey: String, size: String)
+    fun getWidgetInsideDivColor(widgetKey: String): String
+    fun setWidgetInsideDivColor(widgetKey: String, color: String)
 
     suspend fun saveCustomWallpaperFromUri(uri: Uri, forWidget: Boolean): String?
     fun updateAllWidgets()
@@ -252,6 +254,10 @@ class DefaultDataRepository(private val context: Context) : DataRepository {
     override fun getWidgetOuterDivSize(widgetKey: String): String = prefs.getWidgetOuterDivSize(widgetKey)
     override fun setWidgetOuterDivSize(widgetKey: String, size: String) {
         prefs.setWidgetOuterDivSize(widgetKey, size)
+    }
+    override fun getWidgetInsideDivColor(widgetKey: String): String = prefs.getWidgetInsideDivColor(widgetKey)
+    override fun setWidgetInsideDivColor(widgetKey: String, color: String) {
+        prefs.setWidgetInsideDivColor(widgetKey, color)
     }
 
     override suspend fun saveCustomWallpaperFromUri(uri: Uri, forWidget: Boolean): String? = withContext(Dispatchers.IO) {

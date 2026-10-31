@@ -170,6 +170,19 @@ class WidgetPreferences(context: Context) {
             .apply()
     }
 
+    fun getWidgetInsideDivColor(widgetKey: String): String {
+        val norm = widgetKey.trim().uppercase()
+        return prefs.getString("KEY_WIDGET_INSIDE_DIV_COLOR_$norm", prefs.getString("KEY_WIDGET_INSIDE_DIV_COLOR_$widgetKey", "AUTO")) ?: "AUTO"
+    }
+
+    fun setWidgetInsideDivColor(widgetKey: String, color: String) {
+        val norm = widgetKey.trim().uppercase()
+        prefs.edit()
+            .putString("KEY_WIDGET_INSIDE_DIV_COLOR_$norm", color)
+            .putString("KEY_WIDGET_INSIDE_DIV_COLOR_$widgetKey", color)
+            .apply()
+    }
+
     fun clearAll() {
         prefs.edit()
             .remove(KEY_LEETCODE_USERNAME)

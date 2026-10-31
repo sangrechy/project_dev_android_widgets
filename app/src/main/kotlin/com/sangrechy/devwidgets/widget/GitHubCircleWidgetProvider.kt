@@ -11,6 +11,7 @@ import android.os.Bundle
 import android.widget.RemoteViews
 import com.sangrechy.devwidgets.MainActivity
 import com.sangrechy.devwidgets.R
+import com.sangrechy.devwidgets.data.WallpaperManager
 import com.sangrechy.devwidgets.data.WidgetPreferences
 import com.sangrechy.devwidgets.data.model.WidgetDashboardData
 
@@ -82,6 +83,10 @@ class GitHubCircleWidgetProvider : AppWidgetProvider() {
             val padBottom = if (effectiveDyDp < 0) ((-effectiveDyDp) * 2f * density).toInt().coerceAtLeast(0) else 0
 
             views.setViewPadding(R.id.section_circle_container, padLeft, padTop, padRight, padBottom)
+
+            val podColor = WallpaperManager.getEffectivePodColor(context, "GITHUB_CIRCLE")
+            val podDrawable = if (podColor == "BLACK") R.drawable.widget_glass_circle_black else R.drawable.widget_glass_circle_white
+            views.setInt(R.id.section_github, "setBackgroundResource", podDrawable)
 
             val ghCircle = WidgetBitmapRenderer.renderGitHubTypeMap(data.gitHub, sizePx = 240)
             views.setImageViewBitmap(R.id.iv_github_typemap, ghCircle)

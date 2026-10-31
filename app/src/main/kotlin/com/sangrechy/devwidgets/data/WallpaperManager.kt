@@ -219,6 +219,66 @@ object WallpaperManager {
         }
     }
 
+    fun isBitmapLight(bitmap: Bitmap?, dim: Float = 0.55f): Boolean {
+        if (bitmap == null) return false
+        return try {
+            val sampleSize = 16
+            val scaled = Bitmap.createScaledBitmap(bitmap, sampleSize, sampleSize, false)
+            val pixels = IntArray(sampleSize * sampleSize)
+            scaled.getPixels(pixels, 0, sampleSize, 0, 0, sampleSize, sampleSize)
+            if (scaled != bitmap && !scaled.isRecycled) {
+                scaled.recycle()
+            }
+
+            val factor = (1f - dim).coerceIn(0.05f, 1f)
+            var totalLuminance = 0.0
+            for (color in pixels) {
+                val r = (Color.red(color) * factor).toInt()
+                val g = (Color.green(color) * factor).toInt()
+                val b = (Color.blue(color) * factor).toInt()
+                val lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255.0
+                totalLuminance += lum
+            }
+            val avgLum = totalLuminance / pixels.size
+            avgLum > 0.45
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    fun resolvePodColorForWallpaper(context: Context, wallpaperType: String, widgetKey: String? = null): String {
+        return when (wallpaperType) {
+            "TRANSPARENT" -> "BLACK" // Clear glass on launcher wallpaper -> solid black pod for high contrast
+            "TRANSLUCENT" -> "WHITE" // Frosted glass chassis -> frosted white pod
+            "DEFAULT" -> "WHITE"     // Obsidian solid black chassis -> frosted white pod
+            "MATCH_APP", "CUSTOM", "PRESET" -> {
+                val prefs = WidgetPreferences(context)
+                val dim = if (widgetKey != null) prefs.getWidgetWallpaperDimFor(widgetKey) else prefs.widgetWallpaperDim
+                val bmp = getWidgetWallpaperBitmap(context, width = 240, height = 160, widgetKey = widgetKey)
+                val isLight = bmp != null && isBitmapLight(bmp, dim)
+                if (bmp != null && !bmp.isRecycled) {
+                    bmp.recycle()
+                }
+                if (isLight) {
+                    "BLACK"
+                } else {
+                    "WHITE"
+                }
+            }
+            else -> "WHITE"
+        }
+    }
+
+    fun getEffectivePodColor(context: Context, widgetKey: String): String {
+        val prefs = WidgetPreferences(context)
+        val manualColor = prefs.getWidgetInsideDivColor(widgetKey)
+        if (manualColor == "WHITE" || manualColor == "BLACK") {
+            return manualColor
+        }
+        val wallpaperType = prefs.getWidgetWallpaperTypeFor(widgetKey)
+        return resolvePodColorForWallpaper(context, wallpaperType, widgetKey)
+    }
+
     // --- Procedural Preset Artists ---
 
     private fun drawObsidianCore(canvas: Canvas, w: Int, h: Int) {

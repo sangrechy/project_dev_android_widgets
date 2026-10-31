@@ -292,6 +292,14 @@ class MainScreenViewModelTest {
         viewModel.setWidgetOuterDivSize("leetcode_circle", "4x2")
         assertEquals("4x2", viewModel.getWidgetOuterDivSize("leetcode_circle"))
         assertEquals(3, fakeRepo.updateWidgetsCallCount)
+
+        viewModel.setWidgetInsideDivColor("leetcode_circle", "BLACK")
+        assertEquals("BLACK", viewModel.getWidgetInsideDivColor("leetcode_circle"))
+        assertEquals(4, fakeRepo.updateWidgetsCallCount)
+
+        viewModel.setWidgetInsideDivColor("leetcode_circle", "WHITE")
+        assertEquals("WHITE", viewModel.getWidgetInsideDivColor("leetcode_circle"))
+        assertEquals(5, fakeRepo.updateWidgetsCallCount)
     }
 }
 
@@ -509,6 +517,12 @@ private class FakeDataRepository : DataRepository {
     override fun getWidgetOuterDivSize(widgetKey: String): String = outerDivSizes[widgetKey.trim().uppercase()] ?: "2x2"
     override fun setWidgetOuterDivSize(widgetKey: String, size: String) {
         outerDivSizes[widgetKey.trim().uppercase()] = size
+    }
+
+    private val insideDivColors = mutableMapOf<String, String>()
+    override fun getWidgetInsideDivColor(widgetKey: String): String = insideDivColors[widgetKey.trim().uppercase()] ?: "AUTO"
+    override fun setWidgetInsideDivColor(widgetKey: String, color: String) {
+        insideDivColors[widgetKey.trim().uppercase()] = color
     }
 
     override suspend fun saveCustomWallpaperFromUri(uri: android.net.Uri, forWidget: Boolean): String? = "/mock/path.jpg"

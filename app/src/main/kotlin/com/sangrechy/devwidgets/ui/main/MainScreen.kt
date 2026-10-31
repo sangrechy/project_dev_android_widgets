@@ -610,6 +610,8 @@ fun MainScreen(
                             },
                             onSetWidgetOuterDivSize = viewModel::setWidgetOuterDivSize,
                             getWidgetOuterDivSize = viewModel::getWidgetOuterDivSize,
+                            onSetWidgetInsideDivColor = viewModel::setWidgetInsideDivColor,
+                            getWidgetInsideDivColor = viewModel::getWidgetInsideDivColor,
                             onPinWidget = { providerClass -> pinWidgetToHomeScreen(context, providerClass) }
                         )
 
@@ -2081,6 +2083,8 @@ private fun WidgetsScreenContent(
     getWidgetElementOffset: (widgetKey: String) -> Pair<Float, Float> = { 0f to 0f },
     onSetWidgetOuterDivSize: (widgetKey: String, size: String) -> Unit = { _, _ -> },
     getWidgetOuterDivSize: (widgetKey: String) -> String = { "2x2" },
+    onSetWidgetInsideDivColor: (widgetKey: String, color: String) -> Unit = { _, _ -> },
+    getWidgetInsideDivColor: (widgetKey: String) -> String = { "AUTO" },
     onPinWidget: (Class<out AppWidgetProvider>) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -2441,6 +2445,8 @@ private fun WidgetsScreenContent(
 
         // 3. LeetCode Circle (Circle Only - Div Inside Div)
         var lcOuterSize by remember { mutableStateOf(getWidgetOuterDivSize("leetcode_circle")) }
+        var lcWidgetWallpaper by remember { mutableStateOf(getWidgetSpecificWallpaper("leetcode_circle")) }
+        var lcInsideDivColor by remember { mutableStateOf(getWidgetInsideDivColor("leetcode_circle")) }
         val lcOuterWidthDp = when (lcOuterSize) {
             "2x2" -> 160.dp
             "3x2" -> 230.dp
@@ -2459,16 +2465,25 @@ private fun WidgetsScreenContent(
             subtitle = "Circle gauge with selectable outer div size ($lcOuterSize) & edge alignment",
             tag = "LC Circle",
             widgetKey = "leetcode_circle",
-            currentWidgetWallpaper = getWidgetSpecificWallpaper("leetcode_circle"),
-            onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("leetcode_circle", it) },
+            currentWidgetWallpaper = lcWidgetWallpaper,
+            onSelectWidgetWallpaper = {
+                lcWidgetWallpaper = it
+                onSetWidgetSpecificWallpaper("leetcode_circle", it)
+            },
             onClick = { onPinWidget(LeetCodeCircleWidgetProvider::class.java) },
             content = {
+                val context = LocalContext.current
                 val density = LocalDensity.current
                 val initialOffset = remember { getWidgetElementOffset("leetcode_circle") }
                 var offsetX by remember { mutableStateOf(initialOffset.first.coerceIn(-lcMaxOffsetX, lcMaxOffsetX)) }
                 var offsetY by remember { mutableStateOf(initialOffset.second.coerceIn(-20f, 20f)) }
                 val lcCircle = remember(dashboardData.leetCode) {
                     WidgetBitmapRenderer.renderLeetCodeCircle(dashboardData.leetCode, sizePx = 360).asImageBitmap()
+                }
+                val lcPodColor = remember(lcWidgetWallpaper, lcInsideDivColor) {
+                    if (lcInsideDivColor == "WHITE") "WHITE"
+                    else if (lcInsideDivColor == "BLACK") "BLACK"
+                    else WallpaperManager.resolvePodColorForWallpaper(context, lcWidgetWallpaper, "leetcode_circle")
                 }
 
                 Column(
@@ -2684,6 +2699,46 @@ private fun WidgetsScreenContent(
                         }
                     }
 
+                    // Inside Div Color Selector (Auto | White | Black)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Inside Div:",
+                            color = Color(0xFFAAAAAA),
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        listOf(
+                            "AUTO" to "Auto",
+                            "WHITE" to "White",
+                            "BLACK" to "Black"
+                        ).forEach { (colorKey, label) ->
+                            val isSelected = (lcInsideDivColor == colorKey)
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) Color.White else Color(0x22FFFFFF))
+                                    .clickable {
+                                        lcInsideDivColor = colorKey
+                                        onSetWidgetInsideDivColor("leetcode_circle", colorKey)
+                                    }
+                                    .padding(vertical = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSelected) Color.Black else Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+
                     // Circle Stage: Outer Div container with inner transparent div
                     Box(
                         modifier = Modifier
@@ -2701,6 +2756,7 @@ private fun WidgetsScreenContent(
                             contentAlignment = Alignment.Center
                         ) {
                             // Compact Inner Circular Div: Small & Visible frosted pod
+                            val isLcPodBlack = (lcPodColor == "BLACK")
                             Box(
                                 modifier = Modifier
                                     .offset {
@@ -2726,8 +2782,8 @@ private fun WidgetsScreenContent(
                                     }
                                     .size(86.dp)
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0x26FFFFFF))
-                                    .border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(12.dp)),
+                                    .background(if (isLcPodBlack) Color(0xD90B0B0D) else Color(0x26FFFFFF))
+                                    .border(1.dp, if (isLcPodBlack) Color(0x33FFFFFF) else Color(0x38FFFFFF), RoundedCornerShape(12.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Image(
@@ -2744,6 +2800,8 @@ private fun WidgetsScreenContent(
 
         // 4. GitHub Circle (Circle Only - Div Inside Div)
         var ghOuterSize by remember { mutableStateOf(getWidgetOuterDivSize("github_circle")) }
+        var ghWidgetWallpaper by remember { mutableStateOf(getWidgetSpecificWallpaper("github_circle")) }
+        var ghInsideDivColor by remember { mutableStateOf(getWidgetInsideDivColor("github_circle")) }
         val ghOuterWidthDp = when (ghOuterSize) {
             "2x2" -> 160.dp
             "3x2" -> 230.dp
@@ -2762,16 +2820,25 @@ private fun WidgetsScreenContent(
             subtitle = "Circle gauge with selectable outer div size ($ghOuterSize) & edge alignment",
             tag = "GH Circle",
             widgetKey = "github_circle",
-            currentWidgetWallpaper = getWidgetSpecificWallpaper("github_circle"),
-            onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("github_circle", it) },
+            currentWidgetWallpaper = ghWidgetWallpaper,
+            onSelectWidgetWallpaper = {
+                ghWidgetWallpaper = it
+                onSetWidgetSpecificWallpaper("github_circle", it)
+            },
             onClick = { onPinWidget(GitHubCircleWidgetProvider::class.java) },
             content = {
+                val context = LocalContext.current
                 val density = LocalDensity.current
                 val initialOffset = remember { getWidgetElementOffset("github_circle") }
                 var offsetX by remember { mutableStateOf(initialOffset.first.coerceIn(-ghMaxOffsetX, ghMaxOffsetX)) }
                 var offsetY by remember { mutableStateOf(initialOffset.second.coerceIn(-20f, 20f)) }
                 val ghCircle = remember(dashboardData.gitHub) {
                     WidgetBitmapRenderer.renderGitHubTypeMap(dashboardData.gitHub, sizePx = 360).asImageBitmap()
+                }
+                val ghPodColor = remember(ghWidgetWallpaper, ghInsideDivColor) {
+                    if (ghInsideDivColor == "WHITE") "WHITE"
+                    else if (ghInsideDivColor == "BLACK") "BLACK"
+                    else WallpaperManager.resolvePodColorForWallpaper(context, ghWidgetWallpaper, "github_circle")
                 }
 
                 Column(
@@ -2987,6 +3054,46 @@ private fun WidgetsScreenContent(
                         }
                     }
 
+                    // Inside Div Color Selector (Auto | White | Black)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Inside Div:",
+                            color = Color(0xFFAAAAAA),
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        listOf(
+                            "AUTO" to "Auto",
+                            "WHITE" to "White",
+                            "BLACK" to "Black"
+                        ).forEach { (colorKey, label) ->
+                            val isSelected = (ghInsideDivColor == colorKey)
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) Color.White else Color(0x22FFFFFF))
+                                    .clickable {
+                                        ghInsideDivColor = colorKey
+                                        onSetWidgetInsideDivColor("github_circle", colorKey)
+                                    }
+                                    .padding(vertical = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSelected) Color.Black else Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+
                     // Circle Stage: Outer Div container with inner transparent div
                     Box(
                         modifier = Modifier
@@ -3004,6 +3111,7 @@ private fun WidgetsScreenContent(
                             contentAlignment = Alignment.Center
                         ) {
                             // Compact Inner Circular Div: Small & Visible frosted pod
+                            val isGhPodBlack = (ghPodColor == "BLACK")
                             Box(
                                 modifier = Modifier
                                     .offset {
@@ -3029,8 +3137,8 @@ private fun WidgetsScreenContent(
                                     }
                                     .size(86.dp)
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0x26FFFFFF))
-                                    .border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(12.dp)),
+                                    .background(if (isGhPodBlack) Color(0xD90B0B0D) else Color(0x26FFFFFF))
+                                    .border(1.dp, if (isGhPodBlack) Color(0x33FFFFFF) else Color(0x38FFFFFF), RoundedCornerShape(12.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Image(
@@ -3193,9 +3301,9 @@ private fun WidgetGalleryCard(
 
             // Visual Preview Block (Chassis with Wallpaper / Style preview)
             val context = LocalContext.current
-            val previewWallpaperBitmap = remember(currentWidgetWallpaper) {
-                if (currentWidgetWallpaper == "MATCH_APP") {
-                    WallpaperManager.getAppWallpaperBitmap(context, width = 640, height = 360)
+            val previewWallpaperBitmap = remember(currentWidgetWallpaper, widgetKey) {
+                if (currentWidgetWallpaper in listOf("MATCH_APP", "CUSTOM", "PRESET")) {
+                    WallpaperManager.getWidgetWallpaperBitmap(context, width = 340, height = 180, widgetKey = widgetKey)
                 } else null
             }
 
