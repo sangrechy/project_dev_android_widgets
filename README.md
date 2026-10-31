@@ -1,6 +1,6 @@
 # Dev Life: LeetCode & GitHub Android Home Screen Dashboard
 
-[![Download APK](https://img.shields.io/badge/Download%20APK-v1.3.1-success?style=for-the-badge&logo=android)](https://github.com/sangrechy/project_dev_android_widgets/releases/download/v1.3.1/dev-life-v1.3.1.apk)
+[![Download APK](https://img.shields.io/badge/Download%20APK-v1.4.0-success?style=for-the-badge&logo=android)](https://github.com/sangrechy/project_dev_android_widgets/releases/download/v1.4.0/dev-life-v1.4.0.apk)
 [![Latest Release](https://img.shields.io/github/v/release/sangrechy/project_dev_android_widgets?style=for-the-badge&logo=github)](https://github.com/sangrechy/project_dev_android_widgets/releases/latest)
 
 A native Android home screen widget built with **Kotlin**, **Jetpack Compose**, **RemoteViews**, and **WorkManager** that brings your live developer telemetry directly to your home screen with a sleek glassmorphic aesthetic.
@@ -10,8 +10,8 @@ A native Android home screen widget built with **Kotlin**, **Jetpack Compose**, 
 ## 📥 Download & Install
 
 You can download the pre-compiled APK directly:
-- **Direct APK Download**: [**`dev-life-v1.3.1.apk`** (v1.3.1)](https://github.com/sangrechy/project_dev_android_widgets/releases/download/v1.3.1/dev-life-v1.3.1.apk)
-- **GitHub Releases Page**: [Releases · sangrechy/project_dev_android_widgets](https://github.com/sangrechy/project_dev_android_widgets/releases/tag/v1.3.1)
+- **Direct APK Download**: [**`dev-life-v1.4.0.apk`** (v1.4.0)](https://github.com/sangrechy/project_dev_android_widgets/releases/download/v1.4.0/dev-life-v1.4.0.apk)
+- **GitHub Releases Page**: [Releases · sangrechy/project_dev_android_widgets](https://github.com/sangrechy/project_dev_android_widgets/releases/tag/v1.4.0)
 
 ---
 
