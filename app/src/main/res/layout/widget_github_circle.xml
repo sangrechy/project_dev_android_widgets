@@ -86,7 +86,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="GitHub"
-                        android:textColor="#3FB950"
+                        android:textColor="#FFFFFF"
                         android:textSize="11sp"
                         android:textStyle="bold"
                         android:singleLine="true" />
@@ -97,7 +97,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="3dp"
                         android:text="(@dev)"
-                        android:textColor="#94A3B8"
+                        android:textColor="#A0A0A0"
                         android:textSize="9sp"
                         android:singleLine="true"
                         android:ellipsize="end" />

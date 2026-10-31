@@ -1,32 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Neumorphic Soft UI Palette from reference.avif -->
-    <color name="nm_bg">#E6ECF5</color>
-    <color name="nm_surface">#EAF0F8</color>
-    <color name="nm_card_glass">#F5F8FC</color>
-    <color name="nm_card_border">#FFFFFF</color>
-    <color name="nm_shadow_dark">#A8B8CD</color>
-    <color name="nm_shadow_light">#FFFFFF</color>
+    <!-- Monochrome Palette -->
+    <color name="nm_bg">#000000</color>
+    <color name="nm_surface">#0D0D0D</color>
+    <color name="nm_card_glass">#141414</color>
+    <color name="nm_card_border">#2B2B2B</color>
+    <color name="nm_shadow_dark">#050505</color>
+    <color name="nm_shadow_light">#262626</color>
 
     <!-- Typography -->
-    <color name="nm_text_primary">#1A2230</color>
-    <color name="nm_text_secondary">#475569</color>
-    <color name="nm_text_muted">#79879C</color>
+    <color name="nm_text_primary">#FFFFFF</color>
+    <color name="nm_text_secondary">#D4D4D4</color>
+    <color name="nm_text_muted">#8A8A8A</color>
 
     <!-- Brand Accents -->
-    <color name="nm_accent_leetcode">#FFA116</color>
-    <color name="nm_accent_github">#2EA043</color>
-    <color name="nm_accent_purple">#6B46C1</color>
+    <color name="nm_accent_leetcode">#FFFFFF</color>
+    <color name="nm_accent_github">#FFFFFF</color>
+    <color name="nm_accent_purple">#D4D4D4</color>
 
     <!-- Status Badges -->
-    <color name="nm_badge_ac_bg">#E0F7EF</color>
-    <color name="nm_badge_ac_text">#059669</color>
-    <color name="nm_badge_wa_bg">#FEE8E8</color>
-    <color name="nm_badge_wa_text">#DC2626</color>
-    <color name="nm_badge_gh_bg">#EEF2FF</color>
-    <color name="nm_badge_gh_text">#4F46E5</color>
+    <color name="nm_badge_ac_bg">#26FFFFFF</color>
+    <color name="nm_badge_ac_text">#FFFFFF</color>
+    <color name="nm_badge_wa_bg">#1AFFFFFF</color>
+    <color name="nm_badge_wa_text">#A3A3A3</color>
+    <color name="nm_badge_gh_bg">#26FFFFFF</color>
+    <color name="nm_badge_gh_text">#FFFFFF</color>
 
     <!-- Row background with glassy finish -->
-    <color name="nm_row_bg">#FFFFFF</color>
-    <color name="nm_row_border">#D6E0EC</color>
+    <color name="nm_row_bg">#141414</color>
+    <color name="nm_row_border">#2B2B2B</color>
 </resources>

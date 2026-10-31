@@ -63,28 +63,28 @@ object WidgetBitmapRenderer {
         var currentAngle = 135f
         val gapAngle = 4f
 
-        // Easy Arc (Emerald Teal: #00B8A3)
+        // Easy Arc (Crisp Pure White: #FFFFFF)
         val easySweep = (easyFraction * 270f)
         if (easySweep > 6f) {
-            arcPaint.color = Color.parseColor("#00B8A3")
+            arcPaint.color = Color.parseColor("#FFFFFF")
             val sweep = (easySweep - gapAngle).coerceAtLeast(2f)
             canvas.drawArc(arcOval, currentAngle + 2f, sweep, false, arcPaint)
         }
         currentAngle += easySweep
 
-        // Medium Arc (Warm Amber: #FFA116)
+        // Medium Arc (Silver Gray: #A8A8A8)
         val medSweep = (medFraction * 270f)
         if (medSweep > 6f) {
-            arcPaint.color = Color.parseColor("#FFA116")
+            arcPaint.color = Color.parseColor("#A8A8A8")
             val sweep = (medSweep - gapAngle).coerceAtLeast(2f)
             canvas.drawArc(arcOval, currentAngle + 2f, sweep, false, arcPaint)
         }
         currentAngle += medSweep
 
-        // Hard Arc (Rose Coral: #EF4743)
+        // Hard Arc (Deep Gray: #555555)
         val hardSweep = (hardFraction * 270f)
         if (hardSweep > 6f) {
-            arcPaint.color = Color.parseColor("#EF4743")
+            arcPaint.color = Color.parseColor("#555555")
             val sweep = (hardSweep - gapAngle).coerceAtLeast(2f)
             canvas.drawArc(arcOval, currentAngle + 2f, sweep, false, arcPaint)
         }
@@ -147,9 +147,9 @@ object WidgetBitmapRenderer {
             canvas.drawText(label, startX + (dotRadius * 2f) + gap, tagY, tagPaint)
         }
 
-        drawDifficultyCol(safeSize * 0.20f, stats.easySolved, "Easy", "#00B8A3")
-        drawDifficultyCol(safeSize * 0.50f, stats.mediumSolved, "Med", "#FFA116")
-        drawDifficultyCol(safeSize * 0.80f, stats.hardSolved, "Hard", "#EF4743")
+        drawDifficultyCol(safeSize * 0.20f, stats.easySolved, "Easy", "#FFFFFF")
+        drawDifficultyCol(safeSize * 0.50f, stats.mediumSolved, "Med", "#A8A8A8")
+        drawDifficultyCol(safeSize * 0.80f, stats.hardSolved, "Hard", "#666666")
 
         return bitmap
     }
@@ -214,24 +214,14 @@ object WidgetBitmapRenderer {
             }
         }
 
-        // Glowing Levels
-        val levelColors = if (isLeetCode) {
-            intArrayOf(
-                Color.argb(35, 255, 255, 255),   // Translucent empty cell
-                Color.argb(150, 45, 212, 191),   // Level 1: Soft teal
-                Color.argb(210, 20, 184, 166),   // Level 2: Vibrant teal
-                Color.parseColor("#00B8A3"),     // Level 3: Deep teal
-                Color.parseColor("#14B8A6")      // Level 4: Glowing teal
-            )
-        } else {
-            intArrayOf(
-                Color.argb(35, 255, 255, 255),   // Translucent empty cell
-                Color.argb(150, 74, 222, 128),   // Level 1: Soft green
-                Color.argb(210, 34, 197, 94),    // Level 2: Vibrant green
-                Color.parseColor("#22C55E"),     // Level 3: Emerald
-                Color.parseColor("#39D353")      // Level 4: Glowing lime
-            )
-        }
+        // Strict Black & White Monochrome Levels
+        val levelColors = intArrayOf(
+            Color.argb(25, 255, 255, 255),   // Translucent empty cell
+            Color.argb(90, 255, 255, 255),   // Level 1: Charcoal gray
+            Color.argb(150, 255, 255, 255),  // Level 2: Medium gray
+            Color.argb(210, 255, 255, 255),  // Level 3: Silver gray
+            0xFFFFFFFF.toInt()               // Level 4: Pure bright solid White
+        )
 
         // 3. Generate 12 sequential months ending at current month
         data class MonthCalendarBlock(
@@ -509,39 +499,36 @@ object WidgetBitmapRenderer {
             style = Paint.Style.FILL
             shader = LinearGradient(
                 center, center - cNorm, center, center + issueNorm,
-                Color.argb(135, 34, 197, 94),
-                Color.argb(60, 16, 185, 129),
+                Color.argb(80, 255, 255, 255),
+                Color.argb(25, 255, 255, 255),
                 Shader.TileMode.CLAMP
             )
         }
         canvas.drawPath(polyPath, fillPaint)
 
-        // Glowing perimeter stroke
+        // Crisp White perimeter stroke
         val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#22C55E")
-            this.strokeWidth = 2.6f
+            color = Color.WHITE
+            this.strokeWidth = 2.2f
             style = Paint.Style.STROKE
         }
         canvas.drawPath(polyPath, strokePaint)
 
-        // Directional Vertex Dots
+        // Directional Vertex Dots (Monochrome White)
         val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.FILL
+            color = Color.WHITE
         }
-        dotPaint.color = Color.parseColor("#22C55E")
-        canvas.drawCircle(center, center - cNorm, 4.5f, dotPaint)
-        dotPaint.color = Color.parseColor("#A855F7")
-        canvas.drawCircle(center + prNorm, center, 4.5f, dotPaint)
-        dotPaint.color = Color.parseColor("#3B82F6")
-        canvas.drawCircle(center, center + issueNorm, 4.5f, dotPaint)
-        dotPaint.color = Color.parseColor("#F59E0B")
-        canvas.drawCircle(center - revNorm, center, 4.5f, dotPaint)
+        canvas.drawCircle(center, center - cNorm, 4.0f, dotPaint)
+        canvas.drawCircle(center + prNorm, center, 4.0f, dotPaint)
+        canvas.drawCircle(center, center + issueNorm, 4.0f, dotPaint)
+        canvas.drawCircle(center - revNorm, center, 4.0f, dotPaint)
 
         // 4. Center Glass Hub (Total Contributions Count)
         val hubRadius = safeSize * 0.095f
         val hubPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.FILL
-            color = Color.argb(215, 15, 23, 42)
+            color = Color.argb(230, 16, 16, 16)
         }
         canvas.drawCircle(center, center, hubRadius, hubPaint)
         val hubStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -569,7 +556,7 @@ object WidgetBitmapRenderer {
         }
         canvas.drawText("CONTRIBS", center, hubTextY + (safeSize * 0.040f), hubSubPaint)
 
-        // 5. Four Cardinal Labels with Brand Colors (Clean, non-colliding layout)
+        // 5. Four Cardinal Labels with Monochrome Hierarchy (Clean, non-colliding layout)
         val labelValPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = COLOR_TEXT_WHITE
             textSize = safeSize * 0.046f
@@ -606,14 +593,14 @@ object WidgetBitmapRenderer {
             }
         }
 
-        // Top: Commits (Emerald)
-        drawBadge(center, 22f, "Commits", stats.commitsCount, "#22C55E", Paint.Align.CENTER)
-        // Bottom: Issues (Blue)
-        drawBadge(center, safeSize - 20f, "Issues", stats.issuesCount, "#3B82F6", Paint.Align.CENTER)
-        // Right: PRs (Purple)
-        drawBadge(safeSize - 16f, center + 4f, "PRs", stats.pullRequestsCount, "#A855F7", Paint.Align.RIGHT)
-        // Left: Reviews (Amber)
-        drawBadge(16f, center + 4f, "Reviews", stats.reviewsCount, "#F59E0B", Paint.Align.LEFT)
+        // Top: Commits (Pure White)
+        drawBadge(center, 22f, "Commits", stats.commitsCount, "#FFFFFF", Paint.Align.CENTER)
+        // Bottom: Issues (Light Gray)
+        drawBadge(center, safeSize - 20f, "Issues", stats.issuesCount, "#CCCCCC", Paint.Align.CENTER)
+        // Right: PRs (Silver)
+        drawBadge(safeSize - 16f, center + 4f, "PRs", stats.pullRequestsCount, "#D4D4D4", Paint.Align.RIGHT)
+        // Left: Reviews (Medium Gray)
+        drawBadge(16f, center + 4f, "Reviews", stats.reviewsCount, "#A0A0A0", Paint.Align.LEFT)
 
         return bitmap
     }

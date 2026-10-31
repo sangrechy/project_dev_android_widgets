@@ -25,38 +25,38 @@ enum class WallpaperPreset(
     OBSIDIAN_CORE(
         id = "OBSIDIAN_CORE",
         title = "Obsidian Core",
-        subtitle = "Geometric dark tech obsidian with indigo aura",
-        primaryColorHex = "#3B82F6"
+        subtitle = "Geometric dark tech obsidian with silver coordinate grid",
+        primaryColorHex = "#FFFFFF"
     ),
     CYBER_MATRIX(
         id = "CYBER_MATRIX",
-        title = "Cyber Matrix",
-        subtitle = "Matrix coordinate grid with cyan & emerald lines",
-        primaryColorHex = "#10B981"
+        title = "Mono Matrix",
+        subtitle = "Matrix coordinate grid with clean monochrome lines",
+        primaryColorHex = "#E0E0E0"
     ),
     DEEP_COSMOS(
         id = "DEEP_COSMOS",
-        title = "Deep Cosmos",
-        subtitle = "Interstellar stardust with violet & nebula clouds",
-        primaryColorHex = "#8B5CF6"
+        title = "Deep Void",
+        subtitle = "Interstellar deep pitch black with monochrome stardust",
+        primaryColorHex = "#CCCCCC"
     ),
     TERMINAL_CODE(
         id = "TERMINAL_CODE",
-        title = "Terminal Dark",
-        subtitle = "Developer code syntax & algorithmic typography",
-        primaryColorHex = "#64748B"
+        title = "Terminal Mono",
+        subtitle = "Developer code syntax & grayscale typography",
+        primaryColorHex = "#AAAAAA"
     ),
     MINIMAL_CARBON(
         id = "MINIMAL_CARBON",
         title = "Carbon Weave",
         subtitle = "Sleek diagonal woven carbon-fiber texture",
-        primaryColorHex = "#22C55E"
+        primaryColorHex = "#888888"
     ),
     SUNSET_DEV(
         id = "SUNSET_DEV",
-        title = "Synthwave Horizon",
-        subtitle = "Dark synthwave glow with warm amber and purple",
-        primaryColorHex = "#F59E0B"
+        title = "Studio Dark",
+        subtitle = "Dark studio vignette with subtle monochrome lighting",
+        primaryColorHex = "#777777"
     );
 
     companion object {
@@ -168,18 +168,18 @@ object WallpaperManager {
         val basePaint = Paint().apply {
             shader = LinearGradient(
                 0f, 0f, 0f, h.toFloat(),
-                intArrayOf(Color.parseColor("#0B0B0E"), Color.parseColor("#121217"), Color.parseColor("#08080A")),
+                intArrayOf(Color.parseColor("#050505"), Color.parseColor("#101010"), Color.parseColor("#050505")),
                 null, Shader.TileMode.CLAMP
             )
         }
         canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), basePaint)
 
-        // Radial sapphire glow at top center
+        // Subtle monochromatic zenith glow
         val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = RadialGradient(
                 w * 0.5f, h * 0.25f, w * 0.65f,
-                intArrayOf(Color.argb(55, 37, 99, 235), Color.argb(15, 14, 165, 233), Color.TRANSPARENT),
-                floatArrayOf(0f, 0.45f, 1f),
+                intArrayOf(Color.argb(25, 255, 255, 255), Color.TRANSPARENT),
+                floatArrayOf(0f, 1f),
                 Shader.TileMode.CLAMP
             )
         }
@@ -187,7 +187,7 @@ object WallpaperManager {
 
         // Micro tech crosshair grid
         val gridPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.argb(20, 255, 255, 255)
+            color = Color.argb(18, 255, 255, 255)
             strokeWidth = 1f
         }
         val step = 48f
@@ -207,27 +207,16 @@ object WallpaperManager {
         val basePaint = Paint().apply {
             shader = LinearGradient(
                 0f, 0f, 0f, h.toFloat(),
-                intArrayOf(Color.parseColor("#060A0C"), Color.parseColor("#0A1418"), Color.parseColor("#05080A")),
+                intArrayOf(Color.parseColor("#040404"), Color.parseColor("#0D0D0D"), Color.parseColor("#040404")),
                 null, Shader.TileMode.CLAMP
             )
         }
         canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), basePaint)
 
-        // Cyan / Emerald gradient auras
-        val auraPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            shader = RadialGradient(
-                w * 0.7f, h * 0.6f, w * 0.7f,
-                intArrayOf(Color.argb(45, 16, 185, 129), Color.argb(15, 6, 182, 212), Color.TRANSPARENT),
-                floatArrayOf(0f, 0.5f, 1f),
-                Shader.TileMode.CLAMP
-            )
-        }
-        canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), auraPaint)
-
-        // Matrix tech grid
+        // Matrix tech monochrome grid
         val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.argb(26, 16, 185, 129)
-            strokeWidth = 1.2f
+            color = Color.argb(20, 255, 255, 255)
+            strokeWidth = 1.0f
         }
         val step = 56f
         var x = 0f
@@ -246,24 +235,13 @@ object WallpaperManager {
         val basePaint = Paint().apply {
             shader = LinearGradient(
                 0f, 0f, w.toFloat(), h.toFloat(),
-                intArrayOf(Color.parseColor("#07060E"), Color.parseColor("#110B22"), Color.parseColor("#080512")),
+                intArrayOf(Color.parseColor("#000000"), Color.parseColor("#080808"), Color.parseColor("#000000")),
                 null, Shader.TileMode.CLAMP
             )
         }
         canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), basePaint)
 
-        // Cosmic nebula clouds
-        val nebulaPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            shader = RadialGradient(
-                w * 0.35f, h * 0.35f, w * 0.8f,
-                intArrayOf(Color.argb(60, 139, 92, 246), Color.argb(25, 99, 102, 241), Color.TRANSPARENT),
-                floatArrayOf(0f, 0.5f, 1f),
-                Shader.TileMode.CLAMP
-            )
-        }
-        canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), nebulaPaint)
-
-        // Starfield
+        // Starfield (Pure Monochrome)
         val starPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE
         }
@@ -271,8 +249,8 @@ object WallpaperManager {
         for (i in 0..120) {
             val sx = rand.nextFloat() * w
             val sy = rand.nextFloat() * h
-            val sr = rand.nextFloat() * 1.8f + 0.5f
-            starPaint.alpha = rand.nextInt(40, 220)
+            val sr = rand.nextFloat() * 1.5f + 0.4f
+            starPaint.alpha = rand.nextInt(30, 200)
             canvas.drawCircle(sx, sy, sr, starPaint)
         }
     }
@@ -281,14 +259,14 @@ object WallpaperManager {
         val basePaint = Paint().apply {
             shader = LinearGradient(
                 0f, 0f, 0f, h.toFloat(),
-                intArrayOf(Color.parseColor("#0C0E12"), Color.parseColor("#14171F"), Color.parseColor("#090B0E")),
+                intArrayOf(Color.parseColor("#060606"), Color.parseColor("#0F0F0F"), Color.parseColor("#050505")),
                 null, Shader.TileMode.CLAMP
             )
         }
         canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), basePaint)
 
         val codePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.argb(22, 148, 163, 184)
+            color = Color.argb(20, 255, 255, 255)
             textSize = 14f
             typeface = Typeface.MONOSPACE
         }
@@ -318,13 +296,13 @@ object WallpaperManager {
 
     private fun drawMinimalCarbon(canvas: Canvas, w: Int, h: Int) {
         val basePaint = Paint().apply {
-            color = Color.parseColor("#0F1014")
+            color = Color.parseColor("#080808")
         }
         canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), basePaint)
 
         val stripePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.argb(18, 255, 255, 255)
-            strokeWidth = 3f
+            color = Color.argb(16, 255, 255, 255)
+            strokeWidth = 2.5f
         }
 
         var offset = -h.toFloat()
@@ -338,7 +316,7 @@ object WallpaperManager {
         val vignette = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = RadialGradient(
                 w * 0.5f, h * 0.5f, maxOf(w, h) * 0.6f,
-                intArrayOf(Color.TRANSPARENT, Color.argb(100, 5, 5, 7)),
+                intArrayOf(Color.TRANSPARENT, Color.argb(140, 0, 0, 0)),
                 floatArrayOf(0.4f, 1f),
                 Shader.TileMode.CLAMP
             )
@@ -351,10 +329,10 @@ object WallpaperManager {
             shader = LinearGradient(
                 0f, 0f, 0f, h.toFloat(),
                 intArrayOf(
-                    Color.parseColor("#0A0912"),
-                    Color.parseColor("#190F24"),
-                    Color.parseColor("#2E1029"),
-                    Color.parseColor("#0D0B14")
+                    Color.parseColor("#050505"),
+                    Color.parseColor("#121212"),
+                    Color.parseColor("#1A1A1A"),
+                    Color.parseColor("#080808")
                 ),
                 floatArrayOf(0f, 0.4f, 0.7f, 1f),
                 Shader.TileMode.CLAMP
@@ -362,15 +340,15 @@ object WallpaperManager {
         }
         canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), basePaint)
 
-        // Amber sunset horizon glow
-        val horizonGlow = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        // Soft monochrome studio center vignette
+        val studioGlow = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = RadialGradient(
-                w * 0.5f, h * 0.72f, w * 0.65f,
-                intArrayOf(Color.argb(60, 245, 158, 11), Color.argb(20, 217, 70, 239), Color.TRANSPARENT),
-                floatArrayOf(0f, 0.5f, 1f),
+                w * 0.5f, h * 0.5f, w * 0.65f,
+                intArrayOf(Color.argb(25, 255, 255, 255), Color.TRANSPARENT),
+                floatArrayOf(0f, 1f),
                 Shader.TileMode.CLAMP
             )
         }
-        canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), horizonGlow)
+        canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), studioGlow)
     }
 }

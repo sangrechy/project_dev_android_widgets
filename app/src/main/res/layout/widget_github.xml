@@ -80,7 +80,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="GitHub Activity"
-                android:textColor="#3FB950"
+                android:textColor="#FFFFFF"
                 android:textSize="13sp"
                 android:textStyle="bold" />
 
@@ -90,7 +90,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="4dp"
                 android:text=" (@dev)"
-                android:textColor="#94A3B8"
+                android:textColor="#A0A0A0"
                 android:textSize="11sp" />
         </LinearLayout>
     </RelativeLayout>

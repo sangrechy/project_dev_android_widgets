@@ -36,43 +36,43 @@ val tertiaryDark = Color(0xFFE6B5F8)
 //End - Partial Color List
 
 // =============================================================================
-// UI Theme: Frosted Translucent Glass System (Muted, Decent, Non-AI-Slop)
+// UI Theme: Strict Black & White Monochrome (No light or glowing colors)
 // =============================================================================
-val ThemeBgTop = Color(0xFF090B10)
-val ThemeBgMid = Color(0xFF0E1017)
-val ThemeBgBottom = Color(0xFF0A0C11)
-val ThemeBgDark = Color(0xFF090B10)
+val ThemeBgTop = Color(0xFF000000)
+val ThemeBgMid = Color(0xFF080808)
+val ThemeBgBottom = Color(0xFF040404)
+val ThemeBgDark = Color(0xFF000000)
 
-val ThemeCardBg = Color(0xF213151D)
-val ThemeCardBgElevated = Color(0xF6181B24)
-val ThemeCardBorder = Color(0x1FFFFFFF)
+val ThemeCardBg = Color(0xF2101010)
+val ThemeCardBgElevated = Color(0xF6161616)
+val ThemeCardBorder = Color(0x28FFFFFF)
 
-val ThemeInnerBoxBg = Color(0xFF101218)
-val ThemeInnerBoxBorder = Color(0x18FFFFFF)
+val ThemeInnerBoxBg = Color(0xFF0C0C0C)
+val ThemeInnerBoxBorder = Color(0x20FFFFFF)
 
-val ThemeTextFieldBg = Color(0xFF12141A)
-val ThemeTextFieldBorder = Color(0xFF2A2D38)
-val ThemeTextEditorBg = Color(0xFF0E1015)
-val ThemeCodeBlockBg = Color(0xFF0A0C10)
+val ThemeTextFieldBg = Color(0xFF121212)
+val ThemeTextFieldBorder = Color(0xFF2C2C2C)
+val ThemeTextEditorBg = Color(0xFF080808)
+val ThemeCodeBlockBg = Color(0xFF050505)
 
-val ThemeTopBarBg = Color(0xF20D1018)
-val ThemeTopBarBorder = Color(0x18FFFFFF)
+val ThemeTopBarBg = Color(0xF2080808)
+val ThemeTopBarBorder = Color(0x20FFFFFF)
 
-val ThemeDrawerBg = Color(0xFA0D1018)
-val ThemeDrawerHeaderBg = Color(0xFF161922)
-val ThemeDrawerItemSelected = Color(0x22FFFFFF)
+val ThemeDrawerBg = Color(0xFA080808)
+val ThemeDrawerHeaderBg = Color(0xFF141414)
+val ThemeDrawerItemSelected = Color(0x26FFFFFF)
 
-val ThemePillBg = Color(0xFF181B24)
-val ThemePillBorder = Color(0x22FFFFFF)
+val ThemePillBg = Color(0xFF181818)
+val ThemePillBorder = Color(0x26FFFFFF)
 
-val ThemeTextPrimary = Color(0xFFF8FAFC)
-val ThemeTextSecondary = Color(0xFF94A3B8)
-val ThemeTextMuted = Color(0xFF64748B)
+val ThemeTextPrimary = Color(0xFFFFFFFF)
+val ThemeTextSecondary = Color(0xFFAAAAAA)
+val ThemeTextMuted = Color(0xFF707070)
 
-val ThemeAccentBlue = Color(0xFF7DD3FC)
-val ThemeAccentGreen = Color(0xFF34D399)
-val ThemeAccentAmber = Color(0xFFFBBF24)
-val ThemeAccentRed = Color(0xFFFB7185)
+val ThemeAccentBlue = Color(0xFFFFFFFF)  // Pure White
+val ThemeAccentGreen = Color(0xFFD4D4D4) // Crisp Silver
+val ThemeAccentAmber = Color(0xFFA3A3A3) // Medium Silver
+val ThemeAccentRed = Color(0xFF737373)   // Charcoal Gray
 
 
 /*

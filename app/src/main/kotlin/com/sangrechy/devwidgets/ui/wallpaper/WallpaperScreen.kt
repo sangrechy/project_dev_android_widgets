@@ -295,7 +295,7 @@ fun WallpaperScreenContent(
                                 )
                                 Text(
                                     text = preset.subtitle,
-                                    color = Color(0xFF94A3B8),
+                                    color = ThemeTextSecondary,
                                     fontSize = 9.sp,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -617,7 +617,7 @@ fun WallpaperScreenContent(
                             ) {
                                 Text(
                                     text = "LeetCode",
-                                    color = Color(0xFFFFA116),
+                                    color = Color.White,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -646,7 +646,7 @@ fun WallpaperScreenContent(
                             ) {
                                 Text(
                                     text = "GitHub Activity",
-                                    color = Color(0xFF22C55E),
+                                    color = Color.White,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
                                 )

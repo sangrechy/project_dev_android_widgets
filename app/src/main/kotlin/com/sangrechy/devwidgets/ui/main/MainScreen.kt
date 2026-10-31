@@ -90,9 +90,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -408,18 +411,24 @@ fun MainScreen(
             val widgetWallpaperType by viewModel.widgetWallpaperType.collectAsState()
             val widgetSpecificWallpapers by viewModel.widgetSpecificWallpapers.collectAsState()
 
-            val wallpaperBitmap = remember(appWallpaperType, appWallpaperPreset, appWallpaperCustomPath) {
-                WallpaperManager.getAppWallpaperBitmap(context, 1080, 2400)?.asImageBitmap()
+            val wallpaperBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(
+                initialValue = null,
+                appWallpaperType, appWallpaperPreset, appWallpaperCustomPath
+            ) {
+                value = withContext(Dispatchers.IO) {
+                    WallpaperManager.getAppWallpaperBitmap(context, 1080, 2400)?.asImageBitmap()
+                }
             }
 
+            val currentWallpaperBitmap = wallpaperBitmap
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(bgGradient)
             ) {
-                if (appWallpaperType != "NONE" && wallpaperBitmap != null) {
+                if (appWallpaperType != "NONE" && currentWallpaperBitmap != null) {
                     Image(
-                        bitmap = wallpaperBitmap,
+                        bitmap = currentWallpaperBitmap,
                         contentDescription = "App Wallpaper Background",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
@@ -1190,9 +1199,9 @@ private fun LeetCodeDetailView(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        DifficultyPill(label = "Easy", solved = stats.easySolved, max = maxTarget, color = Color(0xFF00B8A3))
-                        DifficultyPill(label = "Medium", solved = stats.mediumSolved, max = maxTarget, color = Color(0xFFFFC01E))
-                        DifficultyPill(label = "Hard", solved = stats.hardSolved, max = maxTarget, color = Color(0xFFFF375F))
+                        DifficultyPill(label = "Easy", solved = stats.easySolved, max = maxTarget, color = Color(0xFFFFFFFF))
+                        DifficultyPill(label = "Medium", solved = stats.mediumSolved, max = maxTarget, color = Color(0xFFCCCCCC))
+                        DifficultyPill(label = "Hard", solved = stats.hardSolved, max = maxTarget, color = Color(0xFF888888))
                     }
                 }
             }
@@ -1728,10 +1737,10 @@ private fun GitHubDetailView(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        ContribMetricItem(label = "Commits", count = stats.commitsCount, color = Color(0xFF3FB950))
-                        ContribMetricItem(label = "Pull Requests", count = stats.pullRequestsCount, color = Color(0xFF8957E5))
-                        ContribMetricItem(label = "Issues", count = stats.issuesCount, color = Color(0xFFD29922))
-                        ContribMetricItem(label = "Code Reviews", count = stats.reviewsCount, color = Color(0xFF388BFD))
+                        ContribMetricItem(label = "Commits", count = stats.commitsCount, color = Color(0xFFFFFFFF))
+                        ContribMetricItem(label = "Pull Requests", count = stats.pullRequestsCount, color = Color(0xFFE0E0E0))
+                        ContribMetricItem(label = "Issues", count = stats.issuesCount, color = Color(0xFFCCCCCC))
+                        ContribMetricItem(label = "Code Reviews", count = stats.reviewsCount, color = Color(0xFFA0A0A0))
                     }
                 }
             }
@@ -1858,9 +1867,11 @@ private fun GitHubLanguagesCard(
                 ) {
                     languages.forEach { lang ->
                         val parsedColor = try {
-                            Color(android.graphics.Color.parseColor(lang.colorHex))
+                            val c = android.graphics.Color.parseColor(lang.colorHex)
+                            val lum = (0.299 * android.graphics.Color.red(c) + 0.587 * android.graphics.Color.green(c) + 0.114 * android.graphics.Color.blue(c)).toInt().coerceIn(120, 255)
+                            Color(lum, lum, lum)
                         } catch (_: Exception) {
-                            Color(0xFF38BDF8)
+                            Color(0xFFD4D4D4)
                         }
                         Box(
                             modifier = Modifier
@@ -2449,13 +2460,16 @@ private fun WidgetsScreenContent(
                         modifier = Modifier
                             .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
                             .pointerInput(Unit) {
-                                detectDragGestures { change, dragAmount ->
+                                detectDragGestures(
+                                    onDragEnd = {
+                                        onSetWidgetElementOffset("leetcode_circle", offsetX, offsetY)
+                                    }
+                                ) { change, dragAmount ->
                                     change.consume()
                                     val newX = (offsetX + dragAmount.x).coerceIn(-65f, 65f)
                                     val newY = (offsetY + dragAmount.y).coerceIn(-35f, 35f)
                                     offsetX = newX
                                     offsetY = newY
-                                    onSetWidgetElementOffset("leetcode_circle", newX, newY)
                                 }
                             }
                             .clip(RoundedCornerShape(16.dp))
@@ -2483,7 +2497,7 @@ private fun WidgetsScreenContent(
                                     )
                                     Text(
                                         text = "LeetCode",
-                                        color = Color(0xFFFFA116),
+                                        color = Color.White,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -2491,7 +2505,7 @@ private fun WidgetsScreenContent(
                                         text = if (dashboardData.leetCode.username.isNotBlank())
                                             "@${dashboardData.leetCode.username}"
                                         else "@dev",
-                                        color = Color(0xFF94A3B8),
+                                        color = Color(0xFFAAAAAA),
                                         fontSize = 9.sp,
                                         fontWeight = FontWeight.Bold,
                                         maxLines = 1
@@ -2508,7 +2522,7 @@ private fun WidgetsScreenContent(
                                             modifier = Modifier
                                                 .size(19.dp)
                                                 .clip(RoundedCornerShape(3.dp))
-                                                .background(Color(0x33EF4444))
+                                                .background(Color(0x33FFFFFF))
                                                 .clickable {
                                                     offsetX = 0f
                                                     offsetY = 0f
@@ -2516,7 +2530,7 @@ private fun WidgetsScreenContent(
                                                 },
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text("↺", color = Color(0xFFF87171), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                            Text("↺", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                     Box(
@@ -2618,13 +2632,16 @@ private fun WidgetsScreenContent(
                         modifier = Modifier
                             .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
                             .pointerInput(Unit) {
-                                detectDragGestures { change, dragAmount ->
+                                detectDragGestures(
+                                    onDragEnd = {
+                                        onSetWidgetElementOffset("github_circle", offsetX, offsetY)
+                                    }
+                                ) { change, dragAmount ->
                                     change.consume()
                                     val newX = (offsetX + dragAmount.x).coerceIn(-65f, 65f)
                                     val newY = (offsetY + dragAmount.y).coerceIn(-35f, 35f)
                                     offsetX = newX
                                     offsetY = newY
-                                    onSetWidgetElementOffset("github_circle", newX, newY)
                                 }
                             }
                             .clip(RoundedCornerShape(16.dp))
@@ -2652,7 +2669,7 @@ private fun WidgetsScreenContent(
                                     )
                                     Text(
                                         text = "GitHub",
-                                        color = Color(0xFF3FB950),
+                                        color = Color.White,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -2660,7 +2677,7 @@ private fun WidgetsScreenContent(
                                         text = if (dashboardData.gitHub.username.isNotBlank())
                                             "@${dashboardData.gitHub.username}"
                                         else "@dev",
-                                        color = Color(0xFF94A3B8),
+                                        color = Color(0xFFAAAAAA),
                                         fontSize = 9.sp,
                                         fontWeight = FontWeight.Bold,
                                         maxLines = 1
@@ -2677,7 +2694,7 @@ private fun WidgetsScreenContent(
                                             modifier = Modifier
                                                 .size(19.dp)
                                                 .clip(RoundedCornerShape(3.dp))
-                                                .background(Color(0x33EF4444))
+                                                .background(Color(0x33FFFFFF))
                                                 .clickable {
                                                     offsetX = 0f
                                                     offsetY = 0f
@@ -2685,7 +2702,7 @@ private fun WidgetsScreenContent(
                                                 },
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text("↺", color = Color(0xFFF87171), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                            Text("↺", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                     Box(
@@ -3488,10 +3505,10 @@ private fun SettingsScreenContent(
                 onClick = onLogoutAll,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0x1AF43F5E),
-                    contentColor = Color(0xFFF43F5E)
+                    containerColor = ThemeCardBgElevated,
+                    contentColor = Color.White
                 ),
-                border = BorderStroke(1.dp, Color(0x33F43F5E)),
+                border = BorderStroke(1.dp, ThemeCardBorder),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -3668,14 +3685,14 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0x2E38BDF8))
-                            .border(1.dp, Color(0x6638BDF8), RoundedCornerShape(8.dp))
+                            .background(Color(0x26FFFFFF))
+                            .border(1.dp, Color(0x40FFFFFF), RoundedCornerShape(8.dp))
                             .clickable { isReversed = !isReversed }
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(
                             text = if (isReversed) "⇅ GH on Top" else "⇅ LC on Top",
-                            color = ThemeAccentBlue,
+                            color = Color.White,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -3686,8 +3703,8 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0x33EF4444))
-                                .border(1.dp, Color(0x66EF4444), RoundedCornerShape(8.dp))
+                                .background(Color(0x26FFFFFF))
+                                .border(1.dp, Color(0x40FFFFFF), RoundedCornerShape(8.dp))
                                 .clickable {
                                     lcOffsetX = 0f
                                     lcOffsetY = 0f
@@ -3699,7 +3716,7 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
                         ) {
                             Text(
                                 text = "Reset",
-                                color = Color(0xFFF87171),
+                                color = Color.White,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -3747,7 +3764,7 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
                                 )
                                 Text(
                                     text = "LeetCode",
-                                    color = Color(0xFFFFA116),
+                                    color = Color.White,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -3756,7 +3773,7 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
                                         "@${data.leetCode.username.ifBlank { "dev" }} (Offline)"
                                     else
                                         "@${data.leetCode.username.ifBlank { "dev" }}",
-                                    color = Color(0xFF94A3B8),
+                                    color = Color(0xFFAAAAAA),
                                     fontSize = 9.5.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -3881,7 +3898,7 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
                                 )
                                 Text(
                                     text = "GitHub",
-                                    color = Color(0xFF3FB950),
+                                    color = Color.White,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -3890,7 +3907,7 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
                                         "@${data.gitHub.username.ifBlank { "dev" }} (Offline)"
                                     else
                                         "@${data.gitHub.username.ifBlank { "dev" }}",
-                                    color = Color(0xFF94A3B8),
+                                    color = Color(0xFFAAAAAA),
                                     fontSize = 9.5.sp,
                                     fontWeight = FontWeight.Bold
                                 )

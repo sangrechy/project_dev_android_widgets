@@ -3,12 +3,14 @@ package com.sangrechy.devwidgets.data
 import android.content.Context
 import com.sangrechy.devwidgets.data.model.WidgetDashboardData
 import com.sangrechy.devwidgets.data.network.DevApiService
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 import com.sangrechy.devwidgets.data.model.AccountStatus
@@ -261,7 +263,9 @@ class DefaultDataRepository(private val context: Context) : DataRepository {
 
     override fun updateAllWidgets() {
         val data = prefs.getDashboardData()
-        com.sangrechy.devwidgets.widget.WidgetManagerHelper.updateAll(context, data)
+        CoroutineScope(Dispatchers.IO).launch {
+            com.sangrechy.devwidgets.widget.WidgetManagerHelper.updateAll(context, data)
+        }
     }
 }
 
