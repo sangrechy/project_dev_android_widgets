@@ -168,12 +168,12 @@ fun WallpaperScreenContent(
                             Icon(
                                 imageVector = Icons.Default.FormatPaint,
                                 contentDescription = null,
-                                tint = if (isDefault) Color.White else ThemeTextSecondary,
+                                tint = if (isDefault) Color.Black else ThemeTextSecondary,
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
                                 text = "Obsidian Default",
-                                color = if (isDefault) Color.White else ThemeTextSecondary,
+                                color = if (isDefault) Color.Black else ThemeTextSecondary,
                                 fontSize = 12.sp,
                                 fontWeight = if (isDefault) FontWeight.Bold else FontWeight.Medium
                             )
@@ -198,12 +198,12 @@ fun WallpaperScreenContent(
                             Icon(
                                 imageVector = Icons.Default.Image,
                                 contentDescription = null,
-                                tint = if (isCustom) Color.White else ThemeTextSecondary,
+                                tint = if (isCustom) Color.Black else ThemeTextSecondary,
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
                                 text = if (isCustom) "Photo Selected" else "Pick from Gallery",
-                                color = if (isCustom) Color.White else ThemeTextSecondary,
+                                color = if (isCustom) Color.Black else ThemeTextSecondary,
                                 fontSize = 12.sp,
                                 fontWeight = if (isCustom) FontWeight.Bold else FontWeight.Medium
                             )
@@ -272,7 +272,7 @@ fun WallpaperScreenContent(
                                     Icon(
                                         imageVector = Icons.Default.Check,
                                         contentDescription = "Selected",
-                                        tint = Color.White,
+                                        tint = Color.Black,
                                         modifier = Modifier.size(14.dp)
                                     )
                                 }
@@ -463,7 +463,7 @@ fun WallpaperScreenContent(
                                         Icon(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = "Active",
-                                            tint = Color.White,
+                                            tint = Color.Black,
                                             modifier = Modifier.size(14.dp)
                                         )
                                     }
@@ -514,19 +514,22 @@ fun WallpaperScreenContent(
                         viewModel.applyWidgetWallpaperToAllWidgets()
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = ThemeAccentBlue),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ThemeAccentBlue,
+                        contentColor = Color.Black
+                    ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
-                        tint = Color.White
+                        tint = Color.Black
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "Sync Background to All Launcher Widgets",
-                        color = Color.White,
+                        color = Color.Black,
                         fontWeight = FontWeight.Bold
                     )
                 }

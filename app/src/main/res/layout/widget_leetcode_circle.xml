@@ -100,14 +100,13 @@
             android:layout_height="0dp"
             android:layout_weight="1">
 
-            <!-- Compact Inner Circular Glass Div (Wraps only the circle element itself) -->
+            <!-- Compact Inner Circular Div (Wraps only the circle element, completely transparent) -->
             <FrameLayout
                 android:id="@+id/section_leetcode"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:background="@drawable/widget_glass_circle"
-                android:padding="4dp">
+                android:background="@android:color/transparent">
 
                 <ImageView
                     android:id="@+id/iv_leetcode_circle"

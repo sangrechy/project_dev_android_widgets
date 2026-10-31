@@ -157,6 +157,19 @@ class WidgetPreferences(context: Context) {
             .apply()
     }
 
+    fun getWidgetOuterDivSize(widgetKey: String): String {
+        val norm = widgetKey.trim().uppercase()
+        return prefs.getString("KEY_WIDGET_OUTER_SIZE_$norm", prefs.getString("KEY_WIDGET_OUTER_SIZE_$widgetKey", "2x2")) ?: "2x2"
+    }
+
+    fun setWidgetOuterDivSize(widgetKey: String, size: String) {
+        val norm = widgetKey.trim().uppercase()
+        prefs.edit()
+            .putString("KEY_WIDGET_OUTER_SIZE_$norm", size)
+            .putString("KEY_WIDGET_OUTER_SIZE_$widgetKey", size)
+            .apply()
+    }
+
     fun clearAll() {
         prefs.edit()
             .remove(KEY_LEETCODE_USERNAME)

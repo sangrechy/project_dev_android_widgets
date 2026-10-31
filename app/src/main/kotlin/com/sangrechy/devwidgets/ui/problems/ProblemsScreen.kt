@@ -73,6 +73,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -140,6 +141,9 @@ fun ProblemsScreenContent(
     onSearchLeetCode: (String) -> Unit = {},
     onClearLeetCodeSearch: () -> Unit = {},
     onAddProblemFromLeetCode: (String, (Boolean) -> Unit) -> Unit = { _, _ -> },
+    onAddMultipleProblemsFromLeetCode: (List<String>, (Boolean) -> Unit) -> Unit = { list, cb ->
+        if (list.isNotEmpty()) onAddProblemFromLeetCode(list.first(), cb) else cb(false)
+    },
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -183,7 +187,8 @@ fun ProblemsScreenContent(
                     onDeleteProblemOffline = onDeleteProblemOffline,
                     onSearchLeetCode = onSearchLeetCode,
                     onClearLeetCodeSearch = onClearLeetCodeSearch,
-                    onAddProblemFromLeetCode = onAddProblemFromLeetCode
+                    onAddProblemFromLeetCode = onAddProblemFromLeetCode,
+                    onAddMultipleProblemsFromLeetCode = onAddMultipleProblemsFromLeetCode
                 )
             }
 
@@ -392,10 +397,14 @@ private fun LeetCodeProblemsSection(
     onDeleteProblemOffline: (folderName: String) -> Unit,
     onSearchLeetCode: (String) -> Unit,
     onClearLeetCodeSearch: () -> Unit,
-    onAddProblemFromLeetCode: (String, (Boolean) -> Unit) -> Unit
+    onAddProblemFromLeetCode: (String, (Boolean) -> Unit) -> Unit,
+    onAddMultipleProblemsFromLeetCode: (List<String>, (Boolean) -> Unit) -> Unit = { list, cb ->
+        if (list.isNotEmpty()) onAddProblemFromLeetCode(list.first(), cb) else cb(false)
+    }
 ) {
     var showAddProblemModal by remember { mutableStateOf(false) }
     var addProblemInput by remember { mutableStateOf("") }
+    val selectedProblems = remember { mutableStateListOf<LeetCodeSearchResult>() }
 
     // Top Action Bar with Problem Count and + Add Problem Button
     Row(
@@ -414,7 +423,8 @@ private fun LeetCodeProblemsSection(
             onClick = {
                 showAddProblemModal = true
                 addProblemInput = ""
-                onClearLeetCodeSearch()
+                selectedProblems.clear()
+                onSearchLeetCode("")
             },
             colors = ButtonDefaults.buttonColors(
                 containerColor = ThemeCardBgElevated,
@@ -435,10 +445,10 @@ private fun LeetCodeProblemsSection(
         LaunchedEffect(addProblemInput) {
             val q = addProblemInput.trim()
             if (q.isNotBlank()) {
-                delay(300)
+                delay(250)
                 onSearchLeetCode(q)
             } else {
-                onClearLeetCodeSearch()
+                onSearchLeetCode("")
             }
         }
 
@@ -519,19 +529,55 @@ private fun LeetCodeProblemsSection(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    // Live search results from LeetCode website
+                    // Live search results / catalog list from LeetCode
                     if (leetCodeSearchResults.isNotEmpty()) {
-                        Text(
-                            text = "Results from leetcode.com:",
-                            color = ThemeTextMuted,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        val unSavedResults = leetCodeSearchResults.filter { res ->
+                            problems.none { p -> p.titleSlug.equals(res.titleSlug, ignoreCase = true) || p.folderName.startsWith("${res.frontendId}.") }
+                        }
+                        val allSelected = unSavedResults.isNotEmpty() && unSavedResults.all { res ->
+                            selectedProblems.any { it.titleSlug == res.titleSlug }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (addProblemInput.isBlank()) "All Problems (${leetCodeSearchResults.size})" else "Results (${leetCodeSearchResults.size})",
+                                color = ThemeTextMuted,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            if (unSavedResults.isNotEmpty()) {
+                                Text(
+                                    text = if (allSelected) "Deselect All" else "Select All",
+                                    color = ThemeAccentBlue,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .clickable {
+                                            if (allSelected) {
+                                                selectedProblems.removeAll { res -> unSavedResults.any { it.titleSlug == res.titleSlug } }
+                                            } else {
+                                                unSavedResults.forEach { res ->
+                                                    if (selectedProblems.none { it.titleSlug == res.titleSlug }) {
+                                                        selectedProblems.add(res)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+
                         Column(
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(max = 200.dp)
+                                .heightIn(max = 280.dp)
                                 .verticalScroll(rememberScrollState())
                         ) {
                             leetCodeSearchResults.forEach { result ->
@@ -540,25 +586,54 @@ private fun LeetCodeProblemsSection(
                                     "hard" -> Color(0xFFA3A3A3)
                                     else -> Color(0xFFD4D4D4)
                                 }
+                                val isSaved = problems.any {
+                                    it.titleSlug.equals(result.titleSlug, ignoreCase = true) ||
+                                    it.folderName.startsWith("${result.frontendId}.")
+                                }
+                                val isSelected = selectedProblems.any { it.titleSlug == result.titleSlug }
+
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(ThemeInnerBoxBg)
-                                        .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(8.dp))
-                                        .clickable(enabled = !isAddingProblem) {
-                                            onAddProblemFromLeetCode(result.titleSlug) { success ->
-                                                if (success) {
-                                                    showAddProblemModal = false
-                                                    addProblemInput = ""
-                                                    onClearLeetCodeSearch()
-                                                }
+                                        .background(if (isSelected) ThemeAccentBlue.copy(alpha = 0.08f) else ThemeInnerBoxBg)
+                                        .border(
+                                            width = 1.dp,
+                                            color = if (isSelected) ThemeAccentBlue.copy(alpha = 0.5f) else ThemeInnerBoxBorder,
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                        .clickable(enabled = !isAddingProblem && !isSaved) {
+                                            if (isSelected) {
+                                                selectedProblems.removeAll { it.titleSlug == result.titleSlug }
+                                            } else {
+                                                selectedProblems.add(result)
                                             }
                                         }
                                         .padding(horizontal = 10.dp, vertical = 8.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
+                                    if (!isSaved) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(18.dp)
+                                                .clip(RoundedCornerShape(5.dp))
+                                                .background(if (isSelected) Color.White else Color.Transparent)
+                                                .border(1.5.dp, if (isSelected) Color.White else ThemeTextMuted, RoundedCornerShape(5.dp)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (isSelected) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = null,
+                                                    tint = Color.Black,
+                                                    modifier = Modifier.size(12.dp)
+                                                )
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                    }
+
                                     Column(modifier = Modifier.weight(1f)) {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
@@ -574,7 +649,7 @@ private fun LeetCodeProblemsSection(
                                                 text = result.title,
                                                 fontWeight = FontWeight.Medium,
                                                 fontSize = 12.sp,
-                                                color = ThemeTextPrimary,
+                                                color = if (isSaved) ThemeTextMuted else ThemeTextPrimary,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
                                             )
@@ -589,18 +664,35 @@ private fun LeetCodeProblemsSection(
                                         }
                                     }
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(4.dp))
-                                            .background(badgeColor.copy(alpha = 0.2f))
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    ) {
-                                        Text(
-                                            text = result.difficulty,
-                                            color = badgeColor,
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
+                                    if (isSaved) {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(Color.White.copy(alpha = 0.1f))
+                                                .border(0.5.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(4.dp))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = "✓ Saved",
+                                                color = ThemeTextSecondary,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
+                                    } else {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(badgeColor.copy(alpha = 0.2f))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = result.difficulty,
+                                                color = badgeColor,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -619,7 +711,7 @@ private fun LeetCodeProblemsSection(
                                 color = ThemeAccentBlue
                             )
                             Text(
-                                text = "Downloading authentic problem from LeetCode...",
+                                text = "Downloading authentic problem(s) from LeetCode...",
                                 color = ThemeTextSecondary,
                                 fontSize = 11.sp
                             )
@@ -630,25 +722,36 @@ private fun LeetCodeProblemsSection(
             confirmButton = {
                 Button(
                     onClick = {
-                        val input = addProblemInput.trim()
-                        if (input.isNotBlank() && !isAddingProblem) {
-                            onAddProblemFromLeetCode(input) { success ->
+                        if (selectedProblems.isNotEmpty() && !isAddingProblem) {
+                            val slugs = selectedProblems.map { it.titleSlug }
+                            onAddMultipleProblemsFromLeetCode(slugs) { success ->
                                 if (success) {
                                     showAddProblemModal = false
                                     addProblemInput = ""
+                                    selectedProblems.clear()
                                     onClearLeetCodeSearch()
                                 }
                             }
                         }
                     },
-                    enabled = addProblemInput.isNotBlank() && !isAddingProblem,
+                    enabled = selectedProblems.isNotEmpty() && !isAddingProblem,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = ThemeAccentBlue,
-                        contentColor = Color.Black
+                        contentColor = Color.Black,
+                        disabledContainerColor = ThemeCardBgElevated,
+                        disabledContentColor = ThemeTextMuted
                     ),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text(if (isAddingProblem) "Downloading..." else "Download", fontWeight = FontWeight.Bold)
+                    Text(
+                        text = when {
+                            isAddingProblem -> "Downloading..."
+                            selectedProblems.isEmpty() -> "Select to Download"
+                            selectedProblems.size == 1 -> "Download 1 Problem"
+                            else -> "Download (${selectedProblems.size}) Problems"
+                        },
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             },
             dismissButton = {
@@ -656,6 +759,7 @@ private fun LeetCodeProblemsSection(
                     onClick = {
                         showAddProblemModal = false
                         addProblemInput = ""
+                        selectedProblems.clear()
                         onClearLeetCodeSearch()
                     },
                     enabled = !isAddingProblem
@@ -1286,9 +1390,12 @@ fun LeetCodeProblemDetailView(
                         newNoteFilename = ""
                         showNewNoteModal = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = ThemeAccentBlue)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ThemeAccentBlue,
+                        contentColor = Color.Black
+                    )
                 ) {
-                    Text("Create Note")
+                    Text("Create Note", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -2160,7 +2267,10 @@ fun GeneralNoteEditorView(
                         )
                         onSave(updated)
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = ThemeAccentBlue),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ThemeAccentBlue,
+                        contentColor = Color.Black
+                    ),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {

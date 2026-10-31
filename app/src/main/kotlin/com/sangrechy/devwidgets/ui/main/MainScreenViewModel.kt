@@ -457,11 +457,6 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
 
     fun searchLeetCode(query: String) {
         val q = query.trim()
-        if (q.isBlank()) {
-            _leetCodeSearchResults.value = emptyList()
-            _isSearchingLeetCode.value = false
-            return
-        }
         viewModelScope.launch {
             _isSearchingLeetCode.value = true
             val res = problemRepo.searchLeetCode(q)
@@ -480,23 +475,38 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
     }
 
     fun addProblemFromLeetCode(input: String, onDone: ((Boolean) -> Unit)? = null) {
+        addMultipleProblemsFromLeetCode(listOf(input), onDone)
+    }
+
+    fun addMultipleProblemsFromLeetCode(inputs: List<String>, onDone: ((Boolean) -> Unit)? = null) {
         viewModelScope.launch {
+            if (inputs.isEmpty()) {
+                onDone?.invoke(false)
+                return@launch
+            }
             _isAddingProblem.value = true
-            _syncMessage.value = "Fetching authentic data from LeetCode..."
-            val result = problemRepo.addProblemFromLeetCode(input)
-            _isAddingProblem.value = false
-            if (result.isSuccess) {
-                val problem = result.getOrNull()
-                _syncMessage.value = "Downloaded #${problem?.frontendId} ${problem?.title} offline!"
-                loadProblems()
-                if (problem != null) {
-                    _selectedProblemDetail.value = problem
+            var successCount = 0
+            var lastProblem: com.sangrechy.devwidgets.data.model.OfflineProblem? = null
+
+            for ((idx, slug) in inputs.withIndex()) {
+                _syncMessage.value = "Downloading (${idx + 1}/${inputs.size}): $slug..."
+                val result = problemRepo.addProblemFromLeetCode(slug)
+                if (result.isSuccess) {
+                    successCount++
+                    lastProblem = result.getOrNull()
                 }
+            }
+            _isAddingProblem.value = false
+            loadProblems()
+            if (lastProblem != null) {
+                _selectedProblemDetail.value = lastProblem
+            }
+            if (successCount > 0) {
                 clearLeetCodeSearchResults()
+                _syncMessage.value = "Downloaded $successCount of ${inputs.size} problems offline!"
                 onDone?.invoke(true)
             } else {
-                val err = result.exceptionOrNull()?.message ?: "Failed to download problem"
-                _syncMessage.value = "Error: $err"
+                _syncMessage.value = "Failed to download selected problem(s)"
                 onDone?.invoke(false)
             }
         }
@@ -671,6 +681,11 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
     fun getWidgetElementOffsetY(widgetKey: String): Float = repository.getWidgetElementOffsetY(widgetKey)
     fun setWidgetElementOffset(widgetKey: String, dx: Float, dy: Float) {
         repository.setWidgetElementOffset(widgetKey, dx, dy)
+        applyWidgetWallpaperToAllWidgets()
+    }
+    fun getWidgetOuterDivSize(widgetKey: String): String = repository.getWidgetOuterDivSize(widgetKey)
+    fun setWidgetOuterDivSize(widgetKey: String, size: String) {
+        repository.setWidgetOuterDivSize(widgetKey, size)
         applyWidgetWallpaperToAllWidgets()
     }
 

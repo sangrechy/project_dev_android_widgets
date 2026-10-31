@@ -288,6 +288,10 @@ class MainScreenViewModelTest {
         assertEquals(-20f, viewModel.getWidgetElementOffsetX("github_circle"))
         assertEquals(25f, viewModel.getWidgetElementOffsetY("github_circle"))
         assertEquals(2, fakeRepo.updateWidgetsCallCount)
+
+        viewModel.setWidgetOuterDivSize("leetcode_circle", "4x2")
+        assertEquals("4x2", viewModel.getWidgetOuterDivSize("leetcode_circle"))
+        assertEquals(3, fakeRepo.updateWidgetsCallCount)
     }
 }
 
@@ -500,6 +504,12 @@ private class FakeDataRepository : DataRepository {
         elementOffsetsY[norm] = dy
     }
     override fun getWidgetElementOffsetY(widgetKey: String): Float = elementOffsetsY[widgetKey.trim().uppercase()] ?: 0f
+
+    private val outerDivSizes = mutableMapOf<String, String>()
+    override fun getWidgetOuterDivSize(widgetKey: String): String = outerDivSizes[widgetKey.trim().uppercase()] ?: "2x2"
+    override fun setWidgetOuterDivSize(widgetKey: String, size: String) {
+        outerDivSizes[widgetKey.trim().uppercase()] = size
+    }
 
     override suspend fun saveCustomWallpaperFromUri(uri: android.net.Uri, forWidget: Boolean): String? = "/mock/path.jpg"
     override fun updateAllWidgets() {

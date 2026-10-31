@@ -42,18 +42,44 @@ class LeetCodeCircleWidgetProvider : AppWidgetProvider() {
 
         fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, data: WidgetDashboardData) {
             val views = RemoteViews(context.packageName, R.layout.widget_leetcode_circle)
-            WidgetWallpaperHelper.applyWallpaper(context, views, 240, 240, widgetKey = "LEETCODE_CIRCLE")
-
             val prefs = WidgetPreferences(context)
+            val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
+            val minWidthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0).toFloat()
+            val minHeightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0).toFloat()
+
+            val selectedOuterSize = prefs.getWidgetOuterDivSize("LEETCODE_CIRCLE")
+            val refWidthDp = when (selectedOuterSize) {
+                "3x2" -> 230f
+                "4x2" -> 300f
+                "5x2" -> 360f
+                else -> 160f
+            }
+            val actualWidthDp = if (minWidthDp > 120f) minWidthDp else refWidthDp
+            val actualHeightDp = if (minHeightDp > 100f) minHeightDp else 140f
+
+            WidgetWallpaperHelper.applyWallpaper(
+                context, views,
+                actualWidthDp.toInt().coerceAtLeast(160),
+                actualHeightDp.toInt().coerceAtLeast(140),
+                widgetKey = "LEETCODE_CIRCLE"
+            )
+
             val offsetX = prefs.getWidgetElementOffsetX("LEETCODE_CIRCLE")
             val offsetY = prefs.getWidgetElementOffsetY("LEETCODE_CIRCLE")
             val density = context.resources.displayMetrics.density
-            val dxPx = (offsetX * density).toInt()
-            val dyPx = (offsetY * density).toInt()
-            val padLeft = dxPx.coerceAtLeast(0)
-            val padRight = (-dxPx).coerceAtLeast(0)
-            val padTop = dyPx.coerceAtLeast(0)
-            val padBottom = (-dyPx).coerceAtLeast(0)
+
+            val refMaxOffsetX = ((refWidthDp - 114f) / 2f).coerceAtLeast(10f)
+            val fractionX = (offsetX / refMaxOffsetX).coerceIn(-1f, 1f)
+            val actualMaxOffsetX = ((actualWidthDp - 114f) / 2f).coerceAtLeast(0f)
+            val effectiveDxDp = fractionX * actualMaxOffsetX
+            val effectiveDyDp = offsetY.coerceIn(-30f, 30f)
+
+            val maxShiftPx = (actualMaxOffsetX * 2f * density).toInt()
+            val padLeft = if (effectiveDxDp > 0) (effectiveDxDp * 2f * density).toInt().coerceIn(0, maxShiftPx) else 0
+            val padRight = if (effectiveDxDp < 0) ((-effectiveDxDp) * 2f * density).toInt().coerceIn(0, maxShiftPx) else 0
+            val padTop = if (effectiveDyDp > 0) (effectiveDyDp * 2f * density).toInt().coerceAtLeast(0) else 0
+            val padBottom = if (effectiveDyDp < 0) ((-effectiveDyDp) * 2f * density).toInt().coerceAtLeast(0) else 0
+
             views.setViewPadding(R.id.section_circle_container, padLeft, padTop, padRight, padBottom)
 
             val lcCircle = WidgetBitmapRenderer.renderLeetCodeCircle(data.leetCode, sizePx = 360)

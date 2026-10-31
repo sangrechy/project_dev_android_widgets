@@ -57,6 +57,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.Dp
 import com.sangrechy.devwidgets.data.WallpaperManager
 import com.sangrechy.devwidgets.data.WallpaperPreset
 import androidx.activity.compose.BackHandler
@@ -579,6 +580,7 @@ fun MainScreen(
                             onSearchLeetCode = viewModel::searchLeetCode,
                             onClearLeetCodeSearch = viewModel::clearLeetCodeSearchResults,
                             onAddProblemFromLeetCode = viewModel::addProblemFromLeetCode,
+                            onAddMultipleProblemsFromLeetCode = viewModel::addMultipleProblemsFromLeetCode,
                             onSaveProblemNote = viewModel::saveProblemNote,
                             onDeleteProblemNote = viewModel::deleteProblemNote,
                             onBackupRepoChanged = viewModel::onBackupRepoInputChanged,
@@ -606,6 +608,8 @@ fun MainScreen(
                             getWidgetElementOffset = { key ->
                                 viewModel.getWidgetElementOffsetX(key) to viewModel.getWidgetElementOffsetY(key)
                             },
+                            onSetWidgetOuterDivSize = viewModel::setWidgetOuterDivSize,
+                            getWidgetOuterDivSize = viewModel::getWidgetOuterDivSize,
                             onPinWidget = { providerClass -> pinWidgetToHomeScreen(context, providerClass) }
                         )
 
@@ -2075,6 +2079,8 @@ private fun WidgetsScreenContent(
     getWidgetSpecificWallpaper: (widgetKey: String) -> String = { "DEFAULT" },
     onSetWidgetElementOffset: (widgetKey: String, dx: Float, dy: Float) -> Unit = { _, _, _ -> },
     getWidgetElementOffset: (widgetKey: String) -> Pair<Float, Float> = { 0f to 0f },
+    onSetWidgetOuterDivSize: (widgetKey: String, size: String) -> Unit = { _, _ -> },
+    getWidgetOuterDivSize: (widgetKey: String) -> String = { "2x2" },
     onPinWidget: (Class<out AppWidgetProvider>) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -2149,7 +2155,7 @@ private fun WidgetsScreenContent(
                     ) {
                         Text(
                             text = "⊞ Horizontal",
-                            color = if (isHoriz) Color.White else ThemeTextSecondary,
+                            color = if (isHoriz) Color.Black else ThemeTextSecondary,
                             fontSize = 13.sp,
                             fontWeight = if (isHoriz) FontWeight.Bold else FontWeight.Medium
                         )
@@ -2172,7 +2178,7 @@ private fun WidgetsScreenContent(
                     ) {
                         Text(
                             text = "⊟ Vertical (90°)",
-                            color = if (isVert) Color.White else ThemeTextSecondary,
+                            color = if (isVert) Color.Black else ThemeTextSecondary,
                             fontSize = 13.sp,
                             fontWeight = if (isVert) FontWeight.Bold else FontWeight.Medium
                         )
@@ -2434,9 +2440,23 @@ private fun WidgetsScreenContent(
         )
 
         // 3. LeetCode Circle (Circle Only - Div Inside Div)
+        var lcOuterSize by remember { mutableStateOf(getWidgetOuterDivSize("leetcode_circle")) }
+        val lcOuterWidthDp = when (lcOuterSize) {
+            "2x2" -> 160.dp
+            "3x2" -> 230.dp
+            "4x2" -> 300.dp
+            else -> Dp.Unspecified // 5x2 (Full Width)
+        }
+        val lcMaxOffsetX = when (lcOuterSize) {
+            "2x2" -> 23f
+            "3x2" -> 58f
+            "4x2" -> 93f
+            else -> 125f
+        }
+
         WidgetGalleryCard(
-            title = "LeetCode Solved Circle (2x2)",
-            subtitle = "Dedicated 3/4 circular speedometer gauge showing solved problems breakdown",
+            title = "LeetCode Solved Circle ($lcOuterSize)",
+            subtitle = "Circle gauge with selectable outer div size ($lcOuterSize) & edge alignment",
             tag = "LC Circle",
             widgetKey = "leetcode_circle",
             currentWidgetWallpaper = getWidgetSpecificWallpaper("leetcode_circle"),
@@ -2445,15 +2465,15 @@ private fun WidgetsScreenContent(
             content = {
                 val density = LocalDensity.current
                 val initialOffset = remember { getWidgetElementOffset("leetcode_circle") }
-                var offsetX by remember { mutableStateOf(initialOffset.first) }
-                var offsetY by remember { mutableStateOf(initialOffset.second) }
+                var offsetX by remember { mutableStateOf(initialOffset.first.coerceIn(-lcMaxOffsetX, lcMaxOffsetX)) }
+                var offsetY by remember { mutableStateOf(initialOffset.second.coerceIn(-20f, 20f)) }
                 val lcCircle = remember(dashboardData.leetCode) {
                     WidgetBitmapRenderer.renderLeetCodeCircle(dashboardData.leetCode, sizePx = 360).asImageBitmap()
                 }
 
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // Fixed Stationary Header
                     Row(
@@ -2487,7 +2507,7 @@ private fun WidgetsScreenContent(
                             )
                         }
 
-                        // Directional Nudge Arrows + Reset (Comfortable 24dp touch targets)
+                        // Directional Nudge Arrows + Reset
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(3.dp)
@@ -2514,7 +2534,7 @@ private fun WidgetsScreenContent(
                                     .clip(RoundedCornerShape(4.dp))
                                     .background(Color(0x26FFFFFF))
                                     .clickable {
-                                        val newX = (offsetX - 4f).coerceIn(-30f, 30f)
+                                        val newX = (offsetX - 10f).coerceIn(-lcMaxOffsetX, lcMaxOffsetX)
                                         offsetX = newX
                                         onSetWidgetElementOffset("leetcode_circle", newX, offsetY)
                                     },
@@ -2528,7 +2548,7 @@ private fun WidgetsScreenContent(
                                     .clip(RoundedCornerShape(4.dp))
                                     .background(Color(0x26FFFFFF))
                                     .clickable {
-                                        val newX = (offsetX + 4f).coerceIn(-30f, 30f)
+                                        val newX = (offsetX + 10f).coerceIn(-lcMaxOffsetX, lcMaxOffsetX)
                                         offsetX = newX
                                         onSetWidgetElementOffset("leetcode_circle", newX, offsetY)
                                     },
@@ -2542,7 +2562,7 @@ private fun WidgetsScreenContent(
                                     .clip(RoundedCornerShape(4.dp))
                                     .background(Color(0x26FFFFFF))
                                     .clickable {
-                                        val newY = (offsetY - 4f).coerceIn(-16f, 16f)
+                                        val newY = (offsetY - 5f).coerceIn(-20f, 20f)
                                         offsetY = newY
                                         onSetWidgetElementOffset("leetcode_circle", offsetX, newY)
                                     },
@@ -2556,7 +2576,7 @@ private fun WidgetsScreenContent(
                                     .clip(RoundedCornerShape(4.dp))
                                     .background(Color(0x26FFFFFF))
                                     .clickable {
-                                        val newY = (offsetY + 4f).coerceIn(-16f, 16f)
+                                        val newY = (offsetY + 5f).coerceIn(-20f, 20f)
                                         offsetY = newY
                                         onSetWidgetElementOffset("leetcode_circle", offsetX, newY)
                                     },
@@ -2567,47 +2587,151 @@ private fun WidgetsScreenContent(
                         }
                     }
 
-                    // Circle Stage: Only the inner circular div moves
+                    // Outer Div Size Selector (2x2 | 3x2 | 4x2 | 5x2)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Outer Div:",
+                            color = Color(0xFFAAAAAA),
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        listOf("2x2", "3x2", "4x2", "5x2").forEach { size ->
+                            val isSelected = (lcOuterSize == size)
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) Color.White else Color(0x22FFFFFF))
+                                    .clickable {
+                                        lcOuterSize = size
+                                        onSetWidgetOuterDivSize("leetcode_circle", size)
+                                        val newMax = when (size) {
+                                            "2x2" -> 23f
+                                            "3x2" -> 58f
+                                            "4x2" -> 93f
+                                            else -> 125f
+                                        }
+                                        val clampedX = offsetX.coerceIn(-newMax, newMax)
+                                        offsetX = clampedX
+                                        onSetWidgetElementOffset("leetcode_circle", clampedX, offsetY)
+                                    }
+                                    .padding(vertical = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = size,
+                                    color = if (isSelected) Color.Black else Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+
+                    // Snap to Edge Alignment Buttons: [ ⇱ Leftmost ] [ ⦿ Center ] [ ⇲ Rightmost ]
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0x22FFFFFF))
+                                .clickable {
+                                    val leftX = -lcMaxOffsetX
+                                    offsetX = leftX
+                                    onSetWidgetElementOffset("leetcode_circle", leftX, offsetY)
+                                }
+                                .padding(vertical = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("⇱ Leftmost", color = Color.White, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0x22FFFFFF))
+                                .clickable {
+                                    offsetX = 0f
+                                    onSetWidgetElementOffset("leetcode_circle", 0f, offsetY)
+                                }
+                                .padding(vertical = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("⦿ Center", color = Color.White, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0x22FFFFFF))
+                                .clickable {
+                                    val rightX = lcMaxOffsetX
+                                    offsetX = rightX
+                                    onSetWidgetElementOffset("leetcode_circle", rightX, offsetY)
+                                }
+                                .padding(vertical = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("⇲ Rightmost", color = Color.White, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+
+                    // Circle Stage: Outer Div container with inner transparent div
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(134.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        // Inner circular div (hugs only the circle gauge)
+                        // Outer Div Container Box (matches selected outer div size)
                         Box(
-                            modifier = Modifier
-                                .offset {
-                                    IntOffset(
-                                        (offsetX * density.density).roundToInt(),
-                                        (offsetY * density.density).roundToInt()
-                                    )
-                                }
-                                .pointerInput(Unit) {
-                                    detectDragGestures(
-                                        onDragEnd = {
-                                            onSetWidgetElementOffset("leetcode_circle", offsetX, offsetY)
-                                        }
-                                    ) { change, dragAmount ->
-                                        change.consume()
-                                        val dragDpX = dragAmount.x / density.density
-                                        val dragDpY = dragAmount.y / density.density
-                                        val newX = (offsetX + dragDpX).coerceIn(-30f, 30f)
-                                        val newY = (offsetY + dragDpY).coerceIn(-16f, 16f)
-                                        offsetX = newX
-                                        offsetY = newY
-                                    }
-                                }
-                                .clip(CircleShape)
-                                .background(Color(0x22FFFFFF))
-                                .border(1.dp, Color(0x35FFFFFF), CircleShape)
-                                .padding(4.dp)
+                            modifier = (if (lcOuterWidthDp != Dp.Unspecified) Modifier.width(lcOuterWidthDp) else Modifier.fillMaxWidth())
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color(0x0DFFFFFF))
+                                .border(1.dp, Color(0x2EFFFFFF), RoundedCornerShape(16.dp)),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Image(
-                                bitmap = lcCircle,
-                                contentDescription = "LeetCode Gauge",
-                                modifier = Modifier.size(114.dp)
-                            )
+                            // Inner circular div: completely transparent & invisible
+                            Box(
+                                modifier = Modifier
+                                    .offset {
+                                        IntOffset(
+                                            (offsetX * density.density).roundToInt(),
+                                            (offsetY * density.density).roundToInt()
+                                        )
+                                    }
+                                    .pointerInput(lcMaxOffsetX) {
+                                        detectDragGestures(
+                                            onDragEnd = {
+                                                onSetWidgetElementOffset("leetcode_circle", offsetX, offsetY)
+                                            }
+                                        ) { change, dragAmount ->
+                                            change.consume()
+                                            val dragDpX = dragAmount.x / density.density
+                                            val dragDpY = dragAmount.y / density.density
+                                            val newX = (offsetX + dragDpX).coerceIn(-lcMaxOffsetX, lcMaxOffsetX)
+                                            val newY = (offsetY + dragDpY).coerceIn(-20f, 20f)
+                                            offsetX = newX
+                                            offsetY = newY
+                                        }
+                                    }
+                                    .background(Color.Transparent)
+                            ) {
+                                Image(
+                                    bitmap = lcCircle,
+                                    contentDescription = "LeetCode Gauge",
+                                    modifier = Modifier.size(114.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -2615,9 +2739,23 @@ private fun WidgetsScreenContent(
         )
 
         // 4. GitHub Circle (Circle Only - Div Inside Div)
+        var ghOuterSize by remember { mutableStateOf(getWidgetOuterDivSize("github_circle")) }
+        val ghOuterWidthDp = when (ghOuterSize) {
+            "2x2" -> 160.dp
+            "3x2" -> 230.dp
+            "4x2" -> 300.dp
+            else -> Dp.Unspecified // 5x2 (Full Width)
+        }
+        val ghMaxOffsetX = when (ghOuterSize) {
+            "2x2" -> 23f
+            "3x2" -> 58f
+            "4x2" -> 93f
+            else -> 125f
+        }
+
         WidgetGalleryCard(
-            title = "GitHub Contribution Circle (2x2)",
-            subtitle = "Dedicated contribution radar polygon with commits, PRs, issues, reviews",
+            title = "GitHub Contribution Circle ($ghOuterSize)",
+            subtitle = "Circle gauge with selectable outer div size ($ghOuterSize) & edge alignment",
             tag = "GH Circle",
             widgetKey = "github_circle",
             currentWidgetWallpaper = getWidgetSpecificWallpaper("github_circle"),
@@ -2626,15 +2764,15 @@ private fun WidgetsScreenContent(
             content = {
                 val density = LocalDensity.current
                 val initialOffset = remember { getWidgetElementOffset("github_circle") }
-                var offsetX by remember { mutableStateOf(initialOffset.first) }
-                var offsetY by remember { mutableStateOf(initialOffset.second) }
+                var offsetX by remember { mutableStateOf(initialOffset.first.coerceIn(-ghMaxOffsetX, ghMaxOffsetX)) }
+                var offsetY by remember { mutableStateOf(initialOffset.second.coerceIn(-20f, 20f)) }
                 val ghCircle = remember(dashboardData.gitHub) {
                     WidgetBitmapRenderer.renderGitHubTypeMap(dashboardData.gitHub, sizePx = 360).asImageBitmap()
                 }
 
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // Fixed Stationary Header
                     Row(
@@ -2668,7 +2806,7 @@ private fun WidgetsScreenContent(
                             )
                         }
 
-                        // Directional Nudge Arrows + Reset (Comfortable 24dp touch targets)
+                        // Directional Nudge Arrows + Reset
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(3.dp)
@@ -2695,7 +2833,7 @@ private fun WidgetsScreenContent(
                                     .clip(RoundedCornerShape(4.dp))
                                     .background(Color(0x26FFFFFF))
                                     .clickable {
-                                        val newX = (offsetX - 4f).coerceIn(-30f, 30f)
+                                        val newX = (offsetX - 10f).coerceIn(-ghMaxOffsetX, ghMaxOffsetX)
                                         offsetX = newX
                                         onSetWidgetElementOffset("github_circle", newX, offsetY)
                                     },
@@ -2709,7 +2847,7 @@ private fun WidgetsScreenContent(
                                     .clip(RoundedCornerShape(4.dp))
                                     .background(Color(0x26FFFFFF))
                                     .clickable {
-                                        val newX = (offsetX + 4f).coerceIn(-30f, 30f)
+                                        val newX = (offsetX + 10f).coerceIn(-ghMaxOffsetX, ghMaxOffsetX)
                                         offsetX = newX
                                         onSetWidgetElementOffset("github_circle", newX, offsetY)
                                     },
@@ -2723,7 +2861,7 @@ private fun WidgetsScreenContent(
                                     .clip(RoundedCornerShape(4.dp))
                                     .background(Color(0x26FFFFFF))
                                     .clickable {
-                                        val newY = (offsetY - 4f).coerceIn(-16f, 16f)
+                                        val newY = (offsetY - 5f).coerceIn(-20f, 20f)
                                         offsetY = newY
                                         onSetWidgetElementOffset("github_circle", offsetX, newY)
                                     },
@@ -2737,7 +2875,7 @@ private fun WidgetsScreenContent(
                                     .clip(RoundedCornerShape(4.dp))
                                     .background(Color(0x26FFFFFF))
                                     .clickable {
-                                        val newY = (offsetY + 4f).coerceIn(-16f, 16f)
+                                        val newY = (offsetY + 5f).coerceIn(-20f, 20f)
                                         offsetY = newY
                                         onSetWidgetElementOffset("github_circle", offsetX, newY)
                                     },
@@ -2748,47 +2886,151 @@ private fun WidgetsScreenContent(
                         }
                     }
 
-                    // Circle Stage: Only the inner circular div moves
+                    // Outer Div Size Selector (2x2 | 3x2 | 4x2 | 5x2)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Outer Div:",
+                            color = Color(0xFFAAAAAA),
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        listOf("2x2", "3x2", "4x2", "5x2").forEach { size ->
+                            val isSelected = (ghOuterSize == size)
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) Color.White else Color(0x22FFFFFF))
+                                    .clickable {
+                                        ghOuterSize = size
+                                        onSetWidgetOuterDivSize("github_circle", size)
+                                        val newMax = when (size) {
+                                            "2x2" -> 23f
+                                            "3x2" -> 58f
+                                            "4x2" -> 93f
+                                            else -> 125f
+                                        }
+                                        val clampedX = offsetX.coerceIn(-newMax, newMax)
+                                        offsetX = clampedX
+                                        onSetWidgetElementOffset("github_circle", clampedX, offsetY)
+                                    }
+                                    .padding(vertical = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = size,
+                                    color = if (isSelected) Color.Black else Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+
+                    // Snap to Edge Alignment Buttons: [ ⇱ Leftmost ] [ ⦿ Center ] [ ⇲ Rightmost ]
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0x22FFFFFF))
+                                .clickable {
+                                    val leftX = -ghMaxOffsetX
+                                    offsetX = leftX
+                                    onSetWidgetElementOffset("github_circle", leftX, offsetY)
+                                }
+                                .padding(vertical = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("⇱ Leftmost", color = Color.White, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0x22FFFFFF))
+                                .clickable {
+                                    offsetX = 0f
+                                    onSetWidgetElementOffset("github_circle", 0f, offsetY)
+                                }
+                                .padding(vertical = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("⦿ Center", color = Color.White, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0x22FFFFFF))
+                                .clickable {
+                                    val rightX = ghMaxOffsetX
+                                    offsetX = rightX
+                                    onSetWidgetElementOffset("github_circle", rightX, offsetY)
+                                }
+                                .padding(vertical = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("⇲ Rightmost", color = Color.White, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+
+                    // Circle Stage: Outer Div container with inner transparent div
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(134.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        // Inner circular div (hugs only the contribution radar)
+                        // Outer Div Container Box (matches selected outer div size)
                         Box(
-                            modifier = Modifier
-                                .offset {
-                                    IntOffset(
-                                        (offsetX * density.density).roundToInt(),
-                                        (offsetY * density.density).roundToInt()
-                                    )
-                                }
-                                .pointerInput(Unit) {
-                                    detectDragGestures(
-                                        onDragEnd = {
-                                            onSetWidgetElementOffset("github_circle", offsetX, offsetY)
-                                        }
-                                    ) { change, dragAmount ->
-                                        change.consume()
-                                        val dragDpX = dragAmount.x / density.density
-                                        val dragDpY = dragAmount.y / density.density
-                                        val newX = (offsetX + dragDpX).coerceIn(-30f, 30f)
-                                        val newY = (offsetY + dragDpY).coerceIn(-16f, 16f)
-                                        offsetX = newX
-                                        offsetY = newY
-                                    }
-                                }
-                                .clip(CircleShape)
-                                .background(Color(0x22FFFFFF))
-                                .border(1.dp, Color(0x35FFFFFF), CircleShape)
-                                .padding(4.dp)
+                            modifier = (if (ghOuterWidthDp != Dp.Unspecified) Modifier.width(ghOuterWidthDp) else Modifier.fillMaxWidth())
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color(0x0DFFFFFF))
+                                .border(1.dp, Color(0x2EFFFFFF), RoundedCornerShape(16.dp)),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Image(
-                                bitmap = ghCircle,
-                                contentDescription = "GitHub Contribution Circle",
-                                modifier = Modifier.size(114.dp)
-                            )
+                            // Inner circular div: completely transparent & invisible
+                            Box(
+                                modifier = Modifier
+                                    .offset {
+                                        IntOffset(
+                                            (offsetX * density.density).roundToInt(),
+                                            (offsetY * density.density).roundToInt()
+                                        )
+                                    }
+                                    .pointerInput(ghMaxOffsetX) {
+                                        detectDragGestures(
+                                            onDragEnd = {
+                                                onSetWidgetElementOffset("github_circle", offsetX, offsetY)
+                                            }
+                                        ) { change, dragAmount ->
+                                            change.consume()
+                                            val dragDpX = dragAmount.x / density.density
+                                            val dragDpY = dragAmount.y / density.density
+                                            val newX = (offsetX + dragDpX).coerceIn(-ghMaxOffsetX, ghMaxOffsetX)
+                                            val newY = (offsetY + dragDpY).coerceIn(-20f, 20f)
+                                            offsetX = newX
+                                            offsetY = newY
+                                        }
+                                    }
+                                    .background(Color.Transparent)
+                            ) {
+                                Image(
+                                    bitmap = ghCircle,
+                                    contentDescription = "GitHub Contribution Circle",
+                                    modifier = Modifier.size(114.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -3474,23 +3716,6 @@ private fun SettingsScreenContent(
                 }
             }
 
-            HorizontalDivider(color = ThemeCardBorder)
-
-            // App & Widget Wallpaper Studio Button
-            Button(
-                onClick = onOpenWallpaper,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = ThemeCardBgElevated,
-                    contentColor = ThemeTextPrimary
-                ),
-                border = BorderStroke(1.dp, ThemeCardBorder),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(Icons.Default.Wallpaper, contentDescription = null, modifier = Modifier.size(16.dp), tint = ThemeTextSecondary)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("App & Widget Wallpaper Studio", fontWeight = FontWeight.SemiBold)
-            }
 
             HorizontalDivider(color = ThemeCardBorder)
 
@@ -3753,18 +3978,12 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
                         .pointerInput(Unit) {
                             detectDragGestures { change, dragAmount ->
                                 change.consume()
-                                lcOffsetX = (lcOffsetX + dragAmount.x).coerceIn(-120f, 120f)
+                                lcOffsetX = (lcOffsetX + dragAmount.x).coerceIn(-240f, 240f)
                                 lcOffsetY = (lcOffsetY + dragAmount.y).coerceIn(-80f, 80f)
                             }
                         }
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0x26FFFFFF))
-                        .border(
-                            1.dp,
-                            Color(0x38FFFFFF),
-                            RoundedCornerShape(20.dp)
-                        )
-                        .padding(10.dp)
+                        .background(Color.Transparent)
+                        .padding(horizontal = 4.dp, vertical = 6.dp)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(
@@ -3808,7 +4027,7 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
                                         .size(20.dp)
                                         .clip(RoundedCornerShape(4.dp))
                                         .background(Color(0x26FFFFFF))
-                                        .clickable { lcOffsetX = (lcOffsetX - 15f).coerceIn(-120f, 120f) },
+                                        .clickable { lcOffsetX = (lcOffsetX - 15f).coerceIn(-240f, 240f) },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text("←", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
@@ -3818,7 +4037,7 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
                                         .size(20.dp)
                                         .clip(RoundedCornerShape(4.dp))
                                         .background(Color(0x26FFFFFF))
-                                        .clickable { lcOffsetX = (lcOffsetX + 15f).coerceIn(-120f, 120f) },
+                                        .clickable { lcOffsetX = (lcOffsetX + 15f).coerceIn(-240f, 240f) },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text("→", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
@@ -3887,18 +4106,12 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
                         .pointerInput(Unit) {
                             detectDragGestures { change, dragAmount ->
                                 change.consume()
-                                ghOffsetX = (ghOffsetX + dragAmount.x).coerceIn(-120f, 120f)
+                                ghOffsetX = (ghOffsetX + dragAmount.x).coerceIn(-240f, 240f)
                                 ghOffsetY = (ghOffsetY + dragAmount.y).coerceIn(-80f, 80f)
                             }
                         }
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0x26FFFFFF))
-                        .border(
-                            1.dp,
-                            Color(0x38FFFFFF),
-                            RoundedCornerShape(20.dp)
-                        )
-                        .padding(10.dp)
+                        .background(Color.Transparent)
+                        .padding(horizontal = 4.dp, vertical = 6.dp)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(
@@ -3942,7 +4155,7 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
                                         .size(20.dp)
                                         .clip(RoundedCornerShape(4.dp))
                                         .background(Color(0x26FFFFFF))
-                                        .clickable { ghOffsetX = (ghOffsetX - 15f).coerceIn(-120f, 120f) },
+                                        .clickable { ghOffsetX = (ghOffsetX - 15f).coerceIn(-240f, 240f) },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text("←", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
@@ -3952,7 +4165,7 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
                                         .size(20.dp)
                                         .clip(RoundedCornerShape(4.dp))
                                         .background(Color(0x26FFFFFF))
-                                        .clickable { ghOffsetX = (ghOffsetX + 15f).coerceIn(-120f, 120f) },
+                                        .clickable { ghOffsetX = (ghOffsetX + 15f).coerceIn(-240f, 240f) },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text("→", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)

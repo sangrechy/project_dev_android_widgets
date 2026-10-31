@@ -171,6 +171,8 @@ class OfflineProblemRepository(
         val request = Request.Builder()
             .url("https://leetcode.com/graphql")
             .header("Content-Type", "application/json")
+            .header("Referer", "https://leetcode.com/problems/$titleSlug/")
+            .header("Origin", "https://leetcode.com")
             .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
             .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
             .build()
@@ -236,11 +238,203 @@ class OfflineProblemRepository(
         }
     }
 
-    override suspend fun searchLeetCode(query: String): Result<List<LeetCodeSearchResult>> = withContext(Dispatchers.IO) {
-        val clean = query.trim().removePrefix("#")
-        if (clean.isBlank()) return@withContext Result.success(emptyList())
+    private val catalogFile: File
+        get() = File(context.filesDir, "leetcode_catalog.json")
 
+    private val inMemoryCatalog = mutableMapOf<String, LeetCodeSearchResult>()
+    private var isCatalogSeeded = false
+
+    private fun ensureCatalogLoaded(): List<LeetCodeSearchResult> {
+        if (!isCatalogSeeded) {
+            // 1. Read from catalogFile if present
+            if (catalogFile.exists()) {
+                try {
+                    val arr = JSONArray(catalogFile.readText())
+                    for (i in 0 until arr.length()) {
+                        val obj = arr.getJSONObject(i)
+                        val fid = obj.optString("frontendId")
+                        val title = obj.optString("title")
+                        val slug = obj.optString("titleSlug")
+                        val diff = obj.optString("difficulty", "Medium")
+                        val tArr = obj.optJSONArray("topicTags")
+                        val tags = mutableListOf<String>()
+                        if (tArr != null) {
+                            for (j in 0 until tArr.length()) {
+                                tags.add(tArr.getString(j))
+                            }
+                        }
+                        if (slug.isNotBlank() && title.isNotBlank()) {
+                            inMemoryCatalog[slug] = LeetCodeSearchResult(
+                                frontendId = fid,
+                                title = title,
+                                titleSlug = slug,
+                                difficulty = diff,
+                                topicTags = tags
+                            )
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+
+            // 2. Also inject all currently saved problems into catalog
+            val savedDirs = baseProblemsDir.listFiles { f -> f.isDirectory } ?: emptyArray()
+            for (dir in savedDirs) {
+                try {
+                    val metaFile = File(dir, "metadata.json")
+                    if (metaFile.exists()) {
+                        val meta = JSONObject(metaFile.readText())
+                        val fid = meta.optString("frontend_id", "")
+                        val title = meta.optString("problem_title", "")
+                        val slug = meta.optString("problem_slug", "")
+                        val diff = meta.optString("difficulty", "Medium")
+                        if (slug.isNotBlank() && title.isNotBlank() && !inMemoryCatalog.containsKey(slug)) {
+                            inMemoryCatalog[slug] = LeetCodeSearchResult(
+                                frontendId = fid,
+                                title = title,
+                                titleSlug = slug,
+                                difficulty = diff
+                            )
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+
+            // 3. Seed classic popular problems if catalog is small
+            if (inMemoryCatalog.size < 50) {
+                seedInitialProblemCatalog()
+            }
+
+            isCatalogSeeded = true
+        }
+        return inMemoryCatalog.values.sortedWith(
+            compareBy({ it.frontendId.toIntOrNull() ?: 999999 }, { it.title })
+        )
+    }
+
+    private fun persistCatalog() {
         try {
+            val arr = JSONArray()
+            inMemoryCatalog.values.forEach { item ->
+                val obj = JSONObject().apply {
+                    put("frontendId", item.frontendId)
+                    put("title", item.title)
+                    put("titleSlug", item.titleSlug)
+                    put("difficulty", item.difficulty)
+                    val tArr = JSONArray()
+                    item.topicTags.forEach { tArr.put(it) }
+                    put("topicTags", tArr)
+                }
+                arr.put(obj)
+            }
+            catalogFile.writeText(arr.toString())
+        } catch (_: Exception) {}
+    }
+
+    private fun seedInitialProblemCatalog() {
+        fun s(fid: String, title: String, slug: String, diff: String, vararg tags: String) {
+            inMemoryCatalog[slug] = LeetCodeSearchResult(fid, title, slug, diff, tags.toList())
+        }
+        s("1", "Two Sum", "two-sum", "Easy", "Array", "Hash Table")
+        s("2", "Add Two Numbers", "add-two-numbers", "Medium", "Linked List", "Math")
+        s("3", "Longest Substring Without Repeating Characters", "longest-substring-without-repeating-characters", "Medium", "Hash Table", "String", "Sliding Window")
+        s("4", "Median of Two Sorted Arrays", "median-of-two-sorted-arrays", "Hard", "Array", "Binary Search")
+        s("5", "Longest Palindromic Substring", "longest-palindromic-substring", "Medium", "String", "Dynamic Programming")
+        s("6", "Zigzag Conversion", "zigzag-conversion", "Medium", "String")
+        s("7", "Reverse Integer", "reverse-integer", "Medium", "Math")
+        s("8", "String to Integer (atoi)", "string-to-integer-atoi", "Medium", "String")
+        s("9", "Palindrome Number", "palindrome-number", "Easy", "Math")
+        s("10", "Regular Expression Matching", "regular-expression-matching", "Hard", "String", "Dynamic Programming")
+        s("11", "Container With Most Water", "container-with-most-water", "Medium", "Array", "Two Pointers", "Greedy")
+        s("12", "Integer to Roman", "integer-to-roman", "Medium", "Hash Table", "Math", "String")
+        s("13", "Roman to Integer", "roman-to-integer", "Easy", "Hash Table", "Math", "String")
+        s("14", "Longest Common Prefix", "longest-common-prefix", "Easy", "String", "Trie")
+        s("15", "3Sum", "3sum", "Medium", "Array", "Two Pointers", "Sorting")
+        s("16", "3Sum Closest", "3sum-closest", "Medium", "Array", "Two Pointers")
+        s("17", "Letter Combinations of a Phone Number", "letter-combinations-of-a-phone-number", "Medium", "Hash Table", "String", "Backtracking")
+        s("18", "4Sum", "4sum", "Medium", "Array", "Two Pointers", "Sorting")
+        s("19", "Remove Nth Node From End of List", "remove-nth-node-from-end-of-list", "Medium", "Linked List", "Two Pointers")
+        s("20", "Valid Parentheses", "valid-parentheses", "Easy", "String", "Stack")
+        s("21", "Merge Two Sorted Lists", "merge-two-sorted-lists", "Easy", "Linked List", "Recursion")
+        s("22", "Generate Parentheses", "generate-parentheses", "Medium", "String", "Dynamic Programming", "Backtracking")
+        s("23", "Merge k Sorted Lists", "merge-k-sorted-lists", "Hard", "Linked List", "Divide and Conquer", "Heap")
+        s("24", "Swap Nodes in Pairs", "swap-nodes-in-pairs", "Medium", "Linked List", "Recursion")
+        s("25", "Reverse Nodes in k-Group", "reverse-nodes-in-k-group", "Hard", "Linked List", "Recursion")
+        s("26", "Remove Duplicates from Sorted Array", "remove-duplicates-from-sorted-array", "Easy", "Array", "Two Pointers")
+        s("27", "Remove Element", "remove-element", "Easy", "Array", "Two Pointers")
+        s("28", "Find the Index of the First Occurrence in a String", "find-the-index-of-the-first-occurrence-in-a-string", "Easy", "Two Pointers", "String")
+        s("33", "Search in Rotated Sorted Array", "search-in-rotated-sorted-array", "Medium", "Array", "Binary Search")
+        s("34", "Find First and Last Position of Element in Sorted Array", "find-first-and-last-position-of-element-in-sorted-array", "Medium", "Array", "Binary Search")
+        s("35", "Search Insert Position", "search-insert-position", "Easy", "Array", "Binary Search")
+        s("39", "Combination Sum", "combination-sum", "Medium", "Array", "Backtracking")
+        s("40", "Combination Sum II", "combination-sum-ii", "Medium", "Array", "Backtracking")
+        s("42", "Trapping Rain Water", "trapping-rain-water", "Hard", "Array", "Two Pointers", "Dynamic Programming", "Stack")
+        s("46", "Permutations", "permutations", "Medium", "Array", "Backtracking")
+        s("48", "Rotate Image", "rotate-image", "Medium", "Array", "Math", "Matrix")
+        s("49", "Group Anagrams", "group-anagrams", "Medium", "Array", "Hash Table", "String", "Sorting")
+        s("50", "Pow(x, n)", "powx-n", "Medium", "Math", "Recursion")
+        s("53", "Maximum Subarray", "maximum-subarray", "Medium", "Array", "Dynamic Programming")
+        s("54", "Spiral Matrix", "spiral-matrix", "Medium", "Array", "Matrix")
+        s("55", "Jump Game", "jump-game", "Medium", "Array", "Dynamic Programming", "Greedy")
+        s("56", "Merge Intervals", "merge-intervals", "Medium", "Array", "Sorting")
+        s("62", "Unique Paths", "unique-paths", "Medium", "Math", "Dynamic Programming")
+        s("64", "Minimum Path Sum", "minimum-path-sum", "Medium", "Array", "Dynamic Programming")
+        s("70", "Climbing Stairs", "climbing-stairs", "Easy", "Math", "Dynamic Programming")
+        s("72", "Edit Distance", "edit-distance", "Medium", "String", "Dynamic Programming")
+        s("74", "Search a 2D Matrix", "search-a-2d-matrix", "Medium", "Array", "Binary Search")
+        s("75", "Sort Colors", "sort-colors", "Medium", "Array", "Two Pointers", "Sorting")
+        s("76", "Minimum Window Substring", "minimum-window-substring", "Hard", "Hash Table", "String", "Sliding Window")
+        s("78", "Subsets", "subsets", "Medium", "Array", "Backtracking")
+        s("79", "Word Search", "word-search", "Medium", "Array", "String", "Backtracking")
+        s("84", "Largest Rectangle in Histogram", "largest-rectangle-in-histogram", "Hard", "Array", "Stack")
+        s("88", "Merge Sorted Array", "merge-sorted-array", "Easy", "Array", "Two Pointers", "Sorting")
+        s("94", "Binary Tree Inorder Traversal", "binary-tree-inorder-traversal", "Easy", "Stack", "Tree", "Binary Tree")
+        s("98", "Validate Binary Search Tree", "validate-binary-search-tree", "Medium", "Tree", "Binary Search Tree")
+        s("100", "Same Tree", "same-tree", "Easy", "Tree", "Binary Tree")
+        s("101", "Symmetric Tree", "symmetric-tree", "Easy", "Tree", "Binary Tree")
+        s("102", "Binary Tree Level Order Traversal", "binary-tree-level-order-traversal", "Medium", "Tree", "Breadth-First Search")
+        s("104", "Maximum Depth of Binary Tree", "maximum-depth-of-binary-tree", "Easy", "Tree", "Depth-First Search")
+        s("105", "Construct Binary Tree from Preorder and Inorder Traversal", "construct-binary-tree-from-preorder-and-inorder-traversal", "Medium", "Array", "Tree")
+        s("121", "Best Time to Buy and Sell Stock", "best-time-to-buy-and-sell-stock", "Easy", "Array", "Dynamic Programming")
+        s("122", "Best Time to Buy and Sell Stock II", "best-time-to-buy-and-sell-stock-ii", "Medium", "Array", "Dynamic Programming")
+        s("124", "Binary Tree Maximum Path Sum", "binary-tree-maximum-path-sum", "Hard", "Dynamic Programming", "Tree")
+        s("128", "Longest Consecutive Sequence", "longest-consecutive-sequence", "Medium", "Array", "Hash Table")
+        s("133", "Clone Graph", "clone-graph", "Medium", "Hash Table", "Depth-First Search", "Graph")
+        s("136", "Single Number", "single-number", "Easy", "Array", "Bit Manipulation")
+        s("138", "Copy List with Random Pointer", "copy-list-with-random-pointer", "Medium", "Hash Table", "Linked List")
+        s("139", "Word Break", "word-break", "Medium", "Array", "Dynamic Programming")
+        s("141", "Linked List Cycle", "linked-list-cycle", "Easy", "Hash Table", "Linked List")
+        s("142", "Linked List Cycle II", "linked-list-cycle-ii", "Medium", "Hash Table", "Linked List")
+        s("146", "LRU Cache", "lru-cache", "Medium", "Hash Table", "Linked List", "Design")
+        s("150", "Evaluate Reverse Polish Notation", "evaluate-reverse-polish-notation", "Medium", "Array", "Stack")
+        s("152", "Maximum Product Subarray", "maximum-product-subarray", "Medium", "Array", "Dynamic Programming")
+        s("153", "Find Minimum in Rotated Sorted Array", "find-minimum-in-rotated-sorted-array", "Medium", "Array", "Binary Search")
+        s("155", "Min Stack", "min-stack", "Medium", "Stack", "Design")
+        s("160", "Intersection of Two Linked Lists", "intersection-of-two-linked-lists", "Easy", "Hash Table", "Linked List")
+        s("169", "Majority Element", "majority-element", "Easy", "Array", "Hash Table")
+        s("198", "House Robber", "house-robber", "Medium", "Array", "Dynamic Programming")
+        s("200", "Number of Islands", "number-of-islands", "Medium", "Array", "Depth-First Search", "Graph")
+        s("206", "Reverse Linked List", "reverse-linked-list", "Easy", "Linked List", "Recursion")
+        s("207", "Course Schedule", "course-schedule", "Medium", "Depth-First Search", "Graph")
+        s("208", "Implement Trie (Prefix Tree)", "implement-trie-prefix-tree", "Medium", "Hash Table", "Trie")
+        s("215", "Kth Largest Element in an Array", "kth-largest-element-in-an-array", "Medium", "Array", "Sorting", "Heap")
+        s("226", "Invert Binary Tree", "invert-binary-tree", "Easy", "Tree", "Binary Tree")
+        s("230", "Kth Smallest Element in a BST", "kth-smallest-element-in-a-bst", "Medium", "Tree", "Binary Search Tree")
+        s("236", "Lowest Common Ancestor of a Binary Tree", "lowest-common-ancestor-of-a-binary-tree", "Medium", "Tree", "Binary Tree")
+        s("238", "Product of Array Except Self", "product-of-array-except-self", "Medium", "Array", "Prefix Sum")
+        s("242", "Valid Anagram", "valid-anagram", "Easy", "Hash Table", "String")
+        s("295", "Find Median from Data Stream", "find-median-from-data-stream", "Hard", "Heap", "Design")
+        s("297", "Serialize and Deserialize Binary Tree", "serialize-and-deserialize-binary-tree", "Hard", "Tree", "Design")
+        s("300", "Longest Increasing Subsequence", "longest-increasing-subsequence", "Medium", "Array", "Dynamic Programming")
+        s("322", "Coin Change", "coin-change", "Medium", "Array", "Dynamic Programming")
+        s("347", "Top K Frequent Elements", "top-k-frequent-elements", "Medium", "Array", "Hash Table", "Heap")
+        s("416", "Partition Equal Subset Sum", "partition-equal-subset-sum", "Medium", "Array", "Dynamic Programming")
+        s("435", "Non-overlapping Intervals", "non-overlapping-intervals", "Medium", "Array", "Greedy")
+        s("704", "Binary Search", "binary-search", "Easy", "Array", "Binary Search")
+        s("1143", "Longest Common Subsequence", "longest-common-subsequence", "Medium", "String", "Dynamic Programming")
+    }
+
+    private fun tryFetchOnlineQuestions(limit: Int, clean: String): List<LeetCodeSearchResult> {
+        return try {
             val gqlQuery = """
                 query problemsetQuestionList(${'$'}categorySlug: String, ${'$'}limit: Int, ${'$'}skip: Int, ${'$'}filters: QuestionListFilterInput) {
                   problemsetQuestionList: questionList(categorySlug: ${'$'}categorySlug, limit: ${'$'}limit, skip: ${'$'}skip, filters: ${'$'}filters) {
@@ -262,10 +456,12 @@ class OfflineProblemRepository(
             val variables = JSONObject().apply {
                 put("categorySlug", "")
                 put("skip", 0)
-                put("limit", 20)
-                put("filters", JSONObject().apply {
-                    put("searchKeywords", clean)
-                })
+                put("limit", limit)
+                val filters = JSONObject()
+                if (clean.isNotBlank()) {
+                    filters.put("searchKeywords", clean)
+                }
+                put("filters", filters)
             }
 
             val jsonBody = JSONObject().apply {
@@ -276,19 +472,19 @@ class OfflineProblemRepository(
             val request = Request.Builder()
                 .url("https://leetcode.com/graphql")
                 .header("Content-Type", "application/json")
+                .header("Referer", "https://leetcode.com/problemset/all/")
+                .header("Origin", "https://leetcode.com")
                 .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
                 .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
                 .build()
 
             okHttpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    return@withContext Result.failure(Exception("HTTP ${response.code} from LeetCode"))
-                }
+                if (!response.isSuccessful) return emptyList()
                 val body = response.body?.string() ?: ""
                 val root = JSONObject(body)
                 val listData = root.optJSONObject("data")?.optJSONObject("problemsetQuestionList")
                 val questionsArr = listData?.optJSONArray("questions") ?: JSONArray()
-                val results = mutableListOf<LeetCodeSearchResult>()
+                val list = mutableListOf<LeetCodeSearchResult>()
 
                 for (i in 0 until questionsArr.length()) {
                     val q = questionsArr.getJSONObject(i)
@@ -305,28 +501,70 @@ class OfflineProblemRepository(
                         }
                     }
                     if (slug.isNotBlank() && title.isNotBlank()) {
-                        results.add(
-                            LeetCodeSearchResult(
-                                frontendId = fid,
-                                title = title,
-                                titleSlug = slug,
-                                difficulty = diff,
-                                topicTags = tags
-                            )
+                        val item = LeetCodeSearchResult(
+                            frontendId = fid,
+                            title = title,
+                            titleSlug = slug,
+                            difficulty = diff,
+                            topicTags = tags
                         )
+                        list.add(item)
+                        inMemoryCatalog[slug] = item
                     }
                 }
-
-                // If query is digits, ensure exact frontendId match is sorted first
-                if (clean.all { it.isDigit() }) {
-                    results.sortWith(compareBy({ it.frontendId != clean }, { it.frontendId.toIntOrNull() ?: 999999 }))
-                }
-
-                Result.success(results)
+                list
             }
-        } catch (e: Exception) {
-            Result.failure(e)
+        } catch (_: Exception) {
+            emptyList()
         }
+    }
+
+    override suspend fun searchLeetCode(query: String): Result<List<LeetCodeSearchResult>> = withContext(Dispatchers.IO) {
+        val clean = query.trim().removePrefix("#")
+        ensureCatalogLoaded()
+
+        if (clean.isBlank()) {
+            // When query is blank, show all problems in numbering order (#1, #2, #3...)
+            if (inMemoryCatalog.size < 100) {
+                tryFetchOnlineQuestions(limit = 100, clean = "")
+                persistCatalog()
+            }
+            val sorted = inMemoryCatalog.values.sortedWith(
+                compareBy({ it.frontendId.toIntOrNull() ?: 999999 }, { it.title })
+            )
+            return@withContext Result.success(sorted)
+        }
+
+        // 1. Instant local offline search on phone
+        val localMatches = mutableListOf<LeetCodeSearchResult>()
+        for (item in inMemoryCatalog.values) {
+            val matchFid = item.frontendId == clean || item.frontendId.startsWith(clean)
+            val matchTitle = item.title.contains(clean, ignoreCase = true)
+            val matchSlug = item.titleSlug.contains(clean, ignoreCase = true)
+            val matchTag = item.topicTags.any { it.contains(clean, ignoreCase = true) }
+            if (matchFid || matchTitle || matchSlug || matchTag) {
+                localMatches.add(item)
+            }
+        }
+
+        // 2. Fetch live results from LeetCode GraphQL online
+        val onlineMatches = tryFetchOnlineQuestions(limit = 30, clean = clean)
+
+        // 3. Merge results (avoiding duplicates by titleSlug)
+        val combined = (localMatches + onlineMatches).distinctBy { it.titleSlug }.toMutableList()
+
+        // 4. Sort: exact frontendId match first, then numeric prefix, then ascending order
+        combined.sortWith(
+            compareBy(
+                { it.frontendId != clean },
+                { !it.frontendId.startsWith(clean) },
+                { it.frontendId.toIntOrNull() ?: 999999 },
+                { it.title }
+            )
+        )
+
+        persistCatalog()
+        Result.success(combined)
     }
 
     override suspend fun addProblemFromLeetCode(input: String): Result<OfflineProblem> = withContext(Dispatchers.IO) {
@@ -343,7 +581,13 @@ class OfflineProblemRepository(
             else -> clean.removePrefix("#").trim()
         }
 
-        downloadProblemOffline(folderName = slugOrQuery, titleSlug = slugOrQuery)
+        ensureCatalogLoaded()
+        val catalogItem = inMemoryCatalog[slugOrQuery] ?: inMemoryCatalog.values.find {
+            it.frontendId == slugOrQuery || it.title.equals(slugOrQuery, ignoreCase = true)
+        }
+        val targetSlug = catalogItem?.titleSlug ?: slugOrQuery
+
+        downloadProblemOffline(folderName = targetSlug, titleSlug = targetSlug)
     }
 
     override suspend fun getProblems(): List<OfflineProblem> = withContext(Dispatchers.IO) {
