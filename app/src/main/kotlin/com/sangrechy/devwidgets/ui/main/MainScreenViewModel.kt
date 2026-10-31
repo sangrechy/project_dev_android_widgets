@@ -184,6 +184,9 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
     private val _widgetWallpaperCustomPath = MutableStateFlow(repository.getWidgetWallpaperCustomPath())
     val widgetWallpaperCustomPath: StateFlow<String> = _widgetWallpaperCustomPath.asStateFlow()
 
+    private val _widgetSpecificWallpapers = MutableStateFlow<Map<String, String>>(emptyMap())
+    val widgetSpecificWallpapers: StateFlow<Map<String, String>> = _widgetSpecificWallpapers.asStateFlow()
+
     init {
         loadProblems()
         loadGeneralNotes()
@@ -652,11 +655,14 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
     }
 
     fun getWidgetWallpaperTypeFor(widgetKey: String): String {
-        return repository.getWidgetWallpaperTypeFor(widgetKey)
+        val norm = widgetKey.trim().uppercase()
+        return _widgetSpecificWallpapers.value[norm] ?: repository.getWidgetWallpaperTypeFor(widgetKey)
     }
 
     fun setWidgetWallpaperTypeFor(widgetKey: String, type: String) {
+        val norm = widgetKey.trim().uppercase()
         repository.setWidgetWallpaperTypeFor(widgetKey, type)
+        _widgetSpecificWallpapers.value = _widgetSpecificWallpapers.value + (norm to type)
         applyWidgetWallpaperToAllWidgets()
         _syncMessage.value = "Updated $widgetKey wallpaper"
     }

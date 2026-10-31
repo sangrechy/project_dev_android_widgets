@@ -78,31 +78,57 @@ class WidgetPreferences(context: Context) {
         set(value) = prefs.edit().putFloat(KEY_WIDGET_WALLPAPER_DIM, value).apply()
 
     fun getWidgetWallpaperTypeFor(widgetKey: String): String {
-        return prefs.getString("KEY_WIDGET_WALLPAPER_TYPE_$widgetKey", null) ?: widgetWallpaperType
+        val norm = widgetKey.trim().uppercase()
+        return prefs.getString("KEY_WIDGET_WALLPAPER_TYPE_$norm", null)
+            ?: prefs.getString("KEY_WIDGET_WALLPAPER_TYPE_$widgetKey", null)
+            ?: widgetWallpaperType
     }
     fun setWidgetWallpaperTypeFor(widgetKey: String, type: String) {
-        prefs.edit().putString("KEY_WIDGET_WALLPAPER_TYPE_$widgetKey", type).apply()
+        val norm = widgetKey.trim().uppercase()
+        prefs.edit()
+            .putString("KEY_WIDGET_WALLPAPER_TYPE_$norm", type)
+            .putString("KEY_WIDGET_WALLPAPER_TYPE_$widgetKey", type)
+            .apply()
     }
 
     fun getWidgetWallpaperPresetFor(widgetKey: String): String {
-        return prefs.getString("KEY_WIDGET_WALLPAPER_PRESET_$widgetKey", null) ?: widgetWallpaperPreset
+        val norm = widgetKey.trim().uppercase()
+        return prefs.getString("KEY_WIDGET_WALLPAPER_PRESET_$norm", null)
+            ?: prefs.getString("KEY_WIDGET_WALLPAPER_PRESET_$widgetKey", null)
+            ?: widgetWallpaperPreset
     }
     fun setWidgetWallpaperPresetFor(widgetKey: String, preset: String) {
-        prefs.edit().putString("KEY_WIDGET_WALLPAPER_PRESET_$widgetKey", preset).apply()
+        val norm = widgetKey.trim().uppercase()
+        prefs.edit()
+            .putString("KEY_WIDGET_WALLPAPER_PRESET_$norm", preset)
+            .putString("KEY_WIDGET_WALLPAPER_PRESET_$widgetKey", preset)
+            .apply()
     }
 
     fun getWidgetWallpaperCustomPathFor(widgetKey: String): String {
-        return prefs.getString("KEY_WIDGET_WALLPAPER_CUSTOM_PATH_$widgetKey", null) ?: widgetWallpaperCustomPath
+        val norm = widgetKey.trim().uppercase()
+        return prefs.getString("KEY_WIDGET_WALLPAPER_CUSTOM_PATH_$norm", null)
+            ?: prefs.getString("KEY_WIDGET_WALLPAPER_CUSTOM_PATH_$widgetKey", null)
+            ?: widgetWallpaperCustomPath
     }
     fun setWidgetWallpaperCustomPathFor(widgetKey: String, path: String) {
-        prefs.edit().putString("KEY_WIDGET_WALLPAPER_CUSTOM_PATH_$widgetKey", path).apply()
+        val norm = widgetKey.trim().uppercase()
+        prefs.edit()
+            .putString("KEY_WIDGET_WALLPAPER_CUSTOM_PATH_$norm", path)
+            .putString("KEY_WIDGET_WALLPAPER_CUSTOM_PATH_$widgetKey", path)
+            .apply()
     }
 
     fun getWidgetWallpaperDimFor(widgetKey: String): Float {
-        return prefs.getFloat("KEY_WIDGET_WALLPAPER_DIM_$widgetKey", widgetWallpaperDim)
+        val norm = widgetKey.trim().uppercase()
+        return prefs.getFloat("KEY_WIDGET_WALLPAPER_DIM_$norm", prefs.getFloat("KEY_WIDGET_WALLPAPER_DIM_$widgetKey", widgetWallpaperDim))
     }
     fun setWidgetWallpaperDimFor(widgetKey: String, dim: Float) {
-        prefs.edit().putFloat("KEY_WIDGET_WALLPAPER_DIM_$widgetKey", dim).apply()
+        val norm = widgetKey.trim().uppercase()
+        prefs.edit()
+            .putFloat("KEY_WIDGET_WALLPAPER_DIM_$norm", dim)
+            .putFloat("KEY_WIDGET_WALLPAPER_DIM_$widgetKey", dim)
+            .apply()
     }
 
     fun clearAll() {

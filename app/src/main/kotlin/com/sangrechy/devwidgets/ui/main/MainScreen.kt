@@ -406,6 +406,7 @@ fun MainScreen(
             val appWallpaperCustomPath by viewModel.appWallpaperCustomPath.collectAsState()
             val appWallpaperDim by viewModel.appWallpaperDim.collectAsState()
             val widgetWallpaperType by viewModel.widgetWallpaperType.collectAsState()
+            val widgetSpecificWallpapers by viewModel.widgetSpecificWallpapers.collectAsState()
 
             val wallpaperBitmap = remember(appWallpaperType, appWallpaperPreset, appWallpaperCustomPath) {
                 WallpaperManager.getAppWallpaperBitmap(context, 1080, 2400)?.asImageBitmap()
@@ -583,11 +584,14 @@ fun MainScreen(
                             selectedInterval = selectedInterval,
                             heatmapOrientation = heatmapOrientation,
                             widgetWallpaperType = widgetWallpaperType,
+                            widgetSpecificWallpapers = widgetSpecificWallpapers,
                             onIntervalSelected = viewModel::setRefreshInterval,
                             onOrientationSelected = viewModel::setHeatmapOrientation,
                             onWidgetWallpaperTypeSelected = viewModel::setWidgetWallpaperType,
                             onSetWidgetSpecificWallpaper = viewModel::setWidgetWallpaperTypeFor,
-                            getWidgetSpecificWallpaper = viewModel::getWidgetWallpaperTypeFor,
+                            getWidgetSpecificWallpaper = { key ->
+                                widgetSpecificWallpapers[key.trim().uppercase()] ?: viewModel.getWidgetWallpaperTypeFor(key)
+                            },
                             onPinWidget = { providerClass -> pinWidgetToHomeScreen(context, providerClass) }
                         )
 
@@ -2047,6 +2051,7 @@ private fun WidgetsScreenContent(
     selectedInterval: String,
     heatmapOrientation: String,
     widgetWallpaperType: String,
+    widgetSpecificWallpapers: Map<String, String> = emptyMap(),
     onIntervalSelected: (String) -> Unit,
     onOrientationSelected: (String) -> Unit,
     onWidgetWallpaperTypeSelected: (String) -> Unit,
@@ -2410,7 +2415,7 @@ private fun WidgetsScreenContent(
             }
         )
 
-        // 3. LeetCode Circle (Circle Only)
+        // 3. LeetCode Circle (Circle Only - Div Inside Div)
         WidgetGalleryCard(
             title = "LeetCode Solved Circle (2x2)",
             subtitle = "Dedicated 3/4 circular speedometer gauge showing solved problems breakdown",
@@ -2420,25 +2425,142 @@ private fun WidgetsScreenContent(
             onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("leetcode_circle", it) },
             onClick = { onPinWidget(LeetCodeCircleWidgetProvider::class.java) },
             content = {
+                var offsetX by remember { mutableStateOf(0f) }
+                var offsetY by remember { mutableStateOf(0f) }
                 val lcCircle = remember(dashboardData.leetCode) {
                     WidgetBitmapRenderer.renderLeetCodeCircle(dashboardData.leetCode, sizePx = 360).asImageBitmap()
                 }
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(115.dp),
-                    contentAlignment = Alignment.Center
+                        .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
+                        .pointerInput(Unit) {
+                            detectDragGestures { change, dragAmount ->
+                                change.consume()
+                                offsetX = (offsetX + dragAmount.x).coerceIn(-60f, 60f)
+                                offsetY = (offsetY + dragAmount.y).coerceIn(-40f, 40f)
+                            }
+                        }
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(Color(0x2EFFFFFF))
+                        .border(1.dp, Color(0x40FFFFFF), RoundedCornerShape(18.dp))
+                        .padding(10.dp)
                 ) {
-                    Image(
-                        bitmap = lcCircle,
-                        contentDescription = "LeetCode Circle",
-                        modifier = Modifier.fillMaxHeight()
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        // Inner Card Header
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Image(
+                                    painter = painterResource(R.drawable.ic_leetcode_logo),
+                                    contentDescription = "LeetCode",
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Text(
+                                    text = "LeetCode",
+                                    color = Color(0xFFFFA116),
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (dashboardData.leetCode.username.isNotBlank())
+                                        "@${dashboardData.leetCode.username}"
+                                    else "@dev",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 9.5.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            // Directional Nudge Arrows + Reset
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                if (offsetX != 0f || offsetY != 0f) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(Color(0x33EF4444))
+                                            .clickable { offsetX = 0f; offsetY = 0f },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("↺", color = Color(0xFFF87171), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0x26FFFFFF))
+                                        .clickable { offsetX = (offsetX - 10f).coerceIn(-60f, 60f) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("←", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0x26FFFFFF))
+                                        .clickable { offsetX = (offsetX + 10f).coerceIn(-60f, 60f) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("→", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0x26FFFFFF))
+                                        .clickable { offsetY = (offsetY - 8f).coerceIn(-40f, 40f) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("↑", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0x26FFFFFF))
+                                        .clickable { offsetY = (offsetY + 8f).coerceIn(-40f, 40f) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("↓", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+
+                        // Centered Circle Gauge
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                bitmap = lcCircle,
+                                contentDescription = "LeetCode Gauge",
+                                modifier = Modifier.fillMaxHeight()
+                            )
+                        }
+                    }
                 }
             }
         )
 
-        // 4. GitHub Circle (Circle Only)
+        // 4. GitHub Circle (Circle Only - Div Inside Div)
         WidgetGalleryCard(
             title = "GitHub Contribution Circle (2x2)",
             subtitle = "Dedicated contribution radar polygon with commits, PRs, issues, reviews",
@@ -2448,20 +2570,137 @@ private fun WidgetsScreenContent(
             onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("github_circle", it) },
             onClick = { onPinWidget(GitHubCircleWidgetProvider::class.java) },
             content = {
+                var offsetX by remember { mutableStateOf(0f) }
+                var offsetY by remember { mutableStateOf(0f) }
                 val ghCircle = remember(dashboardData.gitHub) {
                     WidgetBitmapRenderer.renderGitHubTypeMap(dashboardData.gitHub, sizePx = 360).asImageBitmap()
                 }
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(115.dp),
-                    contentAlignment = Alignment.Center
+                        .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
+                        .pointerInput(Unit) {
+                            detectDragGestures { change, dragAmount ->
+                                change.consume()
+                                offsetX = (offsetX + dragAmount.x).coerceIn(-60f, 60f)
+                                offsetY = (offsetY + dragAmount.y).coerceIn(-40f, 40f)
+                            }
+                        }
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(Color(0x2EFFFFFF))
+                        .border(1.dp, Color(0x40FFFFFF), RoundedCornerShape(18.dp))
+                        .padding(10.dp)
                 ) {
-                    Image(
-                        bitmap = ghCircle,
-                        contentDescription = "GitHub Circle",
-                        modifier = Modifier.fillMaxHeight()
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        // Inner Card Header
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Image(
+                                    painter = painterResource(R.drawable.ic_github_logo),
+                                    contentDescription = "GitHub",
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Text(
+                                    text = "GitHub",
+                                    color = Color(0xFF3FB950),
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (dashboardData.gitHub.username.isNotBlank())
+                                        "@${dashboardData.gitHub.username}"
+                                    else "@dev",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 9.5.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            // Directional Nudge Arrows + Reset
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                if (offsetX != 0f || offsetY != 0f) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(Color(0x33EF4444))
+                                            .clickable { offsetX = 0f; offsetY = 0f },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("↺", color = Color(0xFFF87171), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0x26FFFFFF))
+                                        .clickable { offsetX = (offsetX - 10f).coerceIn(-60f, 60f) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("←", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0x26FFFFFF))
+                                        .clickable { offsetX = (offsetX + 10f).coerceIn(-60f, 60f) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("→", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0x26FFFFFF))
+                                        .clickable { offsetY = (offsetY - 8f).coerceIn(-40f, 40f) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("↑", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0x26FFFFFF))
+                                        .clickable { offsetY = (offsetY + 8f).coerceIn(-40f, 40f) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("↓", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+
+                        // Centered Radar Circle
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                bitmap = ghCircle,
+                                contentDescription = "GitHub Contribution Circle",
+                                modifier = Modifier.fillMaxHeight()
+                            )
+                        }
+                    }
                 }
             }
         )
@@ -2612,16 +2851,53 @@ private fun WidgetGalleryCard(
                 }
             }
 
-            // Visual Preview Block
+            // Visual Preview Block (Chassis with Wallpaper / Style preview)
+            val context = LocalContext.current
+            val previewWallpaperBitmap = remember(currentWidgetWallpaper) {
+                if (currentWidgetWallpaper == "MATCH_APP") {
+                    WallpaperManager.getAppWallpaperBitmap(context, width = 640, height = 360)
+                } else null
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(ThemeInnerBoxBg)
-                    .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(16.dp))
-                    .padding(8.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .then(
+                        when (currentWidgetWallpaper) {
+                            "TRANSLUCENT" -> Modifier
+                                .background(Brush.verticalGradient(listOf(Color(0x33262A36), Color(0x1F1A1C24))))
+                                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(18.dp))
+                            "TRANSPARENT" -> Modifier
+                                .background(Color(0x0DFFFFFF))
+                                .border(1.dp, Color(0x26FFFFFF), RoundedCornerShape(18.dp))
+                            else -> Modifier
+                                .background(ThemeInnerBoxBg)
+                                .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(18.dp))
+                        }
+                    )
             ) {
-                content()
+                if (previewWallpaperBitmap != null) {
+                    Image(
+                        bitmap = previewWallpaperBitmap.asImageBitmap(),
+                        contentDescription = "Widget Wallpaper",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.matchParentSize()
+                    )
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(Color.Black.copy(alpha = 0.55f))
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                ) {
+                    content()
+                }
             }
 
             // Per-Widget Wallpaper Selector Row
