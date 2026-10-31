@@ -2,11 +2,14 @@ package com.sangrechy.devwidgets.data
 
 import android.content.Context
 import com.sangrechy.devwidgets.data.model.CustomNote
+import com.sangrechy.devwidgets.data.model.LeetCodeSearchResult
 import com.sangrechy.devwidgets.data.model.OfflineProblem
 import com.sangrechy.devwidgets.data.model.ProblemNote
 import com.sangrechy.devwidgets.data.network.DevApiService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.ConnectionPool
+import okhttp3.Dispatcher
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -21,6 +24,8 @@ interface ProblemRepository {
     suspend fun getProblems(): List<OfflineProblem>
     suspend fun getProblemDetail(folderName: String): OfflineProblem?
     suspend fun downloadProblemOffline(folderName: String, titleSlug: String): Result<OfflineProblem>
+    suspend fun searchLeetCode(query: String): Result<List<LeetCodeSearchResult>>
+    suspend fun addProblemFromLeetCode(input: String): Result<OfflineProblem>
     suspend fun deleteProblemOffline(folderName: String): Boolean
     suspend fun saveProblemNote(folderName: String, filename: String, content: String): ProblemNote
     suspend fun deleteProblemNote(folderName: String, filename: String): Boolean
@@ -39,6 +44,11 @@ class OfflineProblemRepository(
             return OkHttpClient.Builder()
                 .connectTimeout(15, TimeUnit.SECONDS)
                 .readTimeout(20, TimeUnit.SECONDS)
+                .connectionPool(ConnectionPool(16, 5, TimeUnit.MINUTES))
+                .dispatcher(Dispatcher().apply {
+                    maxRequests = 32
+                    maxRequestsPerHost = 16
+                })
                 .build()
         }
     }
@@ -53,9 +63,291 @@ class OfflineProblemRepository(
         // Ensure default seed data exists on initial launch
         seedDefaultProblemsIfEmpty()
         seedDefaultGeneralNotesIfEmpty()
+        repairProblemDirectories()
+    }
+
+    private data class LeetCodeQuestionDetails(
+        val questionId: String,
+        val frontendId: String,
+        val title: String,
+        val titleSlug: String,
+        val difficulty: String,
+        val contentHtml: String,
+        val topicTags: List<String>,
+        val hints: List<String>,
+        val codeSnippets: Map<String, String>
+    )
+
+    private fun repairProblemDirectories() {
+        val dirs = baseProblemsDir.listFiles { file -> file.isDirectory } ?: return
+        for (dir in dirs) {
+            try {
+                val folderName = dir.name
+                val metaFile = File(dir, "metadata.json")
+                val meta = if (metaFile.exists()) {
+                    try { JSONObject(metaFile.readText()) } catch (_: Exception) { JSONObject() }
+                } else JSONObject()
+
+                var fid = meta.optString("frontend_id").toIntOrNull()
+                val slug = meta.optString("problem_slug").ifBlank {
+                    if (folderName.contains('-') && folderName.substringBefore('-').all { it.isDigit() }) {
+                        folderName.substringAfter('-')
+                    } else folderName
+                }
+
+                if (fid == null) {
+                    when (slug) {
+                        "two-sum" -> fid = 1
+                        "3sum" -> fid = 15
+                        "valid-parentheses" -> 20
+                        "best-time-to-buy-and-sell-stock" -> 121
+                        "trapping-rain-water" -> 42
+                    }
+                }
+
+                if (fid != null && slug.isNotBlank()) {
+                    val canonicalName = "%04d-%s".format(fid, slug)
+                    if (folderName != canonicalName) {
+                        val canonicalDir = File(baseProblemsDir, canonicalName)
+                        if (!canonicalDir.exists()) {
+                            dir.renameTo(canonicalDir)
+                            val cMetaFile = File(canonicalDir, "metadata.json")
+                            val cMeta = if (cMetaFile.exists()) {
+                                try { JSONObject(cMetaFile.readText()) } catch (_: Exception) { JSONObject() }
+                            } else JSONObject()
+                            cMeta.put("frontend_id", fid.toString())
+                            cMeta.put("problem_slug", slug)
+                            if (!cMeta.has("problem_title")) {
+                                cMeta.put("problem_title", slug.split('-').joinToString(" ") { word ->
+                                    word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                                })
+                            }
+                            cMetaFile.writeText(cMeta.toString(2))
+                        } else {
+                            // Canonical already exists (e.g. 0015-3sum vs 3sum), migrate notes and delete duplicate
+                            val oldNotesDir = File(dir, "notes")
+                            val newNotesDir = File(canonicalDir, "notes").apply { mkdirs() }
+                            oldNotesDir.listFiles()?.forEach { nf ->
+                                val targetNf = File(newNotesDir, nf.name)
+                                if (!targetNf.exists()) nf.copyTo(targetNf)
+                            }
+                            dir.deleteRecursively()
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun fetchLeetCodeQuestionDetails(titleSlug: String): LeetCodeQuestionDetails? {
+        val query = """
+            query questionContent(${'$'}titleSlug: String!) {
+              question(titleSlug: ${'$'}titleSlug) {
+                questionId
+                questionFrontendId
+                title
+                titleSlug
+                content
+                difficulty
+                topicTags {
+                  name
+                  slug
+                }
+                hints
+                codeSnippets {
+                  lang
+                  langSlug
+                  code
+                }
+              }
+            }
+        """.trimIndent()
+
+        val jsonBody = JSONObject().apply {
+            put("query", query)
+            put("variables", JSONObject().apply { put("titleSlug", titleSlug) })
+        }
+
+        val request = Request.Builder()
+            .url("https://leetcode.com/graphql")
+            .header("Content-Type", "application/json")
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
+            .build()
+
+        return try {
+            okHttpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return null
+                val body = response.body?.string() ?: return null
+                val root = JSONObject(body)
+                val q = root.optJSONObject("data")?.optJSONObject("question") ?: return null
+
+                val qId = q.optString("questionId", "")
+                val fId = q.optString("questionFrontendId", "")
+                val title = q.optString("title", "")
+                val slug = q.optString("titleSlug", titleSlug)
+                val content = q.optString("content", "")
+                val diff = q.optString("difficulty", "Medium")
+
+                val tags = mutableListOf<String>()
+                val tagArr = q.optJSONArray("topicTags")
+                if (tagArr != null) {
+                    for (i in 0 until tagArr.length()) {
+                        val tName = tagArr.getJSONObject(i).optString("name")
+                        if (tName.isNotBlank()) tags.add(tName)
+                    }
+                }
+
+                val hints = mutableListOf<String>()
+                val hintArr = q.optJSONArray("hints")
+                if (hintArr != null) {
+                    for (i in 0 until hintArr.length()) {
+                        hints.add(hintArr.getString(i))
+                    }
+                }
+
+                val snippets = mutableMapOf<String, String>()
+                val snipArr = q.optJSONArray("codeSnippets")
+                if (snipArr != null) {
+                    for (i in 0 until snipArr.length()) {
+                        val sObj = snipArr.getJSONObject(i)
+                        val langSlug = sObj.optString("langSlug")
+                        val code = sObj.optString("code")
+                        if (langSlug.isNotBlank() && code.isNotBlank()) {
+                            snippets[langSlug] = code
+                        }
+                    }
+                }
+
+                LeetCodeQuestionDetails(
+                    questionId = qId,
+                    frontendId = fId,
+                    title = title,
+                    titleSlug = slug,
+                    difficulty = diff,
+                    contentHtml = content,
+                    topicTags = tags,
+                    hints = hints,
+                    codeSnippets = snippets
+                )
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    override suspend fun searchLeetCode(query: String): Result<List<LeetCodeSearchResult>> = withContext(Dispatchers.IO) {
+        val clean = query.trim().removePrefix("#")
+        if (clean.isBlank()) return@withContext Result.success(emptyList())
+
+        try {
+            val gqlQuery = """
+                query problemsetQuestionList(${'$'}categorySlug: String, ${'$'}limit: Int, ${'$'}skip: Int, ${'$'}filters: QuestionListFilterInput) {
+                  problemsetQuestionList: questionList(categorySlug: ${'$'}categorySlug, limit: ${'$'}limit, skip: ${'$'}skip, filters: ${'$'}filters) {
+                    total: totalNum
+                    questions: data {
+                      frontendQuestionId: questionFrontendId
+                      title
+                      titleSlug
+                      difficulty
+                      topicTags {
+                        name
+                        slug
+                      }
+                    }
+                  }
+                }
+            """.trimIndent()
+
+            val variables = JSONObject().apply {
+                put("categorySlug", "")
+                put("skip", 0)
+                put("limit", 20)
+                put("filters", JSONObject().apply {
+                    put("searchKeywords", clean)
+                })
+            }
+
+            val jsonBody = JSONObject().apply {
+                put("query", gqlQuery)
+                put("variables", variables)
+            }
+
+            val request = Request.Builder()
+                .url("https://leetcode.com/graphql")
+                .header("Content-Type", "application/json")
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
+                .build()
+
+            okHttpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    return@withContext Result.failure(Exception("HTTP ${response.code} from LeetCode"))
+                }
+                val body = response.body?.string() ?: ""
+                val root = JSONObject(body)
+                val listData = root.optJSONObject("data")?.optJSONObject("problemsetQuestionList")
+                val questionsArr = listData?.optJSONArray("questions") ?: JSONArray()
+                val results = mutableListOf<LeetCodeSearchResult>()
+
+                for (i in 0 until questionsArr.length()) {
+                    val q = questionsArr.getJSONObject(i)
+                    val fid = q.optString("frontendQuestionId", "")
+                    val title = q.optString("title", "")
+                    val slug = q.optString("titleSlug", "")
+                    val diff = q.optString("difficulty", "Medium")
+                    val tags = mutableListOf<String>()
+                    val tArr = q.optJSONArray("topicTags")
+                    if (tArr != null) {
+                        for (j in 0 until tArr.length()) {
+                            val tn = tArr.getJSONObject(j).optString("name")
+                            if (tn.isNotBlank()) tags.add(tn)
+                        }
+                    }
+                    if (slug.isNotBlank() && title.isNotBlank()) {
+                        results.add(
+                            LeetCodeSearchResult(
+                                frontendId = fid,
+                                title = title,
+                                titleSlug = slug,
+                                difficulty = diff,
+                                topicTags = tags
+                            )
+                        )
+                    }
+                }
+
+                // If query is digits, ensure exact frontendId match is sorted first
+                if (clean.all { it.isDigit() }) {
+                    results.sortWith(compareBy({ it.frontendId != clean }, { it.frontendId.toIntOrNull() ?: 999999 }))
+                }
+
+                Result.success(results)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun addProblemFromLeetCode(input: String): Result<OfflineProblem> = withContext(Dispatchers.IO) {
+        val clean = input.trim()
+        if (clean.isBlank()) return@withContext Result.failure(Exception("Please enter a problem number, title, or URL"))
+
+        val slugOrQuery = when {
+            clean.contains("leetcode.com/problems/") -> {
+                clean.substringAfter("leetcode.com/problems/").substringBefore("/").substringBefore("?").trim()
+            }
+            clean.contains("/") -> {
+                clean.removeSuffix("/").substringAfterLast("/").trim()
+            }
+            else -> clean.removePrefix("#").trim()
+        }
+
+        downloadProblemOffline(folderName = slugOrQuery, titleSlug = slugOrQuery)
     }
 
     override suspend fun getProblems(): List<OfflineProblem> = withContext(Dispatchers.IO) {
+        repairProblemDirectories()
         val dirs = baseProblemsDir.listFiles { file -> file.isDirectory } ?: emptyArray()
         val list = mutableListOf<OfflineProblem>()
 
@@ -77,101 +369,127 @@ class OfflineProblemRepository(
     }
 
     override suspend fun downloadProblemOffline(folderName: String, titleSlug: String): Result<OfflineProblem> = withContext(Dispatchers.IO) {
-        val dir = File(baseProblemsDir, folderName).apply { mkdirs() }
-        val slug = titleSlug.ifBlank { folderName.substringAfter('-', folderName) }
-
         try {
-            // Query public LeetCode GraphQL for authentic content, examples, constraints, hints
-            val query = """
-                query questionContent(${'$'}titleSlug: String!) {
-                  question(titleSlug: ${'$'}titleSlug) {
-                    questionId
-                    questionFrontendId
-                    title
-                    titleSlug
-                    content
-                    difficulty
-                    topicTags {
-                      name
-                      slug
-                    }
-                    hints
-                  }
-                }
-            """.trimIndent()
+            val rawSlug = titleSlug.ifBlank { folderName.substringAfter('-', folderName) }.trim()
 
-            val jsonBody = JSONObject().apply {
-                put("query", query)
-                put("variables", JSONObject().apply { put("titleSlug", slug) })
-            }
+            // 1. Try direct fetch if not purely numeric
+            var details: LeetCodeQuestionDetails? = if (rawSlug.isNotBlank() && !rawSlug.all { it.isDigit() }) {
+                fetchLeetCodeQuestionDetails(rawSlug)
+            } else null
 
-            val request = Request.Builder()
-                .url("https://leetcode.com/graphql")
-                .header("Content-Type", "application/json")
-                .header("Referer", "https://leetcode.com/problems/$slug/")
-                .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
-                .build()
-
-            val (contentHtml, fetchedDifficulty, fetchedTags, fetchedHints) = okHttpClient.newCall(request).execute().use { response ->
-                if (response.isSuccessful) {
-                    val body = response.body?.string() ?: ""
-                    val root = JSONObject(body)
-                    val q = root.optJSONObject("data")?.optJSONObject("question")
-                    val content = q?.optString("content") ?: ""
-                    val diff = q?.optString("difficulty") ?: "Medium"
-                    val tags = mutableListOf<String>()
-                    val tagArr = q?.optJSONArray("topicTags")
-                    if (tagArr != null) {
-                        for (i in 0 until tagArr.length()) {
-                            val tName = tagArr.getJSONObject(i).optString("name")
-                            if (tName.isNotBlank()) tags.add(tName)
-                        }
-                    }
-                    val hints = mutableListOf<String>()
-                    val hintArr = q?.optJSONArray("hints")
-                    if (hintArr != null) {
-                        for (i in 0 until hintArr.length()) {
-                            hints.add(hintArr.getString(i))
-                        }
-                    }
-                    Quadruple(content, diff, tags, hints)
-                } else {
-                    Quadruple("", "Medium", emptyList<String>(), emptyList<String>())
+            // 2. If direct fetch returned null, search LeetCode website to resolve
+            if (details == null) {
+                val searchRes = searchLeetCode(rawSlug.ifBlank { folderName })
+                val best = searchRes.getOrNull()?.firstOrNull()
+                if (best != null) {
+                    details = fetchLeetCodeQuestionDetails(best.titleSlug)
                 }
             }
 
-            // Save content.html
-            if (contentHtml.isNotBlank()) {
-                File(dir, "content.html").writeText(contentHtml)
+            if (details == null) {
+                return@withContext Result.failure(Exception("Could not find problem '$rawSlug' on LeetCode."))
             }
 
-            // Load existing metadata.json or create one
-            val metaFile = File(dir, "metadata.json")
+            val frontendId = details.frontendId.ifBlank { "0" }
+            val officialTitle = details.title
+            val officialSlug = details.titleSlug
+            val num = frontendId.toIntOrNull()
+            val canonicalFolderName = if (num != null) "%04d-%s".format(num, officialSlug) else "$frontendId-$officialSlug"
+            val targetDir = File(baseProblemsDir, canonicalFolderName).apply { mkdirs() }
+
+            // Clean up / migrate from any non-canonical or unpadded folder names
+            val candidateOldNames = listOf(folderName, officialSlug, "$num-$officialSlug").distinct()
+            for (oldName in candidateOldNames) {
+                if (oldName.isNotBlank() && oldName != canonicalFolderName) {
+                    val oldDir = File(baseProblemsDir, oldName)
+                    if (oldDir.exists() && oldDir.isDirectory) {
+                        val oldNotesDir = File(oldDir, "notes")
+                        if (oldNotesDir.exists()) {
+                            val newNotesDir = File(targetDir, "notes").apply { mkdirs() }
+                            oldNotesDir.listFiles()?.forEach { nf ->
+                                val dest = File(newNotesDir, nf.name)
+                                if (!dest.exists()) nf.copyTo(dest)
+                            }
+                        }
+                        val oldSol = File(oldDir, "solution.py")
+                        val newSol = File(targetDir, "solution.py")
+                        if (oldSol.exists() && !newSol.exists()) {
+                            oldSol.copyTo(newSol)
+                        }
+                        oldDir.deleteRecursively()
+                    }
+                }
+            }
+
+            // Write metadata.json with authentic LeetCode properties
+            val metaFile = File(targetDir, "metadata.json")
             val metaObj = if (metaFile.exists()) {
                 try { JSONObject(metaFile.readText()) } catch (_: Exception) { JSONObject() }
             } else JSONObject()
 
+            metaObj.put("frontend_id", frontendId)
+            metaObj.put("problem_id", details.questionId.ifBlank { frontendId })
+            metaObj.put("problem_title", officialTitle)
+            metaObj.put("problem_slug", officialSlug)
+            metaObj.put("difficulty", details.difficulty)
+            metaObj.put("problem_url", "https://leetcode.com/problems/$officialSlug/")
             metaObj.put("is_downloaded_offline", true)
             metaObj.put("last_synced_millis", System.currentTimeMillis())
-            if (fetchedDifficulty.isNotBlank() && !metaObj.has("difficulty")) {
-                metaObj.put("difficulty", fetchedDifficulty)
-            }
-            if (fetchedTags.isNotEmpty()) {
+
+            if (details.topicTags.isNotEmpty()) {
                 val tagsArr = JSONArray()
-                fetchedTags.forEach { tagsArr.put(it) }
+                details.topicTags.forEach { tagsArr.put(it) }
                 metaObj.put("topic_tags", tagsArr)
             }
-            if (fetchedHints.isNotEmpty()) {
+            if (details.hints.isNotEmpty()) {
                 val hintArr = JSONArray()
-                fetchedHints.forEach { hintArr.put(it) }
+                details.hints.forEach { hintArr.put(it) }
                 metaObj.put("hints", hintArr)
             }
             metaFile.writeText(metaObj.toString(2))
 
-            // Ensure notes directory exists
-            File(dir, "notes").mkdirs()
+            // Save official content.html
+            if (details.contentHtml.isNotBlank()) {
+                File(targetDir, "content.html").writeText(details.contentHtml)
+            }
 
-            val updated = loadProblemFromDir(dir)
+            // Starter solution code if not already created
+            val solFile = File(targetDir, "solution.py")
+            if (!solFile.exists()) {
+                val pySnippet = details.codeSnippets["python3"]
+                    ?: details.codeSnippets["python"]
+                    ?: details.codeSnippets["java"]
+                    ?: details.codeSnippets["cpp"]
+                    ?: ""
+                val starterCode = if (pySnippet.isNotBlank()) {
+                    "# LeetCode #$frontendId: $officialTitle\n# https://leetcode.com/problems/$officialSlug/\n\n$pySnippet"
+                } else {
+                    "# LeetCode #$frontendId: $officialTitle\n# https://leetcode.com/problems/$officialSlug/\n\nclass Solution:\n    pass\n"
+                }
+                solFile.writeText(starterCode)
+            }
+
+            // Starter notes in notes/notes.md
+            val notesDir = File(targetDir, "notes").apply { mkdirs() }
+            val defaultNote = File(notesDir, "notes.md")
+            if (!defaultNote.exists()) {
+                val tagsStr = if (details.topicTags.isNotEmpty()) details.topicTags.joinToString(", ") else "None"
+                defaultNote.writeText("""
+                    # #$frontendId $officialTitle Notes
+
+                    ## Intuition
+                    <!-- Write your initial thoughts, key observations, and edge cases here -->
+
+                    ## Approach
+                    - Time Complexity: O(?)
+                    - Space Complexity: O(?)
+
+                    ## Key Insights
+                    - Tags: $tagsStr
+                """.trimIndent())
+            }
+
+            val updated = loadProblemFromDir(targetDir)
                 ?: return@withContext Result.failure(Exception("Failed to reload downloaded problem"))
 
             Result.success(updated)
@@ -388,15 +706,17 @@ class OfflineProblemRepository(
         } else JSONObject()
 
         val dashIdx = folderName.indexOf('-')
-        val parsedId = if (dashIdx != -1) folderName.substring(0, dashIdx).trimStart('0').ifBlank { "0" } else "0"
-        val parsedSlug = if (dashIdx != -1) folderName.substring(dashIdx + 1) else folderName
+        val firstPrefix = if (dashIdx != -1) folderName.substring(0, dashIdx).trimStart('0') else ""
+        val parsedId = if (firstPrefix.isNotEmpty() && firstPrefix.all { it.isDigit() }) firstPrefix else "0"
+        val parsedSlug = if (dashIdx != -1 && firstPrefix.all { it.isDigit() }) folderName.substring(dashIdx + 1) else folderName
         val parsedTitle = parsedSlug.split('-').joinToString(" ") { word ->
             word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
         }
 
-        val frontendId = meta.optString("frontend_id", meta.optString("problem_id", parsedId))
-        val title = meta.optString("problem_title", parsedTitle)
-        val titleSlug = meta.optString("problem_slug", parsedSlug)
+        val metaFid = meta.optString("frontend_id").ifBlank { meta.optString("problem_id") }
+        val frontendId = if (metaFid.isNotBlank()) metaFid else parsedId
+        val title = meta.optString("problem_title").ifBlank { parsedTitle }
+        val titleSlug = meta.optString("problem_slug").ifBlank { parsedSlug }
         val difficulty = meta.optString("difficulty", "Medium")
         val language = meta.optString("language", "python3")
         val runtime = meta.optString("runtime", "")

@@ -29,6 +29,14 @@ data class OfflineProblem(
     val lastSyncedMillis: Long = 0L
 )
 
+data class LeetCodeSearchResult(
+    val frontendId: String,
+    val title: String,
+    val titleSlug: String,
+    val difficulty: String,
+    val topicTags: List<String> = emptyList()
+)
+
 data class CustomNote(
     val id: String, // unique id or filename
     val title: String,

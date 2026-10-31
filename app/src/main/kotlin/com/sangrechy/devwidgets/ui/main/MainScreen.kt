@@ -181,6 +181,9 @@ fun MainScreen(
     val selectedGeneralNote by viewModel.selectedGeneralNote.collectAsStateWithLifecycle()
     val backupRepoInput by viewModel.backupRepoInput.collectAsStateWithLifecycle()
     val isSyncingBackupRepo by viewModel.isSyncingBackupRepo.collectAsStateWithLifecycle()
+    val leetCodeSearchResults by viewModel.leetCodeSearchResults.collectAsStateWithLifecycle()
+    val isSearchingLeetCode by viewModel.isSearchingLeetCode.collectAsStateWithLifecycle()
+    val isAddingProblem by viewModel.isAddingProblem.collectAsStateWithLifecycle()
 
     val syncMessage by viewModel.syncMessage.collectAsStateWithLifecycle()
     val dashboardData by viewModel.dashboardData.collectAsStateWithLifecycle()
@@ -549,6 +552,9 @@ fun MainScreen(
                             selectedGeneralNote = selectedGeneralNote,
                             backupRepoInput = backupRepoInput,
                             isSyncingBackupRepo = isSyncingBackupRepo,
+                            leetCodeSearchResults = leetCodeSearchResults,
+                            isSearchingLeetCode = isSearchingLeetCode,
+                            isAddingProblem = isAddingProblem,
                             onPlatformSelected = viewModel::setProblemsPlatform,
                             onSubTabSelected = viewModel::setProblemsSubTab,
                             onSearchQueryChanged = viewModel::setProblemsSearchQuery,
@@ -557,6 +563,9 @@ fun MainScreen(
                             onActiveProblemNoteIndexChanged = viewModel::setActiveProblemNoteIndex,
                             onDownloadProblemOffline = viewModel::downloadProblemOffline,
                             onDeleteProblemOffline = viewModel::deleteProblemOffline,
+                            onSearchLeetCode = viewModel::searchLeetCode,
+                            onClearLeetCodeSearch = viewModel::clearLeetCodeSearchResults,
+                            onAddProblemFromLeetCode = viewModel::addProblemFromLeetCode,
                             onSaveProblemNote = viewModel::saveProblemNote,
                             onDeleteProblemNote = viewModel::deleteProblemNote,
                             onBackupRepoChanged = viewModel::onBackupRepoInputChanged,

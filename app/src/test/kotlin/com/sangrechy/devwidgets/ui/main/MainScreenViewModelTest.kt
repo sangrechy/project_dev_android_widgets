@@ -251,6 +251,28 @@ class MainScreenViewModelTest {
         assertEquals(0.4f, viewModel.widgetWallpaperDim.value)
         assertEquals(0.4f, fakeRepo.getWidgetWallpaperDim())
     }
+
+    @Test
+    fun testSearchLeetCodeAndAddProblemFromLeetCode() = runTest {
+        val fakeRepo = FakeDataRepository()
+        val viewModel = MainScreenViewModel(fakeRepo)
+
+        viewModel.searchLeetCode("two sum")
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(1, viewModel.leetCodeSearchResults.value.size)
+        assertEquals("1", viewModel.leetCodeSearchResults.value.first().frontendId)
+        assertEquals("two-sum", viewModel.leetCodeSearchResults.value.first().titleSlug)
+
+        var completed = false
+        viewModel.addProblemFromLeetCode("two-sum") { success: Boolean ->
+            completed = success
+        }
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertTrue(completed)
+        assertEquals("1", viewModel.selectedProblemDetail.value?.frontendId)
+        assertEquals("Two Sum", viewModel.selectedProblemDetail.value?.title)
+        assertTrue(viewModel.leetCodeSearchResults.value.isEmpty())
+    }
 }
 
 private class FakeProblemRepository : com.sangrechy.devwidgets.data.ProblemRepository {
@@ -302,6 +324,30 @@ private class FakeProblemRepository : com.sangrechy.devwidgets.data.ProblemRepos
             ).also { problems.add(it) }
         val updated = found.copy(isDownloadedOffline = true)
         return Result.success(updated)
+    }
+    override suspend fun searchLeetCode(query: String): Result<List<com.sangrechy.devwidgets.data.model.LeetCodeSearchResult>> {
+        val list = problems.map {
+            com.sangrechy.devwidgets.data.model.LeetCodeSearchResult(
+                frontendId = it.frontendId,
+                title = it.title,
+                titleSlug = it.titleSlug,
+                difficulty = it.difficulty,
+                topicTags = it.topicTags
+            )
+        }
+        return Result.success(list)
+    }
+    override suspend fun addProblemFromLeetCode(input: String): Result<com.sangrechy.devwidgets.data.model.OfflineProblem> {
+        val p = com.sangrechy.devwidgets.data.model.OfflineProblem(
+            folderName = "0001-two-sum",
+            frontendId = "1",
+            title = "Two Sum",
+            titleSlug = "two-sum",
+            difficulty = "Easy",
+            isDownloadedOffline = true
+        )
+        problems.add(p)
+        return Result.success(p)
     }
     override suspend fun deleteProblemOffline(folderName: String): Boolean =
         problems.removeIf { it.folderName == folderName }

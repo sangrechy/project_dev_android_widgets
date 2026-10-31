@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 import com.sangrechy.devwidgets.BuildConfig
 import com.sangrechy.devwidgets.data.model.AppUpdateInfo
 import com.sangrechy.devwidgets.data.model.CustomNote
+import com.sangrechy.devwidgets.data.model.LeetCodeSearchResult
 import com.sangrechy.devwidgets.data.model.OfflineProblem
 import com.sangrechy.devwidgets.data.model.ProblemDifficultyFilter
 import com.sangrechy.devwidgets.data.model.ProblemNote
@@ -148,6 +149,15 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
 
     private val _isSyncingBackupRepo = MutableStateFlow(false)
     val isSyncingBackupRepo: StateFlow<Boolean> = _isSyncingBackupRepo.asStateFlow()
+
+    private val _leetCodeSearchResults = MutableStateFlow<List<LeetCodeSearchResult>>(emptyList())
+    val leetCodeSearchResults: StateFlow<List<LeetCodeSearchResult>> = _leetCodeSearchResults.asStateFlow()
+
+    private val _isSearchingLeetCode = MutableStateFlow(false)
+    val isSearchingLeetCode: StateFlow<Boolean> = _isSearchingLeetCode.asStateFlow()
+
+    private val _isAddingProblem = MutableStateFlow(false)
+    val isAddingProblem: StateFlow<Boolean> = _isAddingProblem.asStateFlow()
 
     // Wallpaper configuration flows
     private val _appWallpaperType = MutableStateFlow(repository.getAppWallpaperType())
@@ -431,13 +441,60 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
             val result = problemRepo.downloadProblemOffline(folderName, titleSlug)
             if (result.isSuccess) {
                 val updated = result.getOrNull()
-                _syncMessage.value = "Downloaded $folderName for offline access!"
+                _syncMessage.value = "Downloaded #${updated?.frontendId ?: ""} ${updated?.title ?: folderName} for offline access!"
                 loadProblems()
-                if (_selectedProblemDetail.value?.folderName == folderName) {
+                if (updated != null) {
                     _selectedProblemDetail.value = updated
                 }
             } else {
                 _syncMessage.value = "Failed to download offline: ${result.exceptionOrNull()?.message ?: "Unknown error"}"
+            }
+        }
+    }
+
+    fun searchLeetCode(query: String) {
+        val q = query.trim()
+        if (q.isBlank()) {
+            _leetCodeSearchResults.value = emptyList()
+            _isSearchingLeetCode.value = false
+            return
+        }
+        viewModelScope.launch {
+            _isSearchingLeetCode.value = true
+            val res = problemRepo.searchLeetCode(q)
+            _isSearchingLeetCode.value = false
+            if (res.isSuccess) {
+                _leetCodeSearchResults.value = res.getOrDefault(emptyList())
+            } else {
+                _leetCodeSearchResults.value = emptyList()
+            }
+        }
+    }
+
+    fun clearLeetCodeSearchResults() {
+        _leetCodeSearchResults.value = emptyList()
+        _isSearchingLeetCode.value = false
+    }
+
+    fun addProblemFromLeetCode(input: String, onDone: ((Boolean) -> Unit)? = null) {
+        viewModelScope.launch {
+            _isAddingProblem.value = true
+            _syncMessage.value = "Fetching authentic data from LeetCode..."
+            val result = problemRepo.addProblemFromLeetCode(input)
+            _isAddingProblem.value = false
+            if (result.isSuccess) {
+                val problem = result.getOrNull()
+                _syncMessage.value = "Downloaded #${problem?.frontendId} ${problem?.title} offline!"
+                loadProblems()
+                if (problem != null) {
+                    _selectedProblemDetail.value = problem
+                }
+                clearLeetCodeSearchResults()
+                onDone?.invoke(true)
+            } else {
+                val err = result.exceptionOrNull()?.message ?: "Failed to download problem"
+                _syncMessage.value = "Error: $err"
+                onDone?.invoke(false)
             }
         }
     }
