@@ -59,6 +59,9 @@ interface DataRepository {
     fun setWidgetWallpaperDim(dim: Float)
     fun getWidgetWallpaperCustomPath(): String
     fun setWidgetWallpaperCustomPath(path: String)
+    fun getWidgetElementOffsetX(widgetKey: String): Float
+    fun setWidgetElementOffset(widgetKey: String, dx: Float, dy: Float)
+    fun getWidgetElementOffsetY(widgetKey: String): Float
 
     suspend fun saveCustomWallpaperFromUri(uri: Uri, forWidget: Boolean): String?
     fun updateAllWidgets()
@@ -236,6 +239,12 @@ class DefaultDataRepository(private val context: Context) : DataRepository {
     override fun setWidgetWallpaperDim(dim: Float) { prefs.widgetWallpaperDim = dim }
     override fun getWidgetWallpaperCustomPath(): String = prefs.widgetWallpaperCustomPath
     override fun setWidgetWallpaperCustomPath(path: String) { prefs.widgetWallpaperCustomPath = path }
+    override fun getWidgetElementOffsetX(widgetKey: String): Float = prefs.getWidgetElementOffsetX(widgetKey)
+    override fun setWidgetElementOffset(widgetKey: String, dx: Float, dy: Float) {
+        prefs.setWidgetElementOffsetX(widgetKey, dx)
+        prefs.setWidgetElementOffsetY(widgetKey, dy)
+    }
+    override fun getWidgetElementOffsetY(widgetKey: String): Float = prefs.getWidgetElementOffsetY(widgetKey)
 
     override suspend fun saveCustomWallpaperFromUri(uri: Uri, forWidget: Boolean): String? = withContext(Dispatchers.IO) {
         try {

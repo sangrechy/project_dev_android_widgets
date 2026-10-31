@@ -273,6 +273,22 @@ class MainScreenViewModelTest {
         assertEquals("Two Sum", viewModel.selectedProblemDetail.value?.title)
         assertTrue(viewModel.leetCodeSearchResults.value.isEmpty())
     }
+
+    @Test
+    fun testWidgetElementOffsets() = runTest {
+        val fakeRepo = FakeDataRepository()
+        val viewModel = MainScreenViewModel(fakeRepo)
+
+        viewModel.setWidgetElementOffset("leetcode_circle", 15f, -10f)
+        assertEquals(15f, viewModel.getWidgetElementOffsetX("leetcode_circle"))
+        assertEquals(-10f, viewModel.getWidgetElementOffsetY("leetcode_circle"))
+        assertEquals(1, fakeRepo.updateWidgetsCallCount)
+
+        viewModel.setWidgetElementOffset("github_circle", -20f, 25f)
+        assertEquals(-20f, viewModel.getWidgetElementOffsetX("github_circle"))
+        assertEquals(25f, viewModel.getWidgetElementOffsetY("github_circle"))
+        assertEquals(2, fakeRepo.updateWidgetsCallCount)
+    }
 }
 
 private class FakeProblemRepository : com.sangrechy.devwidgets.data.ProblemRepository {
@@ -474,6 +490,16 @@ private class FakeDataRepository : DataRepository {
     override fun setWidgetWallpaperDim(dim: Float) { widgetWallpaperDimVal = dim }
     override fun getWidgetWallpaperCustomPath(): String = widgetWallpaperCustomPathVal
     override fun setWidgetWallpaperCustomPath(path: String) { widgetWallpaperCustomPathVal = path }
+
+    private val elementOffsetsX = mutableMapOf<String, Float>()
+    private val elementOffsetsY = mutableMapOf<String, Float>()
+    override fun getWidgetElementOffsetX(widgetKey: String): Float = elementOffsetsX[widgetKey.trim().uppercase()] ?: 0f
+    override fun setWidgetElementOffset(widgetKey: String, dx: Float, dy: Float) {
+        val norm = widgetKey.trim().uppercase()
+        elementOffsetsX[norm] = dx
+        elementOffsetsY[norm] = dy
+    }
+    override fun getWidgetElementOffsetY(widgetKey: String): Float = elementOffsetsY[widgetKey.trim().uppercase()] ?: 0f
 
     override suspend fun saveCustomWallpaperFromUri(uri: android.net.Uri, forWidget: Boolean): String? = "/mock/path.jpg"
     override fun updateAllWidgets() {

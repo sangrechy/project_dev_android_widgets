@@ -131,6 +131,32 @@ class WidgetPreferences(context: Context) {
             .apply()
     }
 
+    fun getWidgetElementOffsetX(widgetKey: String): Float {
+        val norm = widgetKey.trim().uppercase()
+        return prefs.getFloat("KEY_WIDGET_ELEMENT_OFFSET_X_$norm", prefs.getFloat("KEY_WIDGET_ELEMENT_OFFSET_X_$widgetKey", 0f))
+    }
+
+    fun setWidgetElementOffsetX(widgetKey: String, offset: Float) {
+        val norm = widgetKey.trim().uppercase()
+        prefs.edit()
+            .putFloat("KEY_WIDGET_ELEMENT_OFFSET_X_$norm", offset)
+            .putFloat("KEY_WIDGET_ELEMENT_OFFSET_X_$widgetKey", offset)
+            .apply()
+    }
+
+    fun getWidgetElementOffsetY(widgetKey: String): Float {
+        val norm = widgetKey.trim().uppercase()
+        return prefs.getFloat("KEY_WIDGET_ELEMENT_OFFSET_Y_$norm", prefs.getFloat("KEY_WIDGET_ELEMENT_OFFSET_Y_$widgetKey", 0f))
+    }
+
+    fun setWidgetElementOffsetY(widgetKey: String, offset: Float) {
+        val norm = widgetKey.trim().uppercase()
+        prefs.edit()
+            .putFloat("KEY_WIDGET_ELEMENT_OFFSET_Y_$norm", offset)
+            .putFloat("KEY_WIDGET_ELEMENT_OFFSET_Y_$widgetKey", offset)
+            .apply()
+    }
+
     fun clearAll() {
         prefs.edit()
             .remove(KEY_LEETCODE_USERNAME)

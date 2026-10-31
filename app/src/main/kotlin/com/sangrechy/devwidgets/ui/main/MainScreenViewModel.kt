@@ -667,6 +667,13 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
         _syncMessage.value = "Updated $widgetKey wallpaper"
     }
 
+    fun getWidgetElementOffsetX(widgetKey: String): Float = repository.getWidgetElementOffsetX(widgetKey)
+    fun getWidgetElementOffsetY(widgetKey: String): Float = repository.getWidgetElementOffsetY(widgetKey)
+    fun setWidgetElementOffset(widgetKey: String, dx: Float, dy: Float) {
+        repository.setWidgetElementOffset(widgetKey, dx, dy)
+        applyWidgetWallpaperToAllWidgets()
+    }
+
     fun setWidgetWallpaperPreset(presetId: String) {
         repository.setWidgetWallpaperPreset(presetId)
         _widgetWallpaperPreset.value = presetId

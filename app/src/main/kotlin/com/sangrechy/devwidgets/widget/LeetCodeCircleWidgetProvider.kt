@@ -44,6 +44,19 @@ class LeetCodeCircleWidgetProvider : AppWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.widget_leetcode_circle)
             WidgetWallpaperHelper.applyWallpaper(context, views, 240, 240, widgetKey = "LEETCODE_CIRCLE")
 
+            val prefs = WidgetPreferences(context)
+            val offsetX = prefs.getWidgetElementOffsetX("LEETCODE_CIRCLE")
+            val offsetY = prefs.getWidgetElementOffsetY("LEETCODE_CIRCLE")
+            val density = context.resources.displayMetrics.density
+            val basePadPx = (8 * density).toInt()
+            val dxPx = (offsetX * density).toInt()
+            val dyPx = (offsetY * density).toInt()
+            val padLeft = (basePadPx + dxPx).coerceAtLeast(0)
+            val padRight = (basePadPx - dxPx).coerceAtLeast(0)
+            val padTop = (basePadPx + dyPx).coerceAtLeast(0)
+            val padBottom = (basePadPx - dyPx).coerceAtLeast(0)
+            views.setViewPadding(R.id.widget_root, padLeft, padTop, padRight, padBottom)
+
             val lcCircle = WidgetBitmapRenderer.renderLeetCodeCircle(data.leetCode, sizePx = 360)
             views.setImageViewBitmap(R.id.iv_leetcode_circle, lcCircle)
 

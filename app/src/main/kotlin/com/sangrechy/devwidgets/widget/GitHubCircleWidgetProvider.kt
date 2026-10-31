@@ -44,6 +44,19 @@ class GitHubCircleWidgetProvider : AppWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.widget_github_circle)
             WidgetWallpaperHelper.applyWallpaper(context, views, 240, 240, widgetKey = "GITHUB_CIRCLE")
 
+            val prefs = WidgetPreferences(context)
+            val offsetX = prefs.getWidgetElementOffsetX("GITHUB_CIRCLE")
+            val offsetY = prefs.getWidgetElementOffsetY("GITHUB_CIRCLE")
+            val density = context.resources.displayMetrics.density
+            val basePadPx = (8 * density).toInt()
+            val dxPx = (offsetX * density).toInt()
+            val dyPx = (offsetY * density).toInt()
+            val padLeft = (basePadPx + dxPx).coerceAtLeast(0)
+            val padRight = (basePadPx - dxPx).coerceAtLeast(0)
+            val padTop = (basePadPx + dyPx).coerceAtLeast(0)
+            val padBottom = (basePadPx - dyPx).coerceAtLeast(0)
+            views.setViewPadding(R.id.widget_root, padLeft, padTop, padRight, padBottom)
+
             val ghCircle = WidgetBitmapRenderer.renderGitHubTypeMap(data.gitHub, sizePx = 360)
             views.setImageViewBitmap(R.id.iv_github_typemap, ghCircle)
 

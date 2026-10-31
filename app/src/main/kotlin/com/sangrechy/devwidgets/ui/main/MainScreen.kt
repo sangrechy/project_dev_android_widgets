@@ -592,6 +592,10 @@ fun MainScreen(
                             getWidgetSpecificWallpaper = { key ->
                                 widgetSpecificWallpapers[key.trim().uppercase()] ?: viewModel.getWidgetWallpaperTypeFor(key)
                             },
+                            onSetWidgetElementOffset = viewModel::setWidgetElementOffset,
+                            getWidgetElementOffset = { key ->
+                                viewModel.getWidgetElementOffsetX(key) to viewModel.getWidgetElementOffsetY(key)
+                            },
                             onPinWidget = { providerClass -> pinWidgetToHomeScreen(context, providerClass) }
                         )
 
@@ -2057,6 +2061,8 @@ private fun WidgetsScreenContent(
     onWidgetWallpaperTypeSelected: (String) -> Unit,
     onSetWidgetSpecificWallpaper: (widgetKey: String, type: String) -> Unit = { _, _ -> },
     getWidgetSpecificWallpaper: (widgetKey: String) -> String = { "DEFAULT" },
+    onSetWidgetElementOffset: (widgetKey: String, dx: Float, dy: Float) -> Unit = { _, _, _ -> },
+    getWidgetElementOffset: (widgetKey: String) -> Pair<Float, Float> = { 0f to 0f },
     onPinWidget: (Class<out AppWidgetProvider>) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -2425,8 +2431,9 @@ private fun WidgetsScreenContent(
             onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("leetcode_circle", it) },
             onClick = { onPinWidget(LeetCodeCircleWidgetProvider::class.java) },
             content = {
-                var offsetX by remember { mutableStateOf(0f) }
-                var offsetY by remember { mutableStateOf(0f) }
+                val initialOffset = remember { getWidgetElementOffset("leetcode_circle") }
+                var offsetX by remember { mutableStateOf(initialOffset.first) }
+                var offsetY by remember { mutableStateOf(initialOffset.second) }
                 val lcCircle = remember(dashboardData.leetCode) {
                     WidgetBitmapRenderer.renderLeetCodeCircle(dashboardData.leetCode, sizePx = 360).asImageBitmap()
                 }
@@ -2434,125 +2441,148 @@ private fun WidgetsScreenContent(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
-                        .pointerInput(Unit) {
-                            detectDragGestures { change, dragAmount ->
-                                change.consume()
-                                offsetX = (offsetX + dragAmount.x).coerceIn(-60f, 60f)
-                                offsetY = (offsetY + dragAmount.y).coerceIn(-40f, 40f)
-                            }
-                        }
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(Color(0x2EFFFFFF))
-                        .border(1.dp, Color(0x40FFFFFF), RoundedCornerShape(18.dp))
-                        .padding(10.dp)
+                        .height(180.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        // Inner Card Header
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)
-                            ) {
-                                Image(
-                                    painter = painterResource(R.drawable.ic_leetcode_logo),
-                                    contentDescription = "LeetCode",
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Text(
-                                    text = "LeetCode",
-                                    color = Color(0xFFFFA116),
-                                    fontSize = 11.5.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = if (dashboardData.leetCode.username.isNotBlank())
-                                        "@${dashboardData.leetCode.username}"
-                                    else "@dev",
-                                    color = Color(0xFF94A3B8),
-                                    fontSize = 9.5.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                    // Compact floating element (div inside div)
+                    Box(
+                        modifier = Modifier
+                            .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
+                            .pointerInput(Unit) {
+                                detectDragGestures { change, dragAmount ->
+                                    change.consume()
+                                    val newX = (offsetX + dragAmount.x).coerceIn(-65f, 65f)
+                                    val newY = (offsetY + dragAmount.y).coerceIn(-35f, 35f)
+                                    offsetX = newX
+                                    offsetY = newY
+                                    onSetWidgetElementOffset("leetcode_circle", newX, newY)
+                                }
                             }
-
-                            // Directional Nudge Arrows + Reset
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0x2EFFFFFF))
+                            .border(1.dp, Color(0x40FFFFFF), RoundedCornerShape(16.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            // Inner Card Header
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                if (offsetX != 0f || offsetY != 0f) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Image(
+                                        painter = painterResource(R.drawable.ic_leetcode_logo),
+                                        contentDescription = "LeetCode",
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = "LeetCode",
+                                        color = Color(0xFFFFA116),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = if (dashboardData.leetCode.username.isNotBlank())
+                                            "@${dashboardData.leetCode.username}"
+                                        else "@dev",
+                                        color = Color(0xFF94A3B8),
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1
+                                    )
+                                }
+
+                                // Directional Nudge Arrows + Reset
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    if (offsetX != 0f || offsetY != 0f) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(19.dp)
+                                                .clip(RoundedCornerShape(3.dp))
+                                                .background(Color(0x33EF4444))
+                                                .clickable {
+                                                    offsetX = 0f
+                                                    offsetY = 0f
+                                                    onSetWidgetElementOffset("leetcode_circle", 0f, 0f)
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text("↺", color = Color(0xFFF87171), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
                                     Box(
                                         modifier = Modifier
-                                            .size(20.dp)
-                                            .clip(RoundedCornerShape(4.dp))
-                                            .background(Color(0x33EF4444))
-                                            .clickable { offsetX = 0f; offsetY = 0f },
+                                            .size(19.dp)
+                                            .clip(RoundedCornerShape(3.dp))
+                                            .background(Color(0x26FFFFFF))
+                                            .clickable {
+                                                val newX = (offsetX - 10f).coerceIn(-65f, 65f)
+                                                offsetX = newX
+                                                onSetWidgetElementOffset("leetcode_circle", newX, offsetY)
+                                            },
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text("↺", color = Color(0xFFF87171), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                        Text("←", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .size(19.dp)
+                                            .clip(RoundedCornerShape(3.dp))
+                                            .background(Color(0x26FFFFFF))
+                                            .clickable {
+                                                val newX = (offsetX + 10f).coerceIn(-65f, 65f)
+                                                offsetX = newX
+                                                onSetWidgetElementOffset("leetcode_circle", newX, offsetY)
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("→", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .size(19.dp)
+                                            .clip(RoundedCornerShape(3.dp))
+                                            .background(Color(0x26FFFFFF))
+                                            .clickable {
+                                                val newY = (offsetY - 8f).coerceIn(-35f, 35f)
+                                                offsetY = newY
+                                                onSetWidgetElementOffset("leetcode_circle", offsetX, newY)
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("↑", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .size(19.dp)
+                                            .clip(RoundedCornerShape(3.dp))
+                                            .background(Color(0x26FFFFFF))
+                                            .clickable {
+                                                val newY = (offsetY + 8f).coerceIn(-35f, 35f)
+                                                offsetY = newY
+                                                onSetWidgetElementOffset("leetcode_circle", offsetX, newY)
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("↓", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0x26FFFFFF))
-                                        .clickable { offsetX = (offsetX - 10f).coerceIn(-60f, 60f) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("←", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0x26FFFFFF))
-                                        .clickable { offsetX = (offsetX + 10f).coerceIn(-60f, 60f) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("→", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0x26FFFFFF))
-                                        .clickable { offsetY = (offsetY - 8f).coerceIn(-40f, 40f) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("↑", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0x26FFFFFF))
-                                        .clickable { offsetY = (offsetY + 8f).coerceIn(-40f, 40f) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("↓", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                }
                             }
-                        }
 
-                        // Centered Circle Gauge
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(120.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
+                            // Centered Circle Gauge (Compact 112dp)
                             Image(
                                 bitmap = lcCircle,
                                 contentDescription = "LeetCode Gauge",
-                                modifier = Modifier.fillMaxHeight()
+                                modifier = Modifier.size(112.dp)
                             )
                         }
                     }
@@ -2570,8 +2600,9 @@ private fun WidgetsScreenContent(
             onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("github_circle", it) },
             onClick = { onPinWidget(GitHubCircleWidgetProvider::class.java) },
             content = {
-                var offsetX by remember { mutableStateOf(0f) }
-                var offsetY by remember { mutableStateOf(0f) }
+                val initialOffset = remember { getWidgetElementOffset("github_circle") }
+                var offsetX by remember { mutableStateOf(initialOffset.first) }
+                var offsetY by remember { mutableStateOf(initialOffset.second) }
                 val ghCircle = remember(dashboardData.gitHub) {
                     WidgetBitmapRenderer.renderGitHubTypeMap(dashboardData.gitHub, sizePx = 360).asImageBitmap()
                 }
@@ -2579,125 +2610,148 @@ private fun WidgetsScreenContent(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
-                        .pointerInput(Unit) {
-                            detectDragGestures { change, dragAmount ->
-                                change.consume()
-                                offsetX = (offsetX + dragAmount.x).coerceIn(-60f, 60f)
-                                offsetY = (offsetY + dragAmount.y).coerceIn(-40f, 40f)
-                            }
-                        }
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(Color(0x2EFFFFFF))
-                        .border(1.dp, Color(0x40FFFFFF), RoundedCornerShape(18.dp))
-                        .padding(10.dp)
+                        .height(180.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        // Inner Card Header
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)
-                            ) {
-                                Image(
-                                    painter = painterResource(R.drawable.ic_github_logo),
-                                    contentDescription = "GitHub",
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Text(
-                                    text = "GitHub",
-                                    color = Color(0xFF3FB950),
-                                    fontSize = 11.5.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = if (dashboardData.gitHub.username.isNotBlank())
-                                        "@${dashboardData.gitHub.username}"
-                                    else "@dev",
-                                    color = Color(0xFF94A3B8),
-                                    fontSize = 9.5.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                    // Compact floating element (div inside div)
+                    Box(
+                        modifier = Modifier
+                            .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
+                            .pointerInput(Unit) {
+                                detectDragGestures { change, dragAmount ->
+                                    change.consume()
+                                    val newX = (offsetX + dragAmount.x).coerceIn(-65f, 65f)
+                                    val newY = (offsetY + dragAmount.y).coerceIn(-35f, 35f)
+                                    offsetX = newX
+                                    offsetY = newY
+                                    onSetWidgetElementOffset("github_circle", newX, newY)
+                                }
                             }
-
-                            // Directional Nudge Arrows + Reset
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0x2EFFFFFF))
+                            .border(1.dp, Color(0x40FFFFFF), RoundedCornerShape(16.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            // Inner Card Header
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                if (offsetX != 0f || offsetY != 0f) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Image(
+                                        painter = painterResource(R.drawable.ic_github_logo),
+                                        contentDescription = "GitHub",
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = "GitHub",
+                                        color = Color(0xFF3FB950),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = if (dashboardData.gitHub.username.isNotBlank())
+                                            "@${dashboardData.gitHub.username}"
+                                        else "@dev",
+                                        color = Color(0xFF94A3B8),
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1
+                                    )
+                                }
+
+                                // Directional Nudge Arrows + Reset
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    if (offsetX != 0f || offsetY != 0f) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(19.dp)
+                                                .clip(RoundedCornerShape(3.dp))
+                                                .background(Color(0x33EF4444))
+                                                .clickable {
+                                                    offsetX = 0f
+                                                    offsetY = 0f
+                                                    onSetWidgetElementOffset("github_circle", 0f, 0f)
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text("↺", color = Color(0xFFF87171), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
                                     Box(
                                         modifier = Modifier
-                                            .size(20.dp)
-                                            .clip(RoundedCornerShape(4.dp))
-                                            .background(Color(0x33EF4444))
-                                            .clickable { offsetX = 0f; offsetY = 0f },
+                                            .size(19.dp)
+                                            .clip(RoundedCornerShape(3.dp))
+                                            .background(Color(0x26FFFFFF))
+                                            .clickable {
+                                                val newX = (offsetX - 10f).coerceIn(-65f, 65f)
+                                                offsetX = newX
+                                                onSetWidgetElementOffset("github_circle", newX, offsetY)
+                                            },
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text("↺", color = Color(0xFFF87171), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                        Text("←", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .size(19.dp)
+                                            .clip(RoundedCornerShape(3.dp))
+                                            .background(Color(0x26FFFFFF))
+                                            .clickable {
+                                                val newX = (offsetX + 10f).coerceIn(-65f, 65f)
+                                                offsetX = newX
+                                                onSetWidgetElementOffset("github_circle", newX, offsetY)
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("→", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .size(19.dp)
+                                            .clip(RoundedCornerShape(3.dp))
+                                            .background(Color(0x26FFFFFF))
+                                            .clickable {
+                                                val newY = (offsetY - 8f).coerceIn(-35f, 35f)
+                                                offsetY = newY
+                                                onSetWidgetElementOffset("github_circle", offsetX, newY)
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("↑", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .size(19.dp)
+                                            .clip(RoundedCornerShape(3.dp))
+                                            .background(Color(0x26FFFFFF))
+                                            .clickable {
+                                                val newY = (offsetY + 8f).coerceIn(-35f, 35f)
+                                                offsetY = newY
+                                                onSetWidgetElementOffset("github_circle", offsetX, newY)
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("↓", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0x26FFFFFF))
-                                        .clickable { offsetX = (offsetX - 10f).coerceIn(-60f, 60f) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("←", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0x26FFFFFF))
-                                        .clickable { offsetX = (offsetX + 10f).coerceIn(-60f, 60f) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("→", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0x26FFFFFF))
-                                        .clickable { offsetY = (offsetY - 8f).coerceIn(-40f, 40f) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("↑", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0x26FFFFFF))
-                                        .clickable { offsetY = (offsetY + 8f).coerceIn(-40f, 40f) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("↓", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                }
                             }
-                        }
 
-                        // Centered Radar Circle
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(120.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
+                            // Centered Radar Circle (Compact 112dp)
                             Image(
                                 bitmap = ghCircle,
                                 contentDescription = "GitHub Contribution Circle",
-                                modifier = Modifier.fillMaxHeight()
+                                modifier = Modifier.size(112.dp)
                             )
                         }
                     }
