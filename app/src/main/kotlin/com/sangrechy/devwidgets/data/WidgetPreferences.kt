@@ -184,6 +184,8 @@ class WidgetPreferences(context: Context) {
     }
 
     fun clearAll() {
+        memoryCachedData = null
+        memoryCachedRawJson = null
         prefs.edit()
             .remove(KEY_LEETCODE_USERNAME)
             .remove(KEY_GITHUB_USERNAME)
@@ -279,14 +281,17 @@ class WidgetPreferences(context: Context) {
             }
             put("topLanguages", langArr)
         }
-        root.put("gitHub", ghObj)
-
-        prefs.edit().putString(KEY_CACHED_DASHBOARD, root.toString()).apply()
+        val jsonStr = root.toString()
+        memoryCachedRawJson = jsonStr
+        memoryCachedData = data
+        prefs.edit().putString(KEY_CACHED_DASHBOARD, jsonStr).apply()
     }
 
     fun getDashboardData(): WidgetDashboardData {
         val raw = prefs.getString(KEY_CACHED_DASHBOARD, null)
         if (raw == null) {
+            memoryCachedData = null
+            memoryCachedRawJson = null
             return if (leetCodeUsername.isNotEmpty() || gitHubUsername.isNotEmpty()) {
                 WidgetDashboardData(
                     leetCode = LeetCodeStats(username = leetCodeUsername, status = AccountStatus.NOT_CONFIGURED),
@@ -295,6 +300,10 @@ class WidgetPreferences(context: Context) {
             } else {
                 getSampleDashboardData()
             }
+        }
+        val cached = memoryCachedData
+        if (cached != null && raw == memoryCachedRawJson) {
+            return cached
         }
         return try {
             val root = JSONObject(raw)
@@ -401,11 +410,14 @@ class WidgetPreferences(context: Context) {
                 isAuthenticated = ghObj.optBoolean("isAuthenticated", false)
             )
 
-            WidgetDashboardData(
+            val result = WidgetDashboardData(
                 leetCode = lcStats,
                 gitHub = ghStats,
                 lastUpdatedMillis = updated
             )
+            memoryCachedRawJson = raw
+            memoryCachedData = result
+            result
         } catch (e: Exception) {
             WidgetDashboardData(
                 leetCode = LeetCodeStats(username = leetCodeUsername, status = AccountStatus.FAILED, statusMessage = "Cache read failed"),
@@ -415,6 +427,7 @@ class WidgetPreferences(context: Context) {
     }
 
     fun getSampleDashboardData(): WidgetDashboardData {
+        cachedSampleData?.let { return it }
         val now = System.currentTimeMillis() / 1000
         val sampleLcCal = mutableMapOf<Long, Int>()
         // Generate realistic 14 weeks of activity
@@ -558,10 +571,17 @@ class WidgetPreferences(context: Context) {
                 statusMessage = "Linked (842 contribs)"
             ),
             lastUpdatedMillis = System.currentTimeMillis()
-        )
+        ).also { cachedSampleData = it }
     }
 
     companion object {
+        @Volatile
+        private var memoryCachedData: WidgetDashboardData? = null
+        @Volatile
+        private var memoryCachedRawJson: String? = null
+        @Volatile
+        private var cachedSampleData: WidgetDashboardData? = null
+
         private const val PREFS_NAME = "dev_widgets_prefs"
         private const val KEY_LEETCODE_USERNAME = "leetcode_username"
         private const val KEY_GITHUB_USERNAME = "github_username"

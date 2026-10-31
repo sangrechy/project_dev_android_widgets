@@ -37,21 +37,8 @@ interface ProblemRepository {
 
 class OfflineProblemRepository(
     private val context: Context,
-    private val okHttpClient: OkHttpClient = defaultClient()
+    private val okHttpClient: OkHttpClient = DevApiService.defaultClient()
 ) : ProblemRepository {
-    companion object {
-        private fun defaultClient(): OkHttpClient {
-            return OkHttpClient.Builder()
-                .connectTimeout(15, TimeUnit.SECONDS)
-                .readTimeout(20, TimeUnit.SECONDS)
-                .connectionPool(ConnectionPool(16, 5, TimeUnit.MINUTES))
-                .dispatcher(Dispatcher().apply {
-                    maxRequests = 32
-                    maxRequestsPerHost = 16
-                })
-                .build()
-        }
-    }
 
     private val baseProblemsDir: File
         get() = File(context.filesDir, "problems/leetcode").apply { mkdirs() }

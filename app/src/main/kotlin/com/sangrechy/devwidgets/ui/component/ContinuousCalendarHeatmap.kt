@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -92,6 +93,7 @@ fun ContinuousCalendarHeatmap(
         }
         calIter.add(Calendar.MONTH, -11)
 
+        val dateCal = Calendar.getInstance()
         val blocks = mutableListOf<MonthBlockData>()
 
         for (m in 0 until 12) {
@@ -104,6 +106,7 @@ fun ContinuousCalendarHeatmap(
 
             var monthTotal = 0
             val daysList = MutableList<HeatmapDayInfo?>(42) { null } // 6 weeks x 7 days = 42 slots
+            val monthPrefix = String.format(Locale.US, "%04d-%02d-", y, mIdx + 1)
 
             for (dayNum in 1..daysCount) {
                 val slot = firstDowMondayBased + (dayNum - 1)
@@ -111,16 +114,14 @@ fun ContinuousCalendarHeatmap(
                 val row = slot % 7 // Day row (0..6)
                 val slotIdx = col * 7 + row
 
-                val dateCal = Calendar.getInstance().apply {
-                    set(Calendar.YEAR, y)
-                    set(Calendar.MONTH, mIdx)
-                    set(Calendar.DAY_OF_MONTH, dayNum)
-                }
-                val dateStr = sdf.format(dateCal.time)
+                val dateStr = if (dayNum < 10) "${monthPrefix}0$dayNum" else "$monthPrefix$dayNum"
                 val count = rawDaysMap[dateStr] ?: 0
                 monthTotal += count
 
                 if (slotIdx in 0 until 42) {
+                    dateCal.set(Calendar.YEAR, y)
+                    dateCal.set(Calendar.MONTH, mIdx)
+                    dateCal.set(Calendar.DAY_OF_MONTH, dayNum)
                     daysList[slotIdx] = HeatmapDayInfo(
                         dateStr = dateStr,
                         displayDate = displaySdf.format(dateCal.time),
@@ -264,8 +265,9 @@ fun ContinuousCalendarHeatmap(
             verticalAlignment = Alignment.Top
         ) {
             monthBlocks.forEach { month ->
-                // Individual Month Glass Div Box
-                Box(
+                key(month.monthName) {
+                    // Individual Month Glass Div Box
+                    Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(14.dp))
                         .background(Color(0xF0101010))
@@ -319,8 +321,7 @@ fun ContinuousCalendarHeatmap(
                         ) {
                             // Mon, Wed, Fri Day labels on the left of this month
                             Column(verticalArrangement = Arrangement.spacedBy(cellSpacing)) {
-                                val dowShort = listOf("M", "T", "W", "T", "F", "S", "S")
-                                dowShort.forEachIndexed { idx, label ->
+                                DOW_SHORT.forEachIndexed { idx, label ->
                                     Box(
                                         modifier = Modifier.size(width = dayLabelWidth, height = cellSize),
                                         contentAlignment = Alignment.CenterStart
@@ -417,6 +418,7 @@ fun ContinuousCalendarHeatmap(
                 }
             }
         }
+    }
 
         Spacer(modifier = Modifier.height(10.dp))
 
@@ -459,6 +461,8 @@ fun ContinuousCalendarHeatmap(
         }
     }
 }
+
+private val DOW_SHORT = listOf("M", "T", "W", "T", "F", "S", "S")
 
 private data class MonthBlockData(
     val year: Int,

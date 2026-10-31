@@ -72,6 +72,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -406,6 +407,19 @@ private fun LeetCodeProblemsSection(
     var addProblemInput by remember { mutableStateOf("") }
     val selectedProblems = remember { mutableStateListOf<LeetCodeSearchResult>() }
 
+    val (savedSlugs, savedIds) = remember(problems) {
+        val slugs = HashSet<String>(problems.size)
+        val ids = HashSet<String>(problems.size)
+        for (p in problems) {
+            slugs.add(p.titleSlug.lowercase())
+            val dotIdx = p.folderName.indexOf('.')
+            if (dotIdx > 0) {
+                ids.add(p.folderName.substring(0, dotIdx))
+            }
+        }
+        slugs to ids
+    }
+
     // Top Action Bar with Problem Count and + Add Problem Button
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -531,8 +545,10 @@ private fun LeetCodeProblemsSection(
 
                     // Live search results / catalog list from LeetCode
                     if (leetCodeSearchResults.isNotEmpty()) {
-                        val unSavedResults = leetCodeSearchResults.filter { res ->
-                            problems.none { p -> p.titleSlug.equals(res.titleSlug, ignoreCase = true) || p.folderName.startsWith("${res.frontendId}.") }
+                        val unSavedResults = remember(leetCodeSearchResults, savedSlugs, savedIds) {
+                            leetCodeSearchResults.filter { res ->
+                                res.titleSlug.lowercase() !in savedSlugs && res.frontendId !in savedIds
+                            }
                         }
                         val allSelected = unSavedResults.isNotEmpty() && unSavedResults.all { res ->
                             selectedProblems.any { it.titleSlug == res.titleSlug }
@@ -581,16 +597,14 @@ private fun LeetCodeProblemsSection(
                                 .verticalScroll(rememberScrollState())
                         ) {
                             leetCodeSearchResults.forEach { result ->
-                                val badgeColor = when (result.difficulty.lowercase()) {
-                                    "easy" -> Color(0xFFFFFFFF)
-                                    "hard" -> Color(0xFFA3A3A3)
-                                    else -> Color(0xFFD4D4D4)
-                                }
-                                val isSaved = problems.any {
-                                    it.titleSlug.equals(result.titleSlug, ignoreCase = true) ||
-                                    it.folderName.startsWith("${result.frontendId}.")
-                                }
-                                val isSelected = selectedProblems.any { it.titleSlug == result.titleSlug }
+                                key(result.titleSlug) {
+                                    val badgeColor = when (result.difficulty.lowercase()) {
+                                        "easy" -> Color(0xFFFFFFFF)
+                                        "hard" -> Color(0xFFA3A3A3)
+                                        else -> Color(0xFFD4D4D4)
+                                    }
+                                    val isSaved = result.titleSlug.lowercase() in savedSlugs || result.frontendId in savedIds
+                                    val isSelected = selectedProblems.any { it.titleSlug == result.titleSlug }
 
                                 Row(
                                     modifier = Modifier
@@ -698,6 +712,7 @@ private fun LeetCodeProblemsSection(
                             }
                         }
                     }
+                }
 
                     if (isAddingProblem) {
                         Row(
@@ -931,12 +946,14 @@ private fun LeetCodeProblemsSection(
     } else {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             filteredProblems.forEach { problem ->
-                ProblemItemCard(
-                    problem = problem,
-                    onClick = { onSelectProblem(problem) },
-                    onDownloadOffline = { onDownloadProblemOffline(problem.folderName, problem.titleSlug) },
-                    onDeleteOffline = { onDeleteProblemOffline(problem.folderName) }
-                )
+                key(problem.folderName) {
+                    ProblemItemCard(
+                        problem = problem,
+                        onClick = { onSelectProblem(problem) },
+                        onDownloadOffline = { onDownloadProblemOffline(problem.folderName, problem.titleSlug) },
+                        onDeleteOffline = { onDeleteProblemOffline(problem.folderName) }
+                    )
+                }
             }
         }
     }
@@ -2093,7 +2110,9 @@ private fun GeneralNotesSection(
             }
         } else {
             notes.forEach { note ->
-                GeneralNoteCard(note = note, onClick = { onSelectNote(note) })
+                key(note.id) {
+                    GeneralNoteCard(note = note, onClick = { onSelectNote(note) })
+                }
             }
         }
     }

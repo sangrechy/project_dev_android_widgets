@@ -30,12 +30,19 @@ class DevApiService(private val okHttpClient: OkHttpClient = defaultClient()) {
                 .trim()
         }
 
-        private fun defaultClient(): OkHttpClient {
-            return OkHttpClient.Builder()
+        private val sharedClient: OkHttpClient by lazy {
+            OkHttpClient.Builder()
                 .connectTimeout(15, TimeUnit.SECONDS)
                 .readTimeout(20, TimeUnit.SECONDS)
+                .connectionPool(okhttp3.ConnectionPool(16, 5, TimeUnit.MINUTES))
+                .dispatcher(okhttp3.Dispatcher().apply {
+                    maxRequests = 32
+                    maxRequestsPerHost = 16
+                })
                 .build()
         }
+
+        fun defaultClient(): OkHttpClient = sharedClient
     }
 
     suspend fun fetchLeetCodeStats(username: String): LeetCodeStats = withContext(Dispatchers.IO) {

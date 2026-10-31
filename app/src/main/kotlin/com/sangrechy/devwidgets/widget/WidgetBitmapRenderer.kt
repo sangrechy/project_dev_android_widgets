@@ -23,6 +23,24 @@ object WidgetBitmapRenderer {
     private const val COLOR_TEXT_SLATE = 0xFFCBD5E1.toInt()
     private const val COLOR_TEXT_MUTED = 0xFF94A3B8.toInt()
 
+    private const val COLOR_LC_EASY = 0xFF00B8A3.toInt()
+    private const val COLOR_LC_MED = 0xFFFFA116.toInt()
+    private const val COLOR_LC_HARD = 0xFFEF4743.toInt()
+
+    private const val COLOR_GH_COMMITS = 0xFF22C55E.toInt()
+    private const val COLOR_GH_PRS = 0xFF3B82F6.toInt()
+    private const val COLOR_GH_ISSUES = 0xFFF59E0B.toInt()
+    private const val COLOR_GH_REVIEWS = 0xFFA855F7.toInt()
+    private const val COLOR_GH_STROKE = 0xFF4ADE80.toInt()
+
+    private val HEATMAP_LEVEL_COLORS = intArrayOf(
+        Color.argb(25, 255, 255, 255),   // Level 0: Translucent empty cell
+        0xFF0E4429.toInt(),              // Level 1: Deep forest green
+        0xFF006D32.toInt(),              // Level 2: Medium rich green
+        0xFF26A641.toInt(),              // Level 3: Vibrant classic green
+        0xFF39D353.toInt()               // Level 4: Bright electric emerald
+    )
+
     // 1. Authentic LeetCode 3/4 Speedometer Gauge (270° with open bottom for free difficulty stats)
     fun renderLeetCodeCircle(stats: LeetCodeStats, sizePx: Int = 360): Bitmap {
         val safeSize = sizePx.coerceAtLeast(60)
@@ -66,7 +84,7 @@ object WidgetBitmapRenderer {
         // Easy Arc (LeetCode Teal/Emerald: #00B8A3)
         val easySweep = (easyFraction * 270f)
         if (easySweep > 6f) {
-            arcPaint.color = Color.parseColor("#00B8A3")
+            arcPaint.color = COLOR_LC_EASY
             val sweep = (easySweep - gapAngle).coerceAtLeast(2f)
             canvas.drawArc(arcOval, currentAngle + 2f, sweep, false, arcPaint)
         }
@@ -75,7 +93,7 @@ object WidgetBitmapRenderer {
         // Medium Arc (LeetCode Amber/Orange: #FFA116)
         val medSweep = (medFraction * 270f)
         if (medSweep > 6f) {
-            arcPaint.color = Color.parseColor("#FFA116")
+            arcPaint.color = COLOR_LC_MED
             val sweep = (medSweep - gapAngle).coerceAtLeast(2f)
             canvas.drawArc(arcOval, currentAngle + 2f, sweep, false, arcPaint)
         }
@@ -84,7 +102,7 @@ object WidgetBitmapRenderer {
         // Hard Arc (LeetCode Red/Coral: #EF4743)
         val hardSweep = (hardFraction * 270f)
         if (hardSweep > 6f) {
-            arcPaint.color = Color.parseColor("#EF4743")
+            arcPaint.color = COLOR_LC_HARD
             val sweep = (hardSweep - gapAngle).coerceAtLeast(2f)
             canvas.drawArc(arcOval, currentAngle + 2f, sweep, false, arcPaint)
         }
@@ -129,8 +147,7 @@ object WidgetBitmapRenderer {
             style = Paint.Style.FILL
         }
 
-        fun drawDifficultyCol(colCenterX: Float, count: Int, label: String, colorHex: String) {
-            val color = Color.parseColor(colorHex)
+        fun drawDifficultyCol(colCenterX: Float, count: Int, label: String, color: Int) {
             canvas.drawText(count.toString(), colCenterX, bottomSectionY, valPaint)
 
             tagPaint.color = color
@@ -147,9 +164,9 @@ object WidgetBitmapRenderer {
             canvas.drawText(label, startX + (dotRadius * 2f) + gap, tagY, tagPaint)
         }
 
-        drawDifficultyCol(safeSize * 0.20f, stats.easySolved, "Easy", "#00B8A3")
-        drawDifficultyCol(safeSize * 0.50f, stats.mediumSolved, "Med", "#FFA116")
-        drawDifficultyCol(safeSize * 0.80f, stats.hardSolved, "Hard", "#EF4743")
+        drawDifficultyCol(safeSize * 0.20f, stats.easySolved, "Easy", COLOR_LC_EASY)
+        drawDifficultyCol(safeSize * 0.50f, stats.mediumSolved, "Med", COLOR_LC_MED)
+        drawDifficultyCol(safeSize * 0.80f, stats.hardSolved, "Hard", COLOR_LC_HARD)
 
         return bitmap
     }
@@ -213,15 +230,6 @@ object WidgetBitmapRenderer {
                 totalInPeriod += v
             }
         }
-
-        // Authentic Activity Heatmap Emerald Levels (Color for heatmap)
-        val levelColors = intArrayOf(
-            Color.argb(25, 255, 255, 255),   // Level 0: Translucent empty cell
-            Color.parseColor("#0E4429"),      // Level 1: Deep forest green
-            Color.parseColor("#006D32"),      // Level 2: Medium rich green
-            Color.parseColor("#26A641"),      // Level 3: Vibrant classic green
-            Color.parseColor("#39D353")       // Level 4: Bright electric emerald
-        )
 
         // 3. Generate 12 sequential months ending at current month
         data class MonthCalendarBlock(
@@ -323,15 +331,15 @@ object WidgetBitmapRenderer {
         val legendRight = (gridLeft + totalGridW).coerceAtMost(safeW - 4f)
         canvas.drawText("More", legendRight, headerY, legendTextPaint)
 
+        val sqPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+        }
         var sqRight = legendRight - moreWidth - 3f
         for (lvl in 4 downTo 0) {
-            val sqPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                style = Paint.Style.FILL
-                color = levelColors[lvl]
-            }
+            sqPaint.color = HEATMAP_LEVEL_COLORS[lvl]
             val sqLeft = sqRight - sqSize
             val sqTop = headerY - sqSize + 1f
-            canvas.drawRoundRect(RectF(sqLeft, sqTop, sqRight, sqTop + sqSize), 1.5f, 1.5f, sqPaint)
+            canvas.drawRoundRect(sqLeft, sqTop, sqRight, sqTop + sqSize, 1.5f, 1.5f, sqPaint)
             sqRight -= (sqSize + cellGap)
         }
         canvas.drawText("Less", sqRight - 3f, headerY, legendTextPaint)
@@ -372,13 +380,16 @@ object WidgetBitmapRenderer {
                 val monthCenterX = monthLeft + uniformMonthW / 2f
                 canvas.drawText(mb.monthName, monthCenterX, monthY, monthTextPaint)
 
+                // Precompute month date prefix to avoid String.format in 365-cell loop
+                val monthPrefix = String.format(Locale.US, "%04d-%02d-", mb.year, mb.monthIdx + 1)
+
                 // Draw month cells
                 for (dayNum in 1..mb.daysInMonth) {
                     val slot = mb.firstDowMondayBased + (dayNum - 1)
                     val c = if (isVertical) (slot / 7) else (slot % 7)
                     val r = if (isVertical) (slot % 7) else (slot / 7)
                     if (c < monthCols && r < monthRows) {
-                        val dateStr = String.format(Locale.US, "%04d-%02d-%02d", mb.year, mb.monthIdx + 1, dayNum)
+                        val dateStr = if (dayNum < 10) "${monthPrefix}0$dayNum" else "$monthPrefix$dayNum"
                         val count = dayCountMap[dateStr] ?: 0
                         val level = when {
                             count <= 0 -> 0
@@ -387,10 +398,10 @@ object WidgetBitmapRenderer {
                             count in 4..6 -> 3
                             else -> 4
                         }
-                        cellPaint.color = levelColors[level]
+                        cellPaint.color = HEATMAP_LEVEL_COLORS[level]
                         val x = monthLeft + c * (actualCell + cellGap)
                         val y = gridTop + r * (actualCell + cellGap)
-                        canvas.drawRoundRect(RectF(x, y, x + actualCell, y + actualCell), actualCell * 0.22f, actualCell * 0.22f, cellPaint)
+                        canvas.drawRoundRect(x, y, x + actualCell, y + actualCell, actualCell * 0.22f, actualCell * 0.22f, cellPaint)
                     }
                 }
 
@@ -508,7 +519,7 @@ object WidgetBitmapRenderer {
 
         // Vibrant Emerald perimeter stroke
         val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#4ADE80")
+            color = COLOR_GH_STROKE
             this.strokeWidth = 2.2f
             style = Paint.Style.STROKE
         }
@@ -518,13 +529,13 @@ object WidgetBitmapRenderer {
         val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.FILL
         }
-        dotPaint.color = Color.parseColor("#22C55E")
+        dotPaint.color = COLOR_GH_COMMITS
         canvas.drawCircle(center, center - cNorm, 4.0f, dotPaint)
-        dotPaint.color = Color.parseColor("#3B82F6")
+        dotPaint.color = COLOR_GH_PRS
         canvas.drawCircle(center + prNorm, center, 4.0f, dotPaint)
-        dotPaint.color = Color.parseColor("#F59E0B")
+        dotPaint.color = COLOR_GH_ISSUES
         canvas.drawCircle(center, center + issueNorm, 4.0f, dotPaint)
-        dotPaint.color = Color.parseColor("#A855F7")
+        dotPaint.color = COLOR_GH_REVIEWS
         canvas.drawCircle(center - revNorm, center, 4.0f, dotPaint)
 
         // 4. Center Glass Hub (Total Contributions Count)
@@ -570,8 +581,7 @@ object WidgetBitmapRenderer {
             typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
         }
 
-        fun drawBadge(centerX: Float, centerY: Float, title: String, count: Int, colorHex: String, align: Paint.Align) {
-            val color = Color.parseColor(colorHex)
+        fun drawBadge(centerX: Float, centerY: Float, title: String, count: Int, color: Int, align: Paint.Align) {
             val countStr = count.toString()
             labelValPaint.textAlign = align
             labelTitlePaint.textAlign = align
@@ -594,13 +604,13 @@ object WidgetBitmapRenderer {
         }
 
         // Top: Commits (Vibrant Green)
-        drawBadge(center, 22f, "Commits", stats.commitsCount, "#22C55E", Paint.Align.CENTER)
+        drawBadge(center, 22f, "Commits", stats.commitsCount, COLOR_GH_COMMITS, Paint.Align.CENTER)
         // Bottom: Issues (Vibrant Amber)
-        drawBadge(center, safeSize - 20f, "Issues", stats.issuesCount, "#F59E0B", Paint.Align.CENTER)
+        drawBadge(center, safeSize - 20f, "Issues", stats.issuesCount, COLOR_GH_ISSUES, Paint.Align.CENTER)
         // Right: PRs (Vibrant Blue)
-        drawBadge(safeSize - 16f, center + 4f, "PRs", stats.pullRequestsCount, "#3B82F6", Paint.Align.RIGHT)
+        drawBadge(safeSize - 16f, center + 4f, "PRs", stats.pullRequestsCount, COLOR_GH_PRS, Paint.Align.RIGHT)
         // Left: Reviews (Vibrant Purple)
-        drawBadge(16f, center + 4f, "Reviews", stats.reviewsCount, "#A855F7", Paint.Align.LEFT)
+        drawBadge(16f, center + 4f, "Reviews", stats.reviewsCount, COLOR_GH_REVIEWS, Paint.Align.LEFT)
 
         return bitmap
     }

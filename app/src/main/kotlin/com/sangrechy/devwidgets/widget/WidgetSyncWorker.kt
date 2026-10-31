@@ -21,15 +21,12 @@ class WidgetSyncWorker(
         val repo = DefaultDataRepository(applicationContext)
         val result = repo.syncData()
 
-        val prefs = WidgetPreferences(applicationContext)
-        val data = prefs.getDashboardData()
-
-        WidgetManagerHelper.updateAll(applicationContext, data)
-
         return if (result.isSuccess) {
             Result.success()
         } else {
-            // Even if network fails, widget was refreshed with latest cache or fallback
+            // Even if network fails, refresh with latest fallback cache
+            val prefs = WidgetPreferences(applicationContext)
+            WidgetManagerHelper.updateAll(applicationContext, prefs.getDashboardData())
             if (runAttemptCount > 3) Result.failure() else Result.retry()
         }
     }

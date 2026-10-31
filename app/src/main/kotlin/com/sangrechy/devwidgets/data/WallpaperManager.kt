@@ -11,6 +11,7 @@ import android.graphics.Path
 import android.graphics.RadialGradient
 import android.graphics.Shader
 import android.graphics.Typeface
+import android.util.LruCache
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -68,7 +69,18 @@ enum class WallpaperPreset(
 
 object WallpaperManager {
 
-    private val presetCache = mutableMapOf<String, Bitmap>()
+    private val presetCache = object : LruCache<String, Bitmap>(4) {}
+
+    private const val COLOR_WALLPAPER_000000 = 0xFF000000.toInt()
+    private const val COLOR_WALLPAPER_040404 = 0xFF040404.toInt()
+    private const val COLOR_WALLPAPER_050505 = 0xFF050505.toInt()
+    private const val COLOR_WALLPAPER_060606 = 0xFF060606.toInt()
+    private const val COLOR_WALLPAPER_080808 = 0xFF080808.toInt()
+    private const val COLOR_WALLPAPER_0D0D0D = 0xFF0D0D0D.toInt()
+    private const val COLOR_WALLPAPER_0F0F0F = 0xFF0F0F0F.toInt()
+    private const val COLOR_WALLPAPER_101010 = 0xFF101010.toInt()
+    private const val COLOR_WALLPAPER_121212 = 0xFF121212.toInt()
+    private const val COLOR_WALLPAPER_1A1A1A = 0xFF1A1A1A.toInt()
 
     fun saveCustomWallpaper(context: Context, inputStream: InputStream, forWidget: Boolean = false): String {
         val fileName = if (forWidget) "custom_widget_wallpaper.jpg" else "custom_app_wallpaper.jpg"
@@ -106,7 +118,7 @@ object WallpaperManager {
 
     fun getPresetBitmap(preset: WallpaperPreset, width: Int = 720, height: Int = 1280): Bitmap {
         val cacheKey = "${preset.id}_${width}x$height"
-        presetCache[cacheKey]?.let {
+        presetCache.get(cacheKey)?.let {
             if (!it.isRecycled) return it
         }
 
@@ -122,7 +134,7 @@ object WallpaperManager {
             WallpaperPreset.SUNSET_DEV -> drawSunsetDev(canvas, width, height)
         }
 
-        presetCache[cacheKey] = bitmap
+        presetCache.put(cacheKey, bitmap)
         return bitmap
     }
 
@@ -285,7 +297,7 @@ object WallpaperManager {
         val basePaint = Paint().apply {
             shader = LinearGradient(
                 0f, 0f, 0f, h.toFloat(),
-                intArrayOf(Color.parseColor("#050505"), Color.parseColor("#101010"), Color.parseColor("#050505")),
+                intArrayOf(COLOR_WALLPAPER_050505, COLOR_WALLPAPER_101010, COLOR_WALLPAPER_050505),
                 null, Shader.TileMode.CLAMP
             )
         }
@@ -324,7 +336,7 @@ object WallpaperManager {
         val basePaint = Paint().apply {
             shader = LinearGradient(
                 0f, 0f, 0f, h.toFloat(),
-                intArrayOf(Color.parseColor("#040404"), Color.parseColor("#0D0D0D"), Color.parseColor("#040404")),
+                intArrayOf(COLOR_WALLPAPER_040404, COLOR_WALLPAPER_0D0D0D, COLOR_WALLPAPER_040404),
                 null, Shader.TileMode.CLAMP
             )
         }
@@ -352,7 +364,7 @@ object WallpaperManager {
         val basePaint = Paint().apply {
             shader = LinearGradient(
                 0f, 0f, w.toFloat(), h.toFloat(),
-                intArrayOf(Color.parseColor("#000000"), Color.parseColor("#080808"), Color.parseColor("#000000")),
+                intArrayOf(COLOR_WALLPAPER_000000, COLOR_WALLPAPER_080808, COLOR_WALLPAPER_000000),
                 null, Shader.TileMode.CLAMP
             )
         }
@@ -376,7 +388,7 @@ object WallpaperManager {
         val basePaint = Paint().apply {
             shader = LinearGradient(
                 0f, 0f, 0f, h.toFloat(),
-                intArrayOf(Color.parseColor("#060606"), Color.parseColor("#0F0F0F"), Color.parseColor("#050505")),
+                intArrayOf(COLOR_WALLPAPER_060606, COLOR_WALLPAPER_0F0F0F, COLOR_WALLPAPER_050505),
                 null, Shader.TileMode.CLAMP
             )
         }
@@ -413,7 +425,7 @@ object WallpaperManager {
 
     private fun drawMinimalCarbon(canvas: Canvas, w: Int, h: Int) {
         val basePaint = Paint().apply {
-            color = Color.parseColor("#080808")
+            color = COLOR_WALLPAPER_080808
         }
         canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), basePaint)
 
@@ -446,10 +458,10 @@ object WallpaperManager {
             shader = LinearGradient(
                 0f, 0f, 0f, h.toFloat(),
                 intArrayOf(
-                    Color.parseColor("#050505"),
-                    Color.parseColor("#121212"),
-                    Color.parseColor("#1A1A1A"),
-                    Color.parseColor("#080808")
+                    COLOR_WALLPAPER_050505,
+                    COLOR_WALLPAPER_121212,
+                    COLOR_WALLPAPER_1A1A1A,
+                    COLOR_WALLPAPER_080808
                 ),
                 floatArrayOf(0f, 0.4f, 0.7f, 1f),
                 Shader.TileMode.CLAMP
