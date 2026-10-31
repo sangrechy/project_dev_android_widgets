@@ -108,6 +108,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -2442,6 +2443,7 @@ private fun WidgetsScreenContent(
             onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("leetcode_circle", it) },
             onClick = { onPinWidget(LeetCodeCircleWidgetProvider::class.java) },
             content = {
+                val density = LocalDensity.current
                 val initialOffset = remember { getWidgetElementOffset("leetcode_circle") }
                 var offsetX by remember { mutableStateOf(initialOffset.first) }
                 var offsetY by remember { mutableStateOf(initialOffset.second) }
@@ -2449,154 +2451,162 @@ private fun WidgetsScreenContent(
                     WidgetBitmapRenderer.renderLeetCodeCircle(dashboardData.leetCode, sizePx = 360).asImageBitmap()
                 }
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp),
-                    contentAlignment = Alignment.Center
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // Compact floating element (div inside div)
+                    // Fixed Stationary Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Image(
+                                painter = painterResource(R.drawable.ic_leetcode_logo),
+                                contentDescription = "LeetCode",
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "LeetCode",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = if (dashboardData.leetCode.username.isNotBlank())
+                                    "@${dashboardData.leetCode.username}"
+                                else "@dev",
+                                color = Color(0xFFAAAAAA),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                        }
+
+                        // Directional Nudge Arrows + Reset (Comfortable 24dp touch targets)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            if (offsetX != 0f || offsetY != 0f) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0x33FFFFFF))
+                                        .clickable {
+                                            offsetX = 0f
+                                            offsetY = 0f
+                                            onSetWidgetElementOffset("leetcode_circle", 0f, 0f)
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("↺", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(Color(0x26FFFFFF))
+                                    .clickable {
+                                        val newX = (offsetX - 4f).coerceIn(-30f, 30f)
+                                        offsetX = newX
+                                        onSetWidgetElementOffset("leetcode_circle", newX, offsetY)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("←", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(Color(0x26FFFFFF))
+                                    .clickable {
+                                        val newX = (offsetX + 4f).coerceIn(-30f, 30f)
+                                        offsetX = newX
+                                        onSetWidgetElementOffset("leetcode_circle", newX, offsetY)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("→", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(Color(0x26FFFFFF))
+                                    .clickable {
+                                        val newY = (offsetY - 4f).coerceIn(-16f, 16f)
+                                        offsetY = newY
+                                        onSetWidgetElementOffset("leetcode_circle", offsetX, newY)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("↑", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(Color(0x26FFFFFF))
+                                    .clickable {
+                                        val newY = (offsetY + 4f).coerceIn(-16f, 16f)
+                                        offsetY = newY
+                                        onSetWidgetElementOffset("leetcode_circle", offsetX, newY)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("↓", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
+                    // Circle Stage: Only the inner circular div moves
                     Box(
                         modifier = Modifier
-                            .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
-                            .pointerInput(Unit) {
-                                detectDragGestures(
-                                    onDragEnd = {
-                                        onSetWidgetElementOffset("leetcode_circle", offsetX, offsetY)
-                                    }
-                                ) { change, dragAmount ->
-                                    change.consume()
-                                    val newX = (offsetX + dragAmount.x).coerceIn(-65f, 65f)
-                                    val newY = (offsetY + dragAmount.y).coerceIn(-35f, 35f)
-                                    offsetX = newX
-                                    offsetY = newY
-                                }
-                            }
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0x2EFFFFFF))
-                            .border(1.dp, Color(0x40FFFFFF), RoundedCornerShape(16.dp))
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                            .fillMaxWidth()
+                            .height(134.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            // Inner Card Header
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Image(
-                                        painter = painterResource(R.drawable.ic_leetcode_logo),
-                                        contentDescription = "LeetCode",
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Text(
-                                        text = "LeetCode",
-                                        color = Color.White,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = if (dashboardData.leetCode.username.isNotBlank())
-                                            "@${dashboardData.leetCode.username}"
-                                        else "@dev",
-                                        color = Color(0xFFAAAAAA),
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        maxLines = 1
+                        // Inner circular div (hugs only the circle gauge)
+                        Box(
+                            modifier = Modifier
+                                .offset {
+                                    IntOffset(
+                                        (offsetX * density.density).roundToInt(),
+                                        (offsetY * density.density).roundToInt()
                                     )
                                 }
-
-                                // Directional Nudge Arrows + Reset
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                                ) {
-                                    if (offsetX != 0f || offsetY != 0f) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(19.dp)
-                                                .clip(RoundedCornerShape(3.dp))
-                                                .background(Color(0x33FFFFFF))
-                                                .clickable {
-                                                    offsetX = 0f
-                                                    offsetY = 0f
-                                                    onSetWidgetElementOffset("leetcode_circle", 0f, 0f)
-                                                },
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text("↺", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                .pointerInput(Unit) {
+                                    detectDragGestures(
+                                        onDragEnd = {
+                                            onSetWidgetElementOffset("leetcode_circle", offsetX, offsetY)
                                         }
-                                    }
-                                    Box(
-                                        modifier = Modifier
-                                            .size(19.dp)
-                                            .clip(RoundedCornerShape(3.dp))
-                                            .background(Color(0x26FFFFFF))
-                                            .clickable {
-                                                val newX = (offsetX - 10f).coerceIn(-65f, 65f)
-                                                offsetX = newX
-                                                onSetWidgetElementOffset("leetcode_circle", newX, offsetY)
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text("←", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                    Box(
-                                        modifier = Modifier
-                                            .size(19.dp)
-                                            .clip(RoundedCornerShape(3.dp))
-                                            .background(Color(0x26FFFFFF))
-                                            .clickable {
-                                                val newX = (offsetX + 10f).coerceIn(-65f, 65f)
-                                                offsetX = newX
-                                                onSetWidgetElementOffset("leetcode_circle", newX, offsetY)
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text("→", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                    Box(
-                                        modifier = Modifier
-                                            .size(19.dp)
-                                            .clip(RoundedCornerShape(3.dp))
-                                            .background(Color(0x26FFFFFF))
-                                            .clickable {
-                                                val newY = (offsetY - 8f).coerceIn(-35f, 35f)
-                                                offsetY = newY
-                                                onSetWidgetElementOffset("leetcode_circle", offsetX, newY)
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text("↑", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                    Box(
-                                        modifier = Modifier
-                                            .size(19.dp)
-                                            .clip(RoundedCornerShape(3.dp))
-                                            .background(Color(0x26FFFFFF))
-                                            .clickable {
-                                                val newY = (offsetY + 8f).coerceIn(-35f, 35f)
-                                                offsetY = newY
-                                                onSetWidgetElementOffset("leetcode_circle", offsetX, newY)
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text("↓", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    ) { change, dragAmount ->
+                                        change.consume()
+                                        val dragDpX = dragAmount.x / density.density
+                                        val dragDpY = dragAmount.y / density.density
+                                        val newX = (offsetX + dragDpX).coerceIn(-30f, 30f)
+                                        val newY = (offsetY + dragDpY).coerceIn(-16f, 16f)
+                                        offsetX = newX
+                                        offsetY = newY
                                     }
                                 }
-                            }
-
-                            // Centered Circle Gauge (Compact 112dp)
+                                .clip(CircleShape)
+                                .background(Color(0x22FFFFFF))
+                                .border(1.dp, Color(0x35FFFFFF), CircleShape)
+                                .padding(4.dp)
+                        ) {
                             Image(
                                 bitmap = lcCircle,
                                 contentDescription = "LeetCode Gauge",
-                                modifier = Modifier.size(112.dp)
+                                modifier = Modifier.size(114.dp)
                             )
                         }
                     }
@@ -2614,6 +2624,7 @@ private fun WidgetsScreenContent(
             onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("github_circle", it) },
             onClick = { onPinWidget(GitHubCircleWidgetProvider::class.java) },
             content = {
+                val density = LocalDensity.current
                 val initialOffset = remember { getWidgetElementOffset("github_circle") }
                 var offsetX by remember { mutableStateOf(initialOffset.first) }
                 var offsetY by remember { mutableStateOf(initialOffset.second) }
@@ -2621,154 +2632,162 @@ private fun WidgetsScreenContent(
                     WidgetBitmapRenderer.renderGitHubTypeMap(dashboardData.gitHub, sizePx = 360).asImageBitmap()
                 }
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp),
-                    contentAlignment = Alignment.Center
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // Compact floating element (div inside div)
+                    // Fixed Stationary Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Image(
+                                painter = painterResource(R.drawable.ic_github_logo),
+                                contentDescription = "GitHub",
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "GitHub",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = if (dashboardData.gitHub.username.isNotBlank())
+                                    "@${dashboardData.gitHub.username}"
+                                else "@dev",
+                                color = Color(0xFFAAAAAA),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                        }
+
+                        // Directional Nudge Arrows + Reset (Comfortable 24dp touch targets)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            if (offsetX != 0f || offsetY != 0f) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0x33FFFFFF))
+                                        .clickable {
+                                            offsetX = 0f
+                                            offsetY = 0f
+                                            onSetWidgetElementOffset("github_circle", 0f, 0f)
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("↺", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(Color(0x26FFFFFF))
+                                    .clickable {
+                                        val newX = (offsetX - 4f).coerceIn(-30f, 30f)
+                                        offsetX = newX
+                                        onSetWidgetElementOffset("github_circle", newX, offsetY)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("←", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(Color(0x26FFFFFF))
+                                    .clickable {
+                                        val newX = (offsetX + 4f).coerceIn(-30f, 30f)
+                                        offsetX = newX
+                                        onSetWidgetElementOffset("github_circle", newX, offsetY)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("→", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(Color(0x26FFFFFF))
+                                    .clickable {
+                                        val newY = (offsetY - 4f).coerceIn(-16f, 16f)
+                                        offsetY = newY
+                                        onSetWidgetElementOffset("github_circle", offsetX, newY)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("↑", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(Color(0x26FFFFFF))
+                                    .clickable {
+                                        val newY = (offsetY + 4f).coerceIn(-16f, 16f)
+                                        offsetY = newY
+                                        onSetWidgetElementOffset("github_circle", offsetX, newY)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("↓", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
+                    // Circle Stage: Only the inner circular div moves
                     Box(
                         modifier = Modifier
-                            .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
-                            .pointerInput(Unit) {
-                                detectDragGestures(
-                                    onDragEnd = {
-                                        onSetWidgetElementOffset("github_circle", offsetX, offsetY)
-                                    }
-                                ) { change, dragAmount ->
-                                    change.consume()
-                                    val newX = (offsetX + dragAmount.x).coerceIn(-65f, 65f)
-                                    val newY = (offsetY + dragAmount.y).coerceIn(-35f, 35f)
-                                    offsetX = newX
-                                    offsetY = newY
-                                }
-                            }
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0x2EFFFFFF))
-                            .border(1.dp, Color(0x40FFFFFF), RoundedCornerShape(16.dp))
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                            .fillMaxWidth()
+                            .height(134.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            // Inner Card Header
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Image(
-                                        painter = painterResource(R.drawable.ic_github_logo),
-                                        contentDescription = "GitHub",
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Text(
-                                        text = "GitHub",
-                                        color = Color.White,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = if (dashboardData.gitHub.username.isNotBlank())
-                                            "@${dashboardData.gitHub.username}"
-                                        else "@dev",
-                                        color = Color(0xFFAAAAAA),
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        maxLines = 1
+                        // Inner circular div (hugs only the contribution radar)
+                        Box(
+                            modifier = Modifier
+                                .offset {
+                                    IntOffset(
+                                        (offsetX * density.density).roundToInt(),
+                                        (offsetY * density.density).roundToInt()
                                     )
                                 }
-
-                                // Directional Nudge Arrows + Reset
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                                ) {
-                                    if (offsetX != 0f || offsetY != 0f) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(19.dp)
-                                                .clip(RoundedCornerShape(3.dp))
-                                                .background(Color(0x33FFFFFF))
-                                                .clickable {
-                                                    offsetX = 0f
-                                                    offsetY = 0f
-                                                    onSetWidgetElementOffset("github_circle", 0f, 0f)
-                                                },
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text("↺", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                .pointerInput(Unit) {
+                                    detectDragGestures(
+                                        onDragEnd = {
+                                            onSetWidgetElementOffset("github_circle", offsetX, offsetY)
                                         }
-                                    }
-                                    Box(
-                                        modifier = Modifier
-                                            .size(19.dp)
-                                            .clip(RoundedCornerShape(3.dp))
-                                            .background(Color(0x26FFFFFF))
-                                            .clickable {
-                                                val newX = (offsetX - 10f).coerceIn(-65f, 65f)
-                                                offsetX = newX
-                                                onSetWidgetElementOffset("github_circle", newX, offsetY)
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text("←", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                    Box(
-                                        modifier = Modifier
-                                            .size(19.dp)
-                                            .clip(RoundedCornerShape(3.dp))
-                                            .background(Color(0x26FFFFFF))
-                                            .clickable {
-                                                val newX = (offsetX + 10f).coerceIn(-65f, 65f)
-                                                offsetX = newX
-                                                onSetWidgetElementOffset("github_circle", newX, offsetY)
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text("→", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                    Box(
-                                        modifier = Modifier
-                                            .size(19.dp)
-                                            .clip(RoundedCornerShape(3.dp))
-                                            .background(Color(0x26FFFFFF))
-                                            .clickable {
-                                                val newY = (offsetY - 8f).coerceIn(-35f, 35f)
-                                                offsetY = newY
-                                                onSetWidgetElementOffset("github_circle", offsetX, newY)
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text("↑", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                    Box(
-                                        modifier = Modifier
-                                            .size(19.dp)
-                                            .clip(RoundedCornerShape(3.dp))
-                                            .background(Color(0x26FFFFFF))
-                                            .clickable {
-                                                val newY = (offsetY + 8f).coerceIn(-35f, 35f)
-                                                offsetY = newY
-                                                onSetWidgetElementOffset("github_circle", offsetX, newY)
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text("↓", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    ) { change, dragAmount ->
+                                        change.consume()
+                                        val dragDpX = dragAmount.x / density.density
+                                        val dragDpY = dragAmount.y / density.density
+                                        val newX = (offsetX + dragDpX).coerceIn(-30f, 30f)
+                                        val newY = (offsetY + dragDpY).coerceIn(-16f, 16f)
+                                        offsetX = newX
+                                        offsetY = newY
                                     }
                                 }
-                            }
-
-                            // Centered Radar Circle (Compact 112dp)
+                                .clip(CircleShape)
+                                .background(Color(0x22FFFFFF))
+                                .border(1.dp, Color(0x35FFFFFF), CircleShape)
+                                .padding(4.dp)
+                        ) {
                             Image(
                                 bitmap = ghCircle,
                                 contentDescription = "GitHub Contribution Circle",
-                                modifier = Modifier.size(112.dp)
+                                modifier = Modifier.size(114.dp)
                             )
                         }
                     }

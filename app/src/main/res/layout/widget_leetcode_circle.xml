@@ -22,95 +22,100 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:gravity="center"
         android:background="@drawable/widget_glass_chassis"
         android:padding="8dp">
 
-        <!-- Compact Inner Glass Div (Element floating over Wallpaper Chassis) -->
-        <LinearLayout
-            android:id="@+id/section_leetcode"
-            android:layout_width="wrap_content"
+        <!-- Stationary Card Header Bar at Top -->
+        <RelativeLayout
+            android:id="@+id/header_bar"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:orientation="vertical"
-            android:gravity="center_horizontal"
-            android:background="@drawable/widget_glass_card"
-            android:paddingHorizontal="10dp"
-            android:paddingVertical="6dp">
+            android:layout_marginBottom="2dp">
 
-            <!-- Card Header Bar -->
-            <RelativeLayout
+            <LinearLayout
+                android:id="@+id/header_right_wrap"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="2dp">
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:layout_marginStart="8dp">
 
-                <LinearLayout
-                    android:id="@+id/header_right_wrap"
+                <ImageView
+                    android:id="@+id/btn_refresh"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:background="@drawable/widget_icon_button_glass"
+                    android:padding="3dp"
+                    android:src="@drawable/ic_refresh"
+                    android:contentDescription="Refresh" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/section_header_brand"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_alignParentStart="true"
+                android:layout_toStartOf="@id/header_right_wrap"
+                android:layout_centerVertical="true">
+
+                <ImageView
+                    android:id="@+id/iv_lc_brand_logo"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:src="@drawable/ic_leetcode_logo"
+                    android:layout_marginEnd="4dp"
+                    android:contentDescription="LeetCode Logo" />
+
+                <TextView
+                    android:id="@+id/tv_lc_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_alignParentEnd="true"
-                    android:layout_centerVertical="true"
-                    android:layout_marginStart="8dp">
+                    android:text="LeetCode"
+                    android:textColor="#FFFFFF"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:singleLine="true" />
 
-                    <ImageView
-                        android:id="@+id/btn_refresh"
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:background="@drawable/widget_icon_button_glass"
-                        android:padding="3dp"
-                        android:src="@drawable/ic_refresh"
-                        android:contentDescription="Refresh" />
-                </LinearLayout>
-
-                <LinearLayout
+                <TextView
+                    android:id="@+id/tv_lc_user_tag"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_alignParentStart="true"
-                    android:layout_toStartOf="@id/header_right_wrap"
-                    android:layout_centerVertical="true">
+                    android:layout_marginStart="3dp"
+                    android:text="(@dev)"
+                    android:textColor="#A0A0A0"
+                    android:textSize="9sp"
+                    android:singleLine="true"
+                    android:ellipsize="end" />
+            </LinearLayout>
+        </RelativeLayout>
 
-                    <ImageView
-                        android:id="@+id/iv_lc_brand_logo"
-                        android:layout_width="14dp"
-                        android:layout_height="14dp"
-                        android:src="@drawable/ic_leetcode_logo"
-                        android:layout_marginEnd="4dp"
-                        android:contentDescription="LeetCode Logo" />
+        <!-- Recycled Circle Container Stage (applies user-configured offset to circle only) -->
+        <FrameLayout
+            android:id="@+id/section_circle_container"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
 
-                    <TextView
-                        android:id="@+id/tv_lc_title"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="LeetCode"
-                        android:textColor="#FFFFFF"
-                        android:textSize="11sp"
-                        android:textStyle="bold"
-                        android:singleLine="true" />
+            <!-- Compact Inner Circular Glass Div (Wraps only the circle element itself) -->
+            <FrameLayout
+                android:id="@+id/section_leetcode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:background="@drawable/widget_glass_circle"
+                android:padding="4dp">
 
-                    <TextView
-                        android:id="@+id/tv_lc_user_tag"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="3dp"
-                        android:text="(@dev)"
-                        android:textColor="#A0A0A0"
-                        android:textSize="9sp"
-                        android:singleLine="true"
-                        android:ellipsize="end" />
-                </LinearLayout>
-            </RelativeLayout>
-
-            <!-- Centered Speedometer Circle -->
-            <ImageView
-                android:id="@+id/iv_leetcode_circle"
-                android:layout_width="114dp"
-                android:layout_height="114dp"
-                android:scaleType="fitCenter"
-                android:contentDescription="LeetCode Gauge" />
-        </LinearLayout>
+                <ImageView
+                    android:id="@+id/iv_leetcode_circle"
+                    android:layout_width="114dp"
+                    android:layout_height="114dp"
+                    android:scaleType="fitCenter"
+                    android:contentDescription="LeetCode Gauge" />
+            </FrameLayout>
+        </FrameLayout>
     </LinearLayout>
 </FrameLayout>

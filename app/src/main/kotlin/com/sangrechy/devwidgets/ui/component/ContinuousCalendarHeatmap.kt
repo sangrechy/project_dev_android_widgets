@@ -481,9 +481,9 @@ private data class HeatmapDayInfo(
 private fun getCellColor(count: Int, isLeetCode: Boolean): Color {
     return when {
         count <= 0 -> Color(0x18FFFFFF)
-        count in 1..2 -> Color(0xFF383838)
-        count in 3..5 -> Color(0xFF686868)
-        count in 6..9 -> Color(0xFFAAAAAA)
-        else -> Color(0xFFFFFFFF)
+        count in 1..2 -> Color(0xFF0E4429)
+        count in 3..5 -> Color(0xFF006D32)
+        count in 6..9 -> Color(0xFF26A641)
+        else -> Color(0xFF39D353)
     }
 }
