@@ -2448,10 +2448,10 @@ private fun WidgetsScreenContent(
             else -> Dp.Unspecified // 5x2 (Full Width)
         }
         val lcMaxOffsetX = when (lcOuterSize) {
-            "2x2" -> 23f
-            "3x2" -> 58f
-            "4x2" -> 93f
-            else -> 125f
+            "2x2" -> 37f
+            "3x2" -> 72f
+            "4x2" -> 107f
+            else -> 137f
         }
 
         WidgetGalleryCard(
@@ -2610,10 +2610,10 @@ private fun WidgetsScreenContent(
                                         lcOuterSize = size
                                         onSetWidgetOuterDivSize("leetcode_circle", size)
                                         val newMax = when (size) {
-                                            "2x2" -> 23f
-                                            "3x2" -> 58f
-                                            "4x2" -> 93f
-                                            else -> 125f
+                                            "2x2" -> 37f
+                                            "3x2" -> 72f
+                                            "4x2" -> 107f
+                                            else -> 137f
                                         }
                                         val clampedX = offsetX.coerceIn(-newMax, newMax)
                                         offsetX = clampedX
@@ -2700,7 +2700,7 @@ private fun WidgetsScreenContent(
                                 .border(1.dp, Color(0x2EFFFFFF), RoundedCornerShape(16.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                            // Inner circular div: completely transparent & invisible
+                            // Compact Inner Circular Div: Small & Visible frosted pod
                             Box(
                                 modifier = Modifier
                                     .offset {
@@ -2724,12 +2724,16 @@ private fun WidgetsScreenContent(
                                             offsetY = newY
                                         }
                                     }
-                                    .background(Color.Transparent)
+                                    .size(86.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0x26FFFFFF))
+                                    .border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(12.dp)),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Image(
                                     bitmap = lcCircle,
                                     contentDescription = "LeetCode Gauge",
-                                    modifier = Modifier.size(114.dp)
+                                    modifier = Modifier.size(76.dp)
                                 )
                             }
                         }
@@ -2747,10 +2751,10 @@ private fun WidgetsScreenContent(
             else -> Dp.Unspecified // 5x2 (Full Width)
         }
         val ghMaxOffsetX = when (ghOuterSize) {
-            "2x2" -> 23f
-            "3x2" -> 58f
-            "4x2" -> 93f
-            else -> 125f
+            "2x2" -> 37f
+            "3x2" -> 72f
+            "4x2" -> 107f
+            else -> 137f
         }
 
         WidgetGalleryCard(
@@ -2909,10 +2913,10 @@ private fun WidgetsScreenContent(
                                         ghOuterSize = size
                                         onSetWidgetOuterDivSize("github_circle", size)
                                         val newMax = when (size) {
-                                            "2x2" -> 23f
-                                            "3x2" -> 58f
-                                            "4x2" -> 93f
-                                            else -> 125f
+                                            "2x2" -> 37f
+                                            "3x2" -> 72f
+                                            "4x2" -> 107f
+                                            else -> 137f
                                         }
                                         val clampedX = offsetX.coerceIn(-newMax, newMax)
                                         offsetX = clampedX
@@ -2999,7 +3003,7 @@ private fun WidgetsScreenContent(
                                 .border(1.dp, Color(0x2EFFFFFF), RoundedCornerShape(16.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                            // Inner circular div: completely transparent & invisible
+                            // Compact Inner Circular Div: Small & Visible frosted pod
                             Box(
                                 modifier = Modifier
                                     .offset {
@@ -3023,12 +3027,16 @@ private fun WidgetsScreenContent(
                                             offsetY = newY
                                         }
                                     }
-                                    .background(Color.Transparent)
+                                    .size(86.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0x26FFFFFF))
+                                    .border(1.dp, Color(0x38FFFFFF), RoundedCornerShape(12.dp)),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Image(
                                     bitmap = ghCircle,
                                     contentDescription = "GitHub Contribution Circle",
-                                    modifier = Modifier.size(114.dp)
+                                    modifier = Modifier.size(76.dp)
                                 )
                             }
                         }

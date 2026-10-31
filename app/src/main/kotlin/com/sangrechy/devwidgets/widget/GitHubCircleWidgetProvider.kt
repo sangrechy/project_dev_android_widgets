@@ -68,11 +68,12 @@ class GitHubCircleWidgetProvider : AppWidgetProvider() {
             val offsetY = prefs.getWidgetElementOffsetY("GITHUB_CIRCLE")
             val density = context.resources.displayMetrics.density
 
-            val refMaxOffsetX = ((refWidthDp - 114f) / 2f).coerceAtLeast(10f)
+            val innerDivWidthDp = 86f
+            val refMaxOffsetX = ((refWidthDp - innerDivWidthDp) / 2f).coerceAtLeast(10f)
             val fractionX = (offsetX / refMaxOffsetX).coerceIn(-1f, 1f)
-            val actualMaxOffsetX = ((actualWidthDp - 114f) / 2f).coerceAtLeast(0f)
+            val actualMaxOffsetX = ((actualWidthDp - innerDivWidthDp) / 2f).coerceAtLeast(0f)
             val effectiveDxDp = fractionX * actualMaxOffsetX
-            val effectiveDyDp = offsetY.coerceIn(-30f, 30f)
+            val effectiveDyDp = offsetY.coerceIn(-24f, 24f)
 
             val maxShiftPx = (actualMaxOffsetX * 2f * density).toInt()
             val padLeft = if (effectiveDxDp > 0) (effectiveDxDp * 2f * density).toInt().coerceIn(0, maxShiftPx) else 0
@@ -82,7 +83,7 @@ class GitHubCircleWidgetProvider : AppWidgetProvider() {
 
             views.setViewPadding(R.id.section_circle_container, padLeft, padTop, padRight, padBottom)
 
-            val ghCircle = WidgetBitmapRenderer.renderGitHubTypeMap(data.gitHub, sizePx = 360)
+            val ghCircle = WidgetBitmapRenderer.renderGitHubTypeMap(data.gitHub, sizePx = 240)
             views.setImageViewBitmap(R.id.iv_github_typemap, ghCircle)
 
             val tag = if (data.gitHub.username.isNotBlank()) "(@${data.gitHub.username})" else "(@not_linked)"

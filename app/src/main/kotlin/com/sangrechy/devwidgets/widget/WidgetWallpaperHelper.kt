@@ -27,9 +27,7 @@ object WidgetWallpaperHelper {
                 views.setInt(R.id.widget_root, "setBackgroundResource", R.drawable.widget_glass_transparent)
             }
             "MATCH_APP", "CUSTOM", "PRESET" -> {
-                val wPx = widthDp.coerceIn(240, 420)
-                val hPx = heightDp.coerceIn(160, 300)
-                val bitmap = WallpaperManager.getWidgetWallpaperBitmap(context, wPx, hPx, widgetKey)
+                val bitmap = WallpaperManager.getWidgetWallpaperBitmap(context, widthDp, heightDp, widgetKey)
 
                 if (bitmap != null) {
                     views.setViewVisibility(R.id.iv_widget_wallpaper_bg, View.VISIBLE)

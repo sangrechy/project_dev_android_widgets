@@ -100,18 +100,19 @@
             android:layout_height="0dp"
             android:layout_weight="1">
 
-            <!-- Compact Inner Circular Div (Wraps only the circle element, completely transparent) -->
+            <!-- Compact Inner Circular Div (Small & Visible, distinct from outer div) -->
             <FrameLayout
                 android:id="@+id/section_leetcode"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="86dp"
+                android:layout_height="86dp"
                 android:layout_gravity="center"
-                android:background="@android:color/transparent">
+                android:background="@drawable/widget_glass_circle">
 
                 <ImageView
                     android:id="@+id/iv_leetcode_circle"
-                    android:layout_width="114dp"
-                    android:layout_height="114dp"
+                    android:layout_width="76dp"
+                    android:layout_height="76dp"
+                    android:layout_gravity="center"
                     android:scaleType="fitCenter"
                     android:contentDescription="LeetCode Gauge" />
             </FrameLayout>

@@ -140,23 +140,80 @@ object WallpaperManager {
         }
     }
 
-    fun getWidgetWallpaperBitmap(context: Context, width: Int = 400, height: Int = 260, widgetKey: String? = null): Bitmap? {
+    fun getHighResCustomWallpaperForWidget(path: String, targetW: Int, targetH: Int): Bitmap? {
+        if (path.isBlank()) return null
+        val file = File(path)
+        if (!file.exists()) return null
+
+        return try {
+            val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(file.absolutePath, boundsOptions)
+            val origW = boundsOptions.outWidth
+            val origH = boundsOptions.outHeight
+            if (origW <= 0 || origH <= 0) return null
+
+            var sampleSize = 1
+            while (origW / (sampleSize * 2) >= targetW && origH / (sampleSize * 2) >= targetH) {
+                sampleSize *= 2
+            }
+
+            val decodeOptions = BitmapFactory.Options().apply {
+                inSampleSize = sampleSize
+                inPreferredConfig = Bitmap.Config.RGB_565
+            }
+            val decoded = BitmapFactory.decodeFile(file.absolutePath, decodeOptions) ?: return null
+
+            val result = Bitmap.createBitmap(targetW, targetH, Bitmap.Config.RGB_565)
+            val canvas = Canvas(result)
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+
+            val scale = maxOf(targetW.toFloat() / decoded.width, targetH.toFloat() / decoded.height)
+            val scaledW = decoded.width * scale
+            val scaledH = decoded.height * scale
+            val left = (targetW - scaledW) / 2f
+            val top = (targetH - scaledH) / 2f
+
+            val srcRect = android.graphics.Rect(0, 0, decoded.width, decoded.height)
+            val dstRect = android.graphics.RectF(left, top, left + scaledW, top + scaledH)
+            canvas.drawBitmap(decoded, srcRect, dstRect, paint)
+
+            if (decoded != result && !decoded.isRecycled) {
+                decoded.recycle()
+            }
+            result
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    fun getWidgetWallpaperBitmap(context: Context, width: Int = 340, height: Int = 180, widgetKey: String? = null): Bitmap? {
         val prefs = WidgetPreferences(context)
         val type = if (widgetKey != null) prefs.getWidgetWallpaperTypeFor(widgetKey) else prefs.widgetWallpaperType
         val presetId = if (widgetKey != null) prefs.getWidgetWallpaperPresetFor(widgetKey) else prefs.widgetWallpaperPreset
         val customPath = if (widgetKey != null) prefs.getWidgetWallpaperCustomPathFor(widgetKey) else prefs.widgetWallpaperCustomPath
-        val safeW = width.coerceIn(240, 420)
-        val safeH = height.coerceIn(160, 300)
+
+        val density = context.resources.displayMetrics.density
+        val targetW = (width * density).toInt().coerceIn(540, 720)
+        val targetH = (height * density).toInt().coerceIn(240, 420)
+
         return when (type) {
             "MATCH_APP" -> {
-                getAppWallpaperBitmap(context, safeW, safeH)
+                if (prefs.appWallpaperType == "CUSTOM") {
+                    getHighResCustomWallpaperForWidget(prefs.appWallpaperCustomPath, targetW, targetH)
+                } else if (prefs.appWallpaperType == "PRESET") {
+                    val preset = WallpaperPreset.fromId(prefs.appWallpaperPreset)
+                    getPresetBitmap(preset, targetW, targetH)
+                } else {
+                    null
+                }
             }
             "CUSTOM" -> {
-                getCustomWallpaperBitmap(customPath, maxDim = maxOf(safeW, safeH))
+                getHighResCustomWallpaperForWidget(customPath, targetW, targetH)
             }
             "PRESET" -> {
                 val preset = WallpaperPreset.fromId(presetId)
-                getPresetBitmap(preset, safeW, safeH)
+                getPresetBitmap(preset, targetW, targetH)
             }
             else -> null
         }

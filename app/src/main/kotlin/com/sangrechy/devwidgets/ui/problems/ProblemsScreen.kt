@@ -2036,7 +2036,10 @@ private fun GeneralNotesSection(
 
             Button(
                 onClick = onCreateNewNote,
-                colors = ButtonDefaults.buttonColors(containerColor = ThemeAccentBlue),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ThemeAccentBlue,
+                    contentColor = Color.Black
+                ),
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.height(34.dp)
             ) {
@@ -2047,10 +2050,10 @@ private fun GeneralNotesSection(
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = "New Note",
-                        tint = Color.White,
+                        tint = Color.Black,
                         modifier = Modifier.size(16.dp)
                     )
-                    Text("New Note", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("New Note", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
