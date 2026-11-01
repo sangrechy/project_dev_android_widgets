@@ -33,6 +33,7 @@ interface ProblemRepository {
     suspend fun saveProblemDocument(folderName: String, filename: String, bytes: ByteArray): ProblemNote
     suspend fun deleteProblemNote(folderName: String, filename: String): Boolean
     suspend fun syncFromGitHubBackupRepo(owner: String, repo: String, token: String = ""): Result<Int>
+    suspend fun syncSingleProblemFromGitHub(folderName: String): Result<OfflineProblem>
     suspend fun getGeneralNotes(): List<CustomNote>
     suspend fun saveGeneralNote(note: CustomNote): CustomNote
     suspend fun saveGeneralDocument(filename: String, bytes: ByteArray): CustomNote
@@ -65,6 +66,55 @@ class OfflineProblemRepository(
         seedDefaultProblemsIfEmpty()
         seedDefaultGeneralNotesIfEmpty()
         repairProblemDirectories()
+    }
+
+    private fun getLanguageExtensions(lang: String): List<String> = when (lang.lowercase().trim()) {
+        "cpp", "c++" -> listOf(".cpp", ".cc", ".cxx", ".hpp", ".h")
+        "python", "python3", "py" -> listOf(".py", ".py3")
+        "java" -> listOf(".java")
+        "javascript", "js" -> listOf(".js", ".mjs")
+        "typescript", "ts" -> listOf(".ts")
+        "c" -> listOf(".c", ".h")
+        "csharp", "c#" -> listOf(".cs")
+        "golang", "go" -> listOf(".go")
+        "rust", "rs" -> listOf(".rs")
+        "kotlin", "kt" -> listOf(".kt", ".kts")
+        "swift" -> listOf(".swift")
+        "ruby", "rb" -> listOf(".rb")
+        "scala" -> listOf(".scala")
+        "sql" -> listOf(".sql")
+        "php" -> listOf(".php")
+        "dart" -> listOf(".dart")
+        else -> if (lang.isNotBlank()) listOf(".$lang") else emptyList()
+    }
+
+    private fun inferLanguageFromExtension(ext: String): String = when (ext.lowercase()) {
+        "cpp", "cc", "cxx" -> "cpp"
+        "c" -> "c"
+        "py", "py3" -> "python3"
+        "java" -> "java"
+        "js", "mjs" -> "javascript"
+        "ts" -> "typescript"
+        "cs" -> "csharp"
+        "go" -> "golang"
+        "rs" -> "rust"
+        "kt", "kts" -> "kotlin"
+        "swift" -> "swift"
+        "rb" -> "ruby"
+        "scala" -> "scala"
+        "sql" -> "sql"
+        "php" -> "php"
+        "dart" -> "dart"
+        else -> ext.lowercase()
+    }
+
+    private fun isDefaultStubFile(file: File): Boolean {
+        if (!file.exists() || !file.isFile) return false
+        val text = try { file.readText() } catch (_: Exception) { return false }
+        val trimmed = text.trim()
+        return (trimmed.startsWith("# LeetCode #") || trimmed.startsWith("// LeetCode #")) &&
+            (trimmed.endsWith("pass") || trimmed.endsWith("return null;") || trimmed.endsWith("return 0;") ||
+             trimmed.lines().size <= 10)
     }
 
     private fun isBinaryFileName(filename: String): Boolean {
@@ -666,7 +716,32 @@ class OfflineProblemRepository(
     override suspend fun getProblemDetail(folderName: String): OfflineProblem? = withContext(Dispatchers.IO) {
         val dir = File(baseProblemsDir, folderName)
         if (!dir.exists() || !dir.isDirectory) return@withContext null
-        loadProblemFromDir(dir)
+        val problem = loadProblemFromDir(dir) ?: return@withContext null
+
+        // If statement content.html is missing (e.g. problem synced from Git without HTML statement),
+        // fetch official statement on demand from LeetCode GraphQL
+        if (problem.contentHtml.isBlank() && problem.titleSlug.isNotBlank()) {
+            val details = fetchLeetCodeQuestionDetails(problem.titleSlug)
+            if (details != null && details.contentHtml.isNotBlank()) {
+                File(dir, "content.html").writeText(details.contentHtml)
+                val metaFile = File(dir, "metadata.json")
+                if (metaFile.exists()) {
+                    try {
+                        val metaObj = JSONObject(metaFile.readText())
+                        if (!metaObj.has("hints") && details.hints.isNotEmpty()) {
+                            metaObj.put("hints", JSONArray(details.hints))
+                        }
+                        if (!metaObj.has("topic_tags") && details.topicTags.isNotEmpty()) {
+                            metaObj.put("topic_tags", JSONArray(details.topicTags))
+                        }
+                        metaFile.writeText(metaObj.toString(2))
+                    } catch (_: Exception) {}
+                }
+                return@withContext loadProblemFromDir(dir)
+            }
+        }
+
+        problem
     }
 
     override suspend fun downloadProblemOffline(folderName: String, titleSlug: String): Result<OfflineProblem> = withContext(Dispatchers.IO) {
@@ -755,19 +830,34 @@ class OfflineProblemRepository(
             }
 
             // Starter solution code if not already created
-            val solFile = File(targetDir, "solution.py")
-            if (!solFile.exists()) {
-                val pySnippet = details.codeSnippets["python3"]
-                    ?: details.codeSnippets["python"]
-                    ?: details.codeSnippets["java"]
-                    ?: details.codeSnippets["cpp"]
-                    ?: ""
-                val starterCode = if (pySnippet.isNotBlank()) {
-                    "# LeetCode #$frontendId: $officialTitle\n# https://leetcode.com/problems/$officialSlug/\n\n$pySnippet"
-                } else {
-                    "# LeetCode #$frontendId: $officialTitle\n# https://leetcode.com/problems/$officialSlug/\n\nclass Solution:\n    pass\n"
+            val hasExistingSolution = targetDir.listFiles { f ->
+                f.isFile && (f.name.startsWith("solution.", ignoreCase = true) || f.name.startsWith("Solution.", ignoreCase = true))
+            }?.any { !isDefaultStubFile(it) } == true
+
+            if (!hasExistingSolution) {
+                // Try syncing solution code and notes from GitHub backup repo if configured
+                syncSingleProblemFromGitHub(canonicalFolderName)
+            }
+
+            val hasSolutionAfterSync = targetDir.listFiles { f ->
+                f.isFile && (f.name.startsWith("solution.", ignoreCase = true) || f.name.startsWith("Solution.", ignoreCase = true))
+            }?.any { !isDefaultStubFile(it) } == true
+
+            if (!hasSolutionAfterSync) {
+                val solFile = File(targetDir, "solution.py")
+                if (!solFile.exists()) {
+                    val pySnippet = details.codeSnippets["python3"]
+                        ?: details.codeSnippets["python"]
+                        ?: details.codeSnippets["java"]
+                        ?: details.codeSnippets["cpp"]
+                        ?: ""
+                    val starterCode = if (pySnippet.isNotBlank()) {
+                        "# LeetCode #$frontendId: $officialTitle\n# https://leetcode.com/problems/$officialSlug/\n\n$pySnippet"
+                    } else {
+                        "# LeetCode #$frontendId: $officialTitle\n# https://leetcode.com/problems/$officialSlug/\n\nclass Solution:\n    pass\n"
+                    }
+                    solFile.writeText(starterCode)
                 }
-                solFile.writeText(starterCode)
             }
 
             // Starter notes in notes/<problemFolder>/notes.md
@@ -901,7 +991,7 @@ class OfflineProblemRepository(
                     }
                 } catch (_: Exception) {}
 
-                val base64Content = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                val base64Content = java.util.Base64.getEncoder().encodeToString(bytes)
                 val putBody = JSONObject().apply {
                     put("message", "Sync note $cleanPath")
                     put("content", base64Content)
@@ -986,9 +1076,16 @@ class OfflineProblemRepository(
                 if (blobResp.isSuccessful) {
                     val blobJson = JSONObject(blobResp.body?.string() ?: "")
                     val base64Content = blobJson.optString("content").replace("\n", "").replace("\r", "")
-                    val bytes = android.util.Base64.decode(base64Content, android.util.Base64.DEFAULT)
+                    val bytes = java.util.Base64.getMimeDecoder().decode(base64Content)
                     targetFile.parentFile?.mkdirs()
                     targetFile.writeBytes(bytes)
+
+                    // If we just wrote a real solution file, check if there's an obsolete stub in the directory and remove it!
+                    if (targetFile.name.startsWith("solution.", ignoreCase = true) && !isDefaultStubFile(targetFile)) {
+                        targetFile.parentFile?.listFiles { f ->
+                            f.isFile && f.name.startsWith("solution.", ignoreCase = true) && f.name != targetFile.name && isDefaultStubFile(f)
+                        }?.forEach { it.delete() }
+                    }
                 }
             }
         } catch (_: Exception) {}
@@ -1122,9 +1219,126 @@ class OfflineProblemRepository(
                 }
             }
 
+            // Post-sync cleanup: remove any obsolete default stubs where a real solution was synced
+            baseProblemsDir.listFiles { f -> f.isDirectory }?.forEach { probDir ->
+                val realSol = probDir.listFiles { f ->
+                    f.isFile && (f.name.startsWith("solution.", ignoreCase = true) || f.name.startsWith("Solution.", ignoreCase = true)) && !isDefaultStubFile(f)
+                }?.firstOrNull()
+                if (realSol != null) {
+                    probDir.listFiles { f ->
+                        f.isFile && f.name.startsWith("solution.", ignoreCase = true) && f.name != realSol.name && isDefaultStubFile(f)
+                    }?.forEach { it.delete() }
+                }
+            }
+
             Result.success(importedCount)
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    override suspend fun syncSingleProblemFromGitHub(folderName: String): Result<OfflineProblem> = withContext(Dispatchers.IO) {
+        val repoConfig = prefs.gitHubBackupRepo.trim()
+        val token = DevApiService.normalizeToken(prefs.gitHubToken)
+        val owner = if (repoConfig.contains('/')) repoConfig.substringBefore('/').trim() else prefs.gitHubUsername.trim()
+        val repo = if (repoConfig.contains('/')) repoConfig.substringAfter('/').trim() else repoConfig
+
+        if (owner.isBlank() || repo.isBlank()) {
+            return@withContext Result.failure(Exception("GitHub backup repository is not configured in settings."))
+        }
+
+        val targetDir = File(baseProblemsDir, folderName).apply { mkdirs() }
+        val pNotesDir = getProblemNotesDir(folderName).apply { mkdirs() }
+
+        // Candidate folder names (e.g. "1411-number-of-ways-to-paint-n-3-grid", "0001-two-sum", "1-two-sum")
+        val dashIdx = folderName.indexOf('-')
+        val numPart = if (dashIdx != -1) folderName.substring(0, dashIdx) else ""
+        val slugPart = if (dashIdx != -1) folderName.substring(dashIdx + 1) else folderName
+        val candidateNames = mutableListOf(folderName)
+        val num = numPart.toIntOrNull()
+        if (num != null) {
+            candidateNames.add("%04d-%s".format(num, slugPart))
+            candidateNames.add("$num-$slugPart")
+        }
+        val distinctCandidates = candidateNames.distinct()
+
+        var downloadedFiles = 0
+
+        fun fetchAndSaveDir(remotePath: String, localDir: File) {
+            val url = "https://api.github.com/repos/$owner/$repo/contents/$remotePath"
+            val req = Request.Builder()
+                .url(url)
+                .header("Accept", "application/vnd.github.v3+json")
+                .header("User-Agent", "DevLife-Android")
+                .apply { if (token.isNotBlank()) header("Authorization", "Bearer $token") }
+                .build()
+
+            try {
+                okHttpClient.newCall(req).execute().use { resp ->
+                    if (resp.isSuccessful) {
+                        val body = resp.body?.string() ?: ""
+                        if (body.trimStart().startsWith("[")) {
+                            val arr = JSONArray(body)
+                            for (i in 0 until arr.length()) {
+                                val item = arr.getJSONObject(i)
+                                val type = item.optString("type")
+                                val gitUrl = item.optString("git_url")
+                                val name = item.optString("name")
+                                if (type == "file" && gitUrl.isNotBlank() && name.isNotBlank()) {
+                                    val targetFile = File(localDir, name)
+                                    downloadBlobToFile(gitUrl, token, targetFile)
+                                    downloadedFiles++
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        // 1. Fetch problem files from leetcode_problem/<cand> or root <cand>
+        for (cand in distinctCandidates) {
+            fetchAndSaveDir("leetcode_problem/$cand", targetDir)
+            if (downloadedFiles > 0) break
+            fetchAndSaveDir(cand, targetDir)
+            if (downloadedFiles > 0) break
+        }
+
+        // 2. Fetch notes from notes/<cand>
+        for (cand in distinctCandidates) {
+            fetchAndSaveDir("notes/$cand", pNotesDir)
+        }
+
+        // 3. Purge stub file if a real submitted solution was downloaded
+        val realSol = targetDir.listFiles { f ->
+            f.isFile && (f.name.startsWith("solution.", ignoreCase = true) || f.name.startsWith("Solution.", ignoreCase = true)) && !isDefaultStubFile(f)
+        }?.firstOrNull()
+        if (realSol != null) {
+            targetDir.listFiles { f ->
+                f.isFile && f.name.startsWith("solution.", ignoreCase = true) && f.name != realSol.name && isDefaultStubFile(f)
+            }?.forEach { it.delete() }
+        }
+
+        // 4. Ensure problem statement HTML is present
+        val metaFile = File(targetDir, "metadata.json")
+        val slug = if (metaFile.exists()) {
+            try { JSONObject(metaFile.readText()).optString("problem_slug", slugPart) } catch (_: Exception) { slugPart }
+        } else slugPart
+
+        if (!File(targetDir, "content.html").exists() && slug.isNotBlank()) {
+            try {
+                val details = fetchLeetCodeQuestionDetails(slug)
+                if (details != null && details.contentHtml.isNotBlank()) {
+                    File(targetDir, "content.html").writeText(details.contentHtml)
+                }
+            } catch (_: Exception) {}
+        }
+
+        val reloaded = loadProblemFromDir(targetDir)
+        if (reloaded != null) {
+            Result.success(reloaded)
+        } else {
+            Result.failure(Exception("Failed to load problem after sync from GitHub."))
         }
     }
 
@@ -1237,14 +1451,15 @@ class OfflineProblemRepository(
         val title = meta.optString("problem_title").ifBlank { parsedTitle }
         val titleSlug = meta.optString("problem_slug").ifBlank { parsedSlug }
         val difficulty = meta.optString("difficulty", "Medium")
-        val language = meta.optString("language", "python3")
+        val language = meta.optString("language", "").trim()
         val runtime = meta.optString("runtime", "")
-        val runtimePercentile = meta.optString("runtime_percentile", "")
+        val rawRuntimePct = if (meta.isNull("runtime_percentile")) "" else meta.optString("runtime_percentile", "")
+        val runtimePercentile = if (rawRuntimePct == "null") "" else rawRuntimePct
         val memory = meta.optString("memory", "")
-        val memoryPercentile = meta.optString("memory_percentile", "")
+        val rawMemoryPct = if (meta.isNull("memory_percentile")) "" else meta.optString("memory_percentile", "")
+        val memoryPercentile = if (rawMemoryPct == "null") "" else rawMemoryPct
         val submittedAt = meta.optString("submitted_at", "")
         val problemUrl = meta.optString("problem_url", "https://leetcode.com/problems/$titleSlug/")
-        val isOffline = meta.optBoolean("is_downloaded_offline", false) || File(dir, "content.html").exists()
         val lastSynced = meta.optLong("last_synced_millis", dir.lastModified())
 
         // Topic tags
@@ -1272,11 +1487,52 @@ class OfflineProblemRepository(
             else -> ""
         }
 
-        // Solution code file
-        val solutionFile = dir.listFiles { f ->
+        // Solution code file selection matching user's submitted language
+        val candidateSolutionFiles = dir.listFiles { f ->
             f.isFile && (f.name.startsWith("solution.", ignoreCase = true) || f.name.startsWith("Solution.", ignoreCase = true))
-        }?.firstOrNull()
-        val solutionCode = solutionFile?.readText() ?: meta.optString("solution_code", "")
+        }?.toList() ?: emptyList()
+
+        val metaLang = language.trim()
+        val metaExts = getLanguageExtensions(metaLang)
+
+        var chosenSolutionFile: File? = null
+        if (metaExts.isNotEmpty()) {
+            chosenSolutionFile = candidateSolutionFiles.firstOrNull { f ->
+                val ext = "." + f.extension.lowercase()
+                metaExts.contains(ext)
+            }
+        }
+
+        // If not found or if the chosen one is a default stub while another non-stub exists:
+        if (chosenSolutionFile == null || isDefaultStubFile(chosenSolutionFile)) {
+            val nonStub = candidateSolutionFiles.firstOrNull { !isDefaultStubFile(it) }
+            if (nonStub != null) {
+                // If there was a stub (like solution.py) and a real submitted solution (like solution.cpp), delete the stub
+                if (chosenSolutionFile != null && isDefaultStubFile(chosenSolutionFile) && chosenSolutionFile != nonStub) {
+                    chosenSolutionFile.delete()
+                }
+                chosenSolutionFile = nonStub
+            }
+        }
+
+        if (chosenSolutionFile == null) {
+            chosenSolutionFile = candidateSolutionFiles.firstOrNull()
+        }
+
+        val solutionCode = chosenSolutionFile?.readText() ?: meta.optString("solution_code", "")
+        val resolvedLanguage = if (chosenSolutionFile != null) {
+            val ext = chosenSolutionFile.extension.lowercase()
+            if (metaLang.isNotBlank() && metaExts.contains(".$ext")) metaLang else inferLanguageFromExtension(ext)
+        } else if (metaLang.isNotBlank()) {
+            metaLang
+        } else {
+            "python3"
+        }
+
+        val hasRealSolution = chosenSolutionFile != null && !isDefaultStubFile(chosenSolutionFile)
+        val isOffline = meta.optBoolean("is_downloaded_offline", false) ||
+            File(dir, "content.html").exists() ||
+            hasRealSolution
 
         // Migrate any legacy notes inside problem directory
         val legacyNotesDir = File(dir, "notes")
@@ -1344,7 +1600,7 @@ class OfflineProblemRepository(
             topicTags = topicTags,
             hints = hints,
             solutionCode = solutionCode,
-            solutionLanguage = language,
+            solutionLanguage = resolvedLanguage,
             runtime = runtime,
             runtimePercentile = runtimePercentile,
             memory = memory,

@@ -441,24 +441,52 @@ private fun LeetCodeProblemsSection(
             fontWeight = FontWeight.Medium
         )
 
-        Button(
-            onClick = {
-                showAddProblemModal = true
-                addProblemInput = ""
-                selectedProblems.clear()
-                onSearchLeetCode("")
-            },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = ThemeCardBgElevated,
-                contentColor = ThemeTextPrimary
-            ),
-            shape = RoundedCornerShape(10.dp),
-            border = BorderStroke(1.dp, ThemeCardBorder),
-            modifier = Modifier.height(34.dp)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(15.dp))
-            Spacer(modifier = Modifier.width(4.dp))
-            Text("Add Problem", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            OutlinedButton(
+                onClick = onSyncFromGitHubBackup,
+                enabled = !isSyncingBackupRepo,
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = ThemeTextPrimary
+                ),
+                shape = RoundedCornerShape(10.dp),
+                border = BorderStroke(1.dp, ThemeCardBorder),
+                modifier = Modifier.height(34.dp)
+            ) {
+                if (isSyncingBackupRepo) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(14.dp),
+                        strokeWidth = 2.dp,
+                        color = ThemeAccentBlue
+                    )
+                } else {
+                    Icon(Icons.Default.Sync, contentDescription = null, tint = ThemeAccentBlue, modifier = Modifier.size(15.dp))
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(if (isSyncingBackupRepo) "Syncing..." else "Sync Git", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            }
+
+            Button(
+                onClick = {
+                    showAddProblemModal = true
+                    addProblemInput = ""
+                    selectedProblems.clear()
+                    onSearchLeetCode("")
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ThemeCardBgElevated,
+                    contentColor = ThemeTextPrimary
+                ),
+                shape = RoundedCornerShape(10.dp),
+                border = BorderStroke(1.dp, ThemeCardBorder),
+                modifier = Modifier.height(34.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(15.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Add Problem", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            }
         }
     }
 
@@ -1202,6 +1230,8 @@ fun LeetCodeProblemDetailView(
     onSaveNote: (filename: String, content: String) -> Unit,
     onDeleteNote: (filename: String) -> Unit,
     onUploadNoteDocument: (filename: String, bytes: ByteArray) -> Unit = { _, _ -> },
+    onSyncFromGit: (() -> Unit)? = null,
+    isSyncingFromGit: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -1287,6 +1317,30 @@ fun LeetCodeProblemDetailView(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
+                    // Sync from Git Button
+                    if (onSyncFromGit != null) {
+                        IconButton(
+                            onClick = onSyncFromGit,
+                            enabled = !isSyncingFromGit,
+                            modifier = Modifier.size(34.dp)
+                        ) {
+                            if (isSyncingFromGit) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = ThemeAccentBlue
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Sync,
+                                    contentDescription = "Sync from Git",
+                                    tint = ThemeAccentBlue,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+
                     // Open on LeetCode web button
                     IconButton(
                         onClick = {
@@ -1388,7 +1442,11 @@ fun LeetCodeProblemDetailView(
                 ) {
                     when (selectedTab) {
                         0 -> LeetCodeDescriptionTab(problem = problem)
-                        1 -> LeetCodeCodeTab(problem = problem)
+                        1 -> LeetCodeCodeTab(
+                            problem = problem,
+                            onSyncCode = onSyncFromGit,
+                            isSyncingCode = isSyncingFromGit
+                        )
                         2 -> LeetCodeNotesTab(
                             problem = problem,
                             activeNoteIndex = activeNoteIndex,
@@ -1790,7 +1848,11 @@ private fun LeetCodeDescriptionTab(problem: OfflineProblem) {
 // -----------------------------------------------------------------------------
 
 @Composable
-private fun LeetCodeCodeTab(problem: OfflineProblem) {
+private fun LeetCodeCodeTab(
+    problem: OfflineProblem,
+    onSyncCode: (() -> Unit)? = null,
+    isSyncingCode: Boolean = false
+) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
@@ -1800,7 +1862,7 @@ private fun LeetCodeCodeTab(problem: OfflineProblem) {
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // Stats Banner & Copy Button
+        // Stats Banner & Action Buttons
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1835,28 +1897,95 @@ private fun LeetCodeCodeTab(problem: OfflineProblem) {
                 }
             }
 
-            // Copy to Clipboard
-            OutlinedButton(
-                onClick = {
-                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    clipboard.setPrimaryClip(ClipData.newPlainText("LeetCode Solution", problem.solutionCode))
-                    Toast.makeText(context, "Solution code copied!", Toast.LENGTH_SHORT).show()
-                },
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                if (onSyncCode != null) {
+                    OutlinedButton(
+                        onClick = onSyncCode,
+                        enabled = !isSyncingCode,
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, ThemeCardBorder),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            if (isSyncingCode) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(12.dp),
+                                    strokeWidth = 2.dp,
+                                    color = ThemeAccentBlue
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Sync,
+                                    contentDescription = "Sync Git",
+                                    tint = ThemeAccentBlue,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                            Text(if (isSyncingCode) "Syncing..." else "Sync Git", color = ThemeTextPrimary, fontSize = 11.sp)
+                        }
+                    }
+                }
+
+                // Copy to Clipboard
+                OutlinedButton(
+                    onClick = {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("LeetCode Solution", problem.solutionCode))
+                        Toast.makeText(context, "Solution code copied!", Toast.LENGTH_SHORT).show()
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, ThemeCardBorder),
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = "Copy",
+                            tint = ThemeAccentBlue,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text("Copy Code", color = ThemeTextPrimary, fontSize = 11.sp)
+                    }
+                }
+            }
+        }
+
+        val trimmedCode = problem.solutionCode.trim()
+        val isStub = (trimmedCode.startsWith("# LeetCode #") || trimmedCode.startsWith("// LeetCode #")) &&
+            (trimmedCode.endsWith("pass") || trimmedCode.lines().size <= 10)
+
+        if (isStub) {
+            Surface(
                 shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, ThemeCardBorder),
-                modifier = Modifier.height(32.dp)
+                color = ThemeAccentAmber.copy(alpha = 0.15f),
+                border = BorderStroke(1.dp, ThemeAccentAmber.copy(alpha = 0.3f)),
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.ContentCopy,
-                        contentDescription = "Copy",
-                        tint = ThemeAccentBlue,
-                        modifier = Modifier.size(14.dp)
+                        imageVector = Icons.Default.CloudDownload,
+                        contentDescription = null,
+                        tint = ThemeAccentAmber,
+                        modifier = Modifier.size(16.dp)
                     )
-                    Text("Copy Code", color = ThemeTextPrimary, fontSize = 11.sp)
+                    Text(
+                        text = "Showing starter stub. Tap 'Sync Git' to pull your submitted solution from GitHub.",
+                        color = ThemeTextPrimary,
+                        fontSize = 11.sp
+                    )
                 }
             }
         }

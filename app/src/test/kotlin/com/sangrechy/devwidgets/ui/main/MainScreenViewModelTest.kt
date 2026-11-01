@@ -335,6 +335,30 @@ class MainScreenViewModelTest {
         assertEquals("/mock/notes/general/cheatsheet.png", note.localFilePath)
         assertEquals("cheatsheet.png", viewModel.selectedGeneralNote.value?.id)
     }
+
+    @Test
+    fun testSyncSingleProblemFromGitHub() = runTest {
+        val fakeRepo = FakeDataRepository()
+        val viewModel = MainScreenViewModel(fakeRepo)
+
+        viewModel.syncSingleProblemFromGitHub("0001-two-sum")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("0001-two-sum", viewModel.selectedProblemDetail.value?.folderName)
+        assertTrue(viewModel.syncMessage.value.orEmpty().contains("Synced code and notes"))
+    }
+
+    @Test
+    fun testSaveBackupRepoTriggersSync() = runTest {
+        val fakeRepo = FakeDataRepository()
+        val viewModel = MainScreenViewModel(fakeRepo)
+
+        viewModel.saveBackupRepo("sangrechy/leetcode")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("sangrechy/leetcode", fakeRepo.backupRepo)
+        assertTrue(viewModel.syncMessage.value.orEmpty().contains("Successfully synced"))
+    }
 }
 
 private class FakeProblemRepository : com.sangrechy.devwidgets.data.ProblemRepository {
@@ -447,6 +471,17 @@ private class FakeProblemRepository : com.sangrechy.devwidgets.data.ProblemRepos
         return true
     }
     override suspend fun syncFromGitHubBackupRepo(owner: String, repo: String, token: String): Result<Int> = Result.success(5)
+    override suspend fun syncSingleProblemFromGitHub(folderName: String): Result<com.sangrechy.devwidgets.data.model.OfflineProblem> {
+        val p = problems.find { it.folderName == folderName } ?: com.sangrechy.devwidgets.data.model.OfflineProblem(
+            folderName = folderName,
+            frontendId = folderName.substringBefore('-'),
+            title = folderName.substringAfter('-'),
+            titleSlug = folderName.substringAfter('-'),
+            difficulty = "Medium",
+            solutionCode = "class Solution:\n    pass"
+        )
+        return Result.success(p)
+    }
     override suspend fun getGeneralNotes(): List<com.sangrechy.devwidgets.data.model.CustomNote> = generalNotes
     override suspend fun saveGeneralNote(note: com.sangrechy.devwidgets.data.model.CustomNote): com.sangrechy.devwidgets.data.model.CustomNote {
         generalNotes.removeIf { it.id == note.id }

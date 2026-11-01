@@ -250,6 +250,9 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
                 token = _gitHubTokenInput.value.trim()
             )
             val result = repository.syncData()
+            if (_backupRepoInput.value.isNotBlank()) {
+                syncFromGitHubBackupRepo()
+            }
             _isSyncing.value = false
             if (result.isSuccess) {
                 val data = result.getOrNull()
@@ -297,8 +300,12 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
                     _syncMessage.value = "Widgets and data refreshed!"
                 }
                 AppScreen.PROBLEMS -> {
-                    loadProblems()
-                    loadGeneralNotes()
+                    if (_backupRepoInput.value.isNotBlank()) {
+                        syncFromGitHubBackupRepo()
+                    } else {
+                        loadProblems()
+                        loadGeneralNotes()
+                    }
                     val result = repository.syncData()
                     _isSyncing.value = false
                     _syncMessage.value = "Problem bank & notes refreshed!"
@@ -432,6 +439,14 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
     fun selectProblem(problem: OfflineProblem?) {
         _selectedProblemDetail.value = problem
         _activeProblemNoteIndex.value = 0
+        if (problem != null) {
+            viewModelScope.launch {
+                val full = problemRepo.getProblemDetail(problem.folderName)
+                if (full != null && _selectedProblemDetail.value?.folderName == problem.folderName) {
+                    _selectedProblemDetail.value = full
+                }
+            }
+        }
     }
 
     fun setActiveProblemNoteIndex(index: Int) {
@@ -575,6 +590,9 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
         _backupRepoInput.value = trimmed
         repository.setGitHubBackupRepo(trimmed)
         _syncMessage.value = "Backup repository updated to '$trimmed'"
+        if (trimmed.isNotBlank()) {
+            syncFromGitHubBackupRepo()
+        }
     }
 
     fun syncFromGitHubBackupRepo() {
@@ -606,6 +624,25 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
                 loadProblems()
             } else {
                 _syncMessage.value = "GitHub backup sync failed: ${result.exceptionOrNull()?.message ?: "Check repository name or permissions"}"
+            }
+        }
+    }
+
+    fun syncSingleProblemFromGitHub(folderName: String) {
+        viewModelScope.launch {
+            _isSyncingBackupRepo.value = true
+            _syncMessage.value = "Syncing code and notes for $folderName from GitHub..."
+            val result = problemRepo.syncSingleProblemFromGitHub(folderName)
+            _isSyncingBackupRepo.value = false
+            if (result.isSuccess) {
+                val updated = result.getOrNull()
+                if (updated != null) {
+                    _selectedProblemDetail.value = updated
+                }
+                loadProblems()
+                _syncMessage.value = "Synced code and notes from GitHub!"
+            } else {
+                _syncMessage.value = "Sync failed: ${result.exceptionOrNull()?.message ?: "Check repository or network"}"
             }
         }
     }

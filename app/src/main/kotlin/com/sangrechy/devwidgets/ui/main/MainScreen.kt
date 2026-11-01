@@ -716,6 +716,8 @@ fun MainScreen(
                         onSaveNote = { filename, content -> viewModel.saveProblemNote(problem.folderName, filename, content) },
                         onDeleteNote = { filename -> viewModel.deleteProblemNote(problem.folderName, filename) },
                         onUploadNoteDocument = { filename, bytes -> viewModel.uploadProblemDocument(problem.folderName, filename, bytes) },
+                        onSyncFromGit = { viewModel.syncSingleProblemFromGitHub(problem.folderName) },
+                        isSyncingFromGit = isSyncingBackupRepo,
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(top = 28.dp, bottom = 12.dp, start = 12.dp, end = 12.dp)
