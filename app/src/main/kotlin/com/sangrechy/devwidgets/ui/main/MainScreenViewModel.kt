@@ -539,6 +539,20 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
         }
     }
 
+    fun uploadProblemDocument(folderName: String, filename: String, bytes: ByteArray) {
+        viewModelScope.launch {
+            val savedNote = problemRepo.saveProblemDocument(folderName, filename, bytes)
+            val updated = problemRepo.getProblemDetail(folderName)
+            if (updated != null) {
+                _selectedProblemDetail.value = updated
+                val idx = updated.notes.indexOfFirst { it.filename == savedNote.filename }
+                if (idx != -1) _activeProblemNoteIndex.value = idx
+            }
+            loadProblems()
+            _syncMessage.value = "Uploaded document '${savedNote.filename}'"
+        }
+    }
+
     fun deleteProblemNote(folderName: String, filename: String) {
         viewModelScope.launch {
             problemRepo.deleteProblemNote(folderName, filename)
@@ -606,6 +620,15 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
             loadGeneralNotes()
             _selectedGeneralNote.value = saved
             _syncMessage.value = "Saved note '${saved.title}'"
+        }
+    }
+
+    fun uploadGeneralDocument(filename: String, bytes: ByteArray) {
+        viewModelScope.launch {
+            val saved = problemRepo.saveGeneralDocument(filename, bytes)
+            loadGeneralNotes()
+            _selectedGeneralNote.value = saved
+            _syncMessage.value = "Uploaded document '${saved.title}'"
         }
     }
 

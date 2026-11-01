@@ -17,6 +17,8 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
@@ -28,10 +30,12 @@ interface ProblemRepository {
     suspend fun addProblemFromLeetCode(input: String): Result<OfflineProblem>
     suspend fun deleteProblemOffline(folderName: String): Boolean
     suspend fun saveProblemNote(folderName: String, filename: String, content: String): ProblemNote
+    suspend fun saveProblemDocument(folderName: String, filename: String, bytes: ByteArray): ProblemNote
     suspend fun deleteProblemNote(folderName: String, filename: String): Boolean
     suspend fun syncFromGitHubBackupRepo(owner: String, repo: String, token: String = ""): Result<Int>
     suspend fun getGeneralNotes(): List<CustomNote>
     suspend fun saveGeneralNote(note: CustomNote): CustomNote
+    suspend fun saveGeneralDocument(filename: String, bytes: ByteArray): CustomNote
     suspend fun deleteGeneralNote(id: String): Boolean
 }
 
@@ -40,17 +44,72 @@ class OfflineProblemRepository(
     private val okHttpClient: OkHttpClient = DevApiService.defaultClient()
 ) : ProblemRepository {
 
+    private val prefs by lazy { WidgetPreferences(context) }
+
     private val baseProblemsDir: File
         get() = File(context.filesDir, "problems/leetcode").apply { mkdirs() }
 
+    private val rootNotesDir: File
+        get() = File(context.filesDir, "notes").apply { mkdirs() }
+
+    private fun getProblemNotesDir(folderName: String): File {
+        return File(rootNotesDir, folderName).apply { mkdirs() }
+    }
+
     private val generalNotesDir: File
-        get() = File(context.filesDir, "general_notes").apply { mkdirs() }
+        get() = File(rootNotesDir, "general").apply { mkdirs() }
 
     init {
         // Ensure default seed data exists on initial launch
+        migrateNotesToUnifiedRoot()
         seedDefaultProblemsIfEmpty()
         seedDefaultGeneralNotesIfEmpty()
         repairProblemDirectories()
+    }
+
+    private fun isBinaryFileName(filename: String): Boolean {
+        val ext = filename.substringAfterLast('.', "").lowercase()
+        return ext in setOf(
+            "pdf", "png", "jpg", "jpeg", "webp", "gif", "bmp", "doc", "docx",
+            "xls", "xlsx", "ppt", "pptx", "zip", "rar", "tar", "gz", "7z", "bin"
+        )
+    }
+
+    private fun formatFileSize(bytes: Long): String {
+        if (bytes <= 0) return "0 B"
+        val units = arrayOf("B", "KB", "MB", "GB")
+        val digitGroups = (Math.log10(bytes.toDouble()) / Math.log10(1024.0)).toInt().coerceIn(0, units.size - 1)
+        return "%.1f %s".format(bytes / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])
+    }
+
+    private fun migrateNotesToUnifiedRoot() {
+        try {
+            // 1. Migrate problem-specific notes from problems/leetcode/<folder>/notes -> notes/<folder>/
+            val dirs = baseProblemsDir.listFiles { file -> file.isDirectory } ?: emptyArray()
+            for (dir in dirs) {
+                val oldNotes = File(dir, "notes")
+                if (oldNotes.exists() && oldNotes.isDirectory) {
+                    val destDir = getProblemNotesDir(dir.name)
+                    oldNotes.listFiles()?.forEach { nf ->
+                        val target = File(destDir, nf.name)
+                        if (!target.exists()) nf.copyTo(target)
+                        nf.delete()
+                    }
+                    oldNotes.delete()
+                }
+            }
+
+            // 2. Migrate legacy general_notes -> notes/general/
+            val legacyGeneral = File(context.filesDir, "general_notes")
+            if (legacyGeneral.exists() && legacyGeneral.isDirectory) {
+                legacyGeneral.listFiles()?.forEach { f ->
+                    val target = File(generalNotesDir, f.name)
+                    if (!target.exists()) f.copyTo(target)
+                    f.delete()
+                }
+                legacyGeneral.delete()
+            }
+        } catch (_: Exception) {}
     }
 
     private data class LeetCodeQuestionDetails(
@@ -110,14 +169,25 @@ class OfflineProblemRepository(
                                 })
                             }
                             cMetaFile.writeText(cMeta.toString(2))
+
+                            val oldNotesDir = getProblemNotesDir(folderName)
+                            val newNotesDir = getProblemNotesDir(canonicalName)
+                            if (oldNotesDir.exists() && oldNotesDir != newNotesDir) {
+                                oldNotesDir.listFiles()?.forEach { nf ->
+                                    val target = File(newNotesDir, nf.name)
+                                    if (!target.exists()) nf.copyTo(target)
+                                }
+                                oldNotesDir.deleteRecursively()
+                            }
                         } else {
                             // Canonical already exists (e.g. 0015-3sum vs 3sum), migrate notes and delete duplicate
-                            val oldNotesDir = File(dir, "notes")
-                            val newNotesDir = File(canonicalDir, "notes").apply { mkdirs() }
+                            val oldNotesDir = getProblemNotesDir(folderName)
+                            val newNotesDir = getProblemNotesDir(canonicalName)
                             oldNotesDir.listFiles()?.forEach { nf ->
                                 val targetNf = File(newNotesDir, nf.name)
                                 if (!targetNf.exists()) nf.copyTo(targetNf)
                             }
+                            oldNotesDir.deleteRecursively()
                             dir.deleteRecursively()
                         }
                     }
@@ -636,7 +706,7 @@ class OfflineProblemRepository(
                     if (oldDir.exists() && oldDir.isDirectory) {
                         val oldNotesDir = File(oldDir, "notes")
                         if (oldNotesDir.exists()) {
-                            val newNotesDir = File(targetDir, "notes").apply { mkdirs() }
+                            val newNotesDir = getProblemNotesDir(canonicalFolderName)
                             oldNotesDir.listFiles()?.forEach { nf ->
                                 val dest = File(newNotesDir, nf.name)
                                 if (!dest.exists()) nf.copyTo(dest)
@@ -700,8 +770,8 @@ class OfflineProblemRepository(
                 solFile.writeText(starterCode)
             }
 
-            // Starter notes in notes/notes.md
-            val notesDir = File(targetDir, "notes").apply { mkdirs() }
+            // Starter notes in notes/<problemFolder>/notes.md
+            val notesDir = getProblemNotesDir(canonicalFolderName)
             val defaultNote = File(notesDir, "notes.md")
             if (!defaultNote.exists()) {
                 val tagsStr = if (details.topicTags.isNotEmpty()) details.topicTags.joinToString(", ") else "None"
@@ -718,6 +788,7 @@ class OfflineProblemRepository(
                     ## Key Insights
                     - Tags: $tagsStr
                 """.trimIndent())
+                launchGitHubPush("notes/$canonicalFolderName/notes.md", defaultNote.readBytes())
             }
 
             val updated = loadProblemFromDir(targetDir)
@@ -731,17 +802,20 @@ class OfflineProblemRepository(
 
     override suspend fun deleteProblemOffline(folderName: String): Boolean = withContext(Dispatchers.IO) {
         val dir = File(baseProblemsDir, folderName)
-        if (dir.exists()) {
-            dir.deleteRecursively()
-        } else false
+        val pNotes = getProblemNotesDir(folderName)
+        val dirDeleted = if (dir.exists()) dir.deleteRecursively() else false
+        if (pNotes.exists()) pNotes.deleteRecursively()
+        dirDeleted
     }
 
     override suspend fun saveProblemNote(folderName: String, filename: String, content: String): ProblemNote = withContext(Dispatchers.IO) {
         val safeName = filename.trim().ifBlank { "notes.md" }
             .let { if (!it.contains('.')) "$it.md" else it }
-        val notesDir = File(File(baseProblemsDir, folderName), "notes").apply { mkdirs() }
+        val notesDir = getProblemNotesDir(folderName)
         val noteFile = File(notesDir, safeName)
         noteFile.writeText(content)
+
+        launchGitHubPush("notes/$folderName/$safeName", content.toByteArray(Charsets.UTF_8))
 
         val title = safeName.substringBeforeLast('.').replace('_', ' ').replace('-', ' ')
             .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
@@ -750,15 +824,174 @@ class OfflineProblemRepository(
             filename = safeName,
             title = title,
             content = content,
-            lastModifiedMillis = noteFile.lastModified()
+            lastModifiedMillis = noteFile.lastModified(),
+            isBinaryDoc = false,
+            localFilePath = noteFile.absolutePath
+        )
+    }
+
+    override suspend fun saveProblemDocument(folderName: String, filename: String, bytes: ByteArray): ProblemNote = withContext(Dispatchers.IO) {
+        val safeName = filename.trim().ifBlank { "document_${System.currentTimeMillis()}" }
+        val notesDir = getProblemNotesDir(folderName)
+        val docFile = File(notesDir, safeName)
+        docFile.writeBytes(bytes)
+
+        launchGitHubPush("notes/$folderName/$safeName", bytes)
+
+        val isBinary = isBinaryFileName(safeName)
+        val title = safeName.substringBeforeLast('.').replace('_', ' ').replace('-', ' ')
+            .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+        val content = if (isBinary) {
+            "[Binary Document: $safeName (${formatFileSize(docFile.length())})]"
+        } else {
+            try { String(bytes, Charsets.UTF_8) } catch (_: Exception) { "[Document file: $safeName]" }
+        }
+
+        ProblemNote(
+            filename = safeName,
+            title = title,
+            content = content,
+            lastModifiedMillis = docFile.lastModified(),
+            isBinaryDoc = isBinary,
+            localFilePath = docFile.absolutePath
         )
     }
 
     override suspend fun deleteProblemNote(folderName: String, filename: String): Boolean = withContext(Dispatchers.IO) {
-        val noteFile = File(File(File(baseProblemsDir, folderName), "notes"), filename)
-        if (noteFile.exists()) {
+        val noteFile = File(getProblemNotesDir(folderName), filename)
+        val deleted = if (noteFile.exists()) {
             noteFile.delete()
         } else false
+        if (deleted) {
+            launchGitHubDelete("notes/$folderName/$filename")
+        }
+        deleted
+    }
+
+    // --- GitHub API Push & Delete Helpers ---
+
+    private fun launchGitHubPush(subPath: String, bytes: ByteArray) {
+        val repoConfig = prefs.gitHubBackupRepo.trim()
+        if (repoConfig.isBlank()) return
+        val token = DevApiService.normalizeToken(prefs.gitHubToken)
+        if (token.isBlank()) return
+        val owner = if (repoConfig.contains('/')) repoConfig.substringBefore('/').trim() else prefs.gitHubUsername.trim()
+        val repo = if (repoConfig.contains('/')) repoConfig.substringAfter('/').trim() else repoConfig
+        if (owner.isBlank() || repo.isBlank()) return
+
+        val cleanPath = subPath.trimStart('/')
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val getUrl = "https://api.github.com/repos/$owner/$repo/contents/$cleanPath"
+                val getReq = Request.Builder()
+                    .url(getUrl)
+                    .header("Accept", "application/vnd.github.v3+json")
+                    .header("User-Agent", "DevLife-Android")
+                    .header("Authorization", "Bearer $token")
+                    .get()
+                    .build()
+
+                var existingSha: String? = null
+                try {
+                    okHttpClient.newCall(getReq).execute().use { resp ->
+                        if (resp.isSuccessful) {
+                            val obj = JSONObject(resp.body?.string() ?: "{}")
+                            existingSha = obj.optString("sha").ifBlank { null }
+                        }
+                    }
+                } catch (_: Exception) {}
+
+                val base64Content = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                val putBody = JSONObject().apply {
+                    put("message", "Sync note $cleanPath")
+                    put("content", base64Content)
+                    if (existingSha != null) {
+                        put("sha", existingSha)
+                    }
+                }
+
+                val putReq = Request.Builder()
+                    .url(getUrl)
+                    .header("Accept", "application/vnd.github.v3+json")
+                    .header("User-Agent", "DevLife-Android")
+                    .header("Authorization", "Bearer $token")
+                    .put(putBody.toString().toRequestBody("application/json".toMediaType()))
+                    .build()
+
+                okHttpClient.newCall(putReq).execute().close()
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun launchGitHubDelete(subPath: String) {
+        val repoConfig = prefs.gitHubBackupRepo.trim()
+        if (repoConfig.isBlank()) return
+        val token = DevApiService.normalizeToken(prefs.gitHubToken)
+        if (token.isBlank()) return
+        val owner = if (repoConfig.contains('/')) repoConfig.substringBefore('/').trim() else prefs.gitHubUsername.trim()
+        val repo = if (repoConfig.contains('/')) repoConfig.substringAfter('/').trim() else repoConfig
+        if (owner.isBlank() || repo.isBlank()) return
+
+        val cleanPath = subPath.trimStart('/')
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val getUrl = "https://api.github.com/repos/$owner/$repo/contents/$cleanPath"
+                val getReq = Request.Builder()
+                    .url(getUrl)
+                    .header("Accept", "application/vnd.github.v3+json")
+                    .header("User-Agent", "DevLife-Android")
+                    .header("Authorization", "Bearer $token")
+                    .get()
+                    .build()
+
+                var existingSha: String? = null
+                try {
+                    okHttpClient.newCall(getReq).execute().use { resp ->
+                        if (resp.isSuccessful) {
+                            val obj = JSONObject(resp.body?.string() ?: "{}")
+                            existingSha = obj.optString("sha").ifBlank { null }
+                        }
+                    }
+                } catch (_: Exception) {}
+
+                if (existingSha != null) {
+                    val delBody = JSONObject().apply {
+                        put("message", "Delete note $cleanPath")
+                        put("sha", existingSha)
+                    }
+                    val delReq = Request.Builder()
+                        .url(getUrl)
+                        .header("Accept", "application/vnd.github.v3+json")
+                        .header("User-Agent", "DevLife-Android")
+                        .header("Authorization", "Bearer $token")
+                        .delete(delBody.toString().toRequestBody("application/json".toMediaType()))
+                        .build()
+                    okHttpClient.newCall(delReq).execute().close()
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun downloadBlobToFile(blobUrl: String, token: String, targetFile: File) {
+        try {
+            val blobReqBuilder = Request.Builder()
+                .url(blobUrl)
+                .header("Accept", "application/vnd.github.v3+json")
+                .header("User-Agent", "DevLife-Android")
+            if (token.isNotBlank()) {
+                blobReqBuilder.header("Authorization", "Bearer $token")
+            }
+
+            okHttpClient.newCall(blobReqBuilder.build()).execute().use { blobResp ->
+                if (blobResp.isSuccessful) {
+                    val blobJson = JSONObject(blobResp.body?.string() ?: "")
+                    val base64Content = blobJson.optString("content").replace("\n", "").replace("\r", "")
+                    val bytes = android.util.Base64.decode(base64Content, android.util.Base64.DEFAULT)
+                    targetFile.parentFile?.mkdirs()
+                    targetFile.writeBytes(bytes)
+                }
+            }
+        } catch (_: Exception) {}
     }
 
     override suspend fun syncFromGitHubBackupRepo(
@@ -840,45 +1073,53 @@ class OfflineProblemRepository(
             val tree = root.optJSONArray("tree") ?: JSONArray()
             var importedCount = 0
 
-            // Filter entries starting with "leetcode_problem/"
             for (i in 0 until tree.length()) {
                 val entry = tree.getJSONObject(i)
                 val path = entry.optString("path")
                 val type = entry.optString("type")
-                if (type != "blob" || !path.startsWith("leetcode_problem/")) continue
-
-                val parts = path.split('/')
-                if (parts.size < 3) continue
-                val folderName = parts[1] // e.g. "0001-two-sum"
-                val subPath = parts.subList(2, parts.size).joinToString("/") // e.g. "solution.py" or "notes/approach1.md"
-
+                if (type != "blob") continue
                 val blobUrl = entry.optString("url")
                 if (blobUrl.isBlank()) continue
 
-                try {
-                    // Download blob content
-                    val blobReqBuilder = Request.Builder()
-                        .url(blobUrl)
-                        .header("Accept", "application/vnd.github.v3+json")
-                        .header("User-Agent", "DevLife-Android")
-                    if (cleanToken.isNotBlank()) {
-                        blobReqBuilder.header("Authorization", "Bearer $cleanToken")
-                    }
+                // Format 1: Root notes/ directory (e.g. notes/0001-two-sum/notes.md, notes/general/dp.md)
+                if (path.startsWith("notes/")) {
+                    val relPath = path.removePrefix("notes/")
+                    downloadBlobToFile(blobUrl, cleanToken, File(rootNotesDir, relPath))
+                    importedCount++
+                    continue
+                }
 
-                    okHttpClient.newCall(blobReqBuilder.build()).execute().use { blobResp ->
-                        if (blobResp.isSuccessful) {
-                            val blobJson = JSONObject(blobResp.body?.string() ?: "")
-                            val base64Content = blobJson.optString("content").replace("\n", "").replace("\r", "")
-                            val bytes = android.util.Base64.decode(base64Content, android.util.Base64.DEFAULT)
-                            val textContent = String(bytes, Charsets.UTF_8)
+                // Format 2: leetcode_problem/<folder>/...
+                if (path.startsWith("leetcode_problem/")) {
+                    val parts = path.split('/')
+                    if (parts.size < 3) continue
+                    val folderName = parts[1] // e.g. "0001-two-sum"
+                    val subPath = parts.subList(2, parts.size).joinToString("/")
 
-                            val targetFile = File(baseProblemsDir, "$folderName/$subPath")
-                            targetFile.parentFile?.mkdirs()
-                            targetFile.writeText(textContent)
-                            importedCount++
-                        }
+                    if (subPath.startsWith("notes/")) {
+                        val noteName = subPath.removePrefix("notes/")
+                        downloadBlobToFile(blobUrl, cleanToken, File(getProblemNotesDir(folderName), noteName))
+                    } else {
+                        val targetFile = File(baseProblemsDir, "$folderName/$subPath")
+                        downloadBlobToFile(blobUrl, cleanToken, targetFile)
                     }
-                } catch (_: Exception) {}
+                    importedCount++
+                    continue
+                }
+
+                // Format 3: Root problem directories e.g. 0001-two-sum/...
+                val parts = path.split('/')
+                if (parts.size >= 2 && parts[0].matches(Regex("^\\d{4}-.*"))) {
+                    val folderName = parts[0]
+                    val subPath = parts.subList(1, parts.size).joinToString("/")
+                    if (subPath.startsWith("notes/")) {
+                        val noteName = subPath.removePrefix("notes/")
+                        downloadBlobToFile(blobUrl, cleanToken, File(getProblemNotesDir(folderName), noteName))
+                    } else {
+                        downloadBlobToFile(blobUrl, cleanToken, File(baseProblemsDir, "$folderName/$subPath"))
+                    }
+                    importedCount++
+                }
             }
 
             Result.success(importedCount)
@@ -890,23 +1131,35 @@ class OfflineProblemRepository(
     // --- General Notes Operations ---
 
     override suspend fun getGeneralNotes(): List<CustomNote> = withContext(Dispatchers.IO) {
-        val files = generalNotesDir.listFiles { f -> f.isFile && (f.name.endsWith(".md") || f.name.endsWith(".txt")) }
+        migrateNotesToUnifiedRoot()
+        val files = generalNotesDir.listFiles { f -> f.isFile && !f.name.startsWith(".") }
             ?: emptyArray()
         val list = mutableListOf<CustomNote>()
 
         for (file in files) {
             try {
-                val content = file.readText()
-                val id = file.nameWithoutExtension
-                val firstLine = content.lines().firstOrNull { it.isNotBlank() } ?: "Untitled Note"
-                val title = firstLine.removePrefix("#").trim().ifBlank { id.replace('_', ' ') }
+                val isBinary = isBinaryFileName(file.name)
+                val content = if (isBinary) {
+                    "[Binary Document: ${file.name} (${formatFileSize(file.length())})]"
+                } else {
+                    try { file.readText() } catch (_: Exception) { "[Document file: ${file.name}]" }
+                }
+                val id = file.name
+                val title = if (isBinary) {
+                    file.name
+                } else {
+                    val firstLine = content.lines().firstOrNull { it.isNotBlank() } ?: file.nameWithoutExtension
+                    firstLine.removePrefix("#").trim().ifBlank { file.nameWithoutExtension.replace('_', ' ') }
+                }
                 list.add(
                     CustomNote(
                         id = id,
                         title = title,
                         content = content,
                         category = "General",
-                        lastModifiedMillis = file.lastModified()
+                        lastModifiedMillis = file.lastModified(),
+                        isBinaryDoc = isBinary,
+                        localFilePath = file.absolutePath
                     )
                 )
             } catch (_: Exception) {}
@@ -917,14 +1170,49 @@ class OfflineProblemRepository(
 
     override suspend fun saveGeneralNote(note: CustomNote): CustomNote = withContext(Dispatchers.IO) {
         val safeId = note.id.ifBlank { UUID.randomUUID().toString() }
-        val file = File(generalNotesDir, "$safeId.md")
+        val fileName = if (!safeId.contains('.')) "$safeId.md" else safeId
+        val file = File(generalNotesDir, fileName)
         file.writeText(note.content)
-        note.copy(id = safeId, lastModifiedMillis = file.lastModified())
+
+        launchGitHubPush("notes/general/$fileName", note.content.toByteArray(Charsets.UTF_8))
+
+        note.copy(id = fileName, lastModifiedMillis = file.lastModified(), localFilePath = file.absolutePath)
+    }
+
+    override suspend fun saveGeneralDocument(filename: String, bytes: ByteArray): CustomNote = withContext(Dispatchers.IO) {
+        val safeName = filename.trim().ifBlank { "document_${System.currentTimeMillis()}" }
+        val file = File(generalNotesDir, safeName)
+        file.writeBytes(bytes)
+
+        launchGitHubPush("notes/general/$safeName", bytes)
+
+        val isBinary = isBinaryFileName(safeName)
+        val title = safeName.substringBeforeLast('.').replace('_', ' ').replace('-', ' ')
+            .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+        val content = if (isBinary) {
+            "[Binary Document: $safeName (${formatFileSize(file.length())})]"
+        } else {
+            try { String(bytes, Charsets.UTF_8) } catch (_: Exception) { "[Document file: $safeName]" }
+        }
+
+        CustomNote(
+            id = safeName,
+            title = title,
+            content = content,
+            category = "General",
+            lastModifiedMillis = file.lastModified(),
+            isBinaryDoc = isBinary,
+            localFilePath = file.absolutePath
+        )
     }
 
     override suspend fun deleteGeneralNote(id: String): Boolean = withContext(Dispatchers.IO) {
-        val file = File(generalNotesDir, "$id.md")
-        if (file.exists()) file.delete() else false
+        val file = File(generalNotesDir, id).let { if (it.exists()) it else File(generalNotesDir, "$id.md") }
+        val deleted = if (file.exists()) file.delete() else false
+        if (deleted) {
+            launchGitHubDelete("notes/general/${file.name}")
+        }
+        deleted
     }
 
     // --- Helpers ---
@@ -990,14 +1278,30 @@ class OfflineProblemRepository(
         }?.firstOrNull()
         val solutionCode = solutionFile?.readText() ?: meta.optString("solution_code", "")
 
-        // Dedicated notes/ folder for multiple note files
-        val notesDir = File(dir, "notes")
+        // Migrate any legacy notes inside problem directory
+        val legacyNotesDir = File(dir, "notes")
+        val pNotesDir = getProblemNotesDir(folderName)
+        if (legacyNotesDir.exists() && legacyNotesDir.isDirectory) {
+            legacyNotesDir.listFiles()?.forEach { nf ->
+                val target = File(pNotesDir, nf.name)
+                if (!target.exists()) nf.copyTo(target)
+                nf.delete()
+            }
+            legacyNotesDir.delete()
+        }
+
+        // Dedicated root notes/<folderName>/ directory
         val notes = mutableListOf<ProblemNote>()
-        if (notesDir.exists() && notesDir.isDirectory) {
-            val noteFiles = notesDir.listFiles { f -> f.isFile && (f.name.endsWith(".md") || f.name.endsWith(".txt")) }
+        if (pNotesDir.exists() && pNotesDir.isDirectory) {
+            val noteFiles = pNotesDir.listFiles { f -> f.isFile && !f.name.startsWith(".") }
                 ?: emptyArray()
             for (nf in noteFiles) {
-                val nContent = nf.readText()
+                val isBinary = isBinaryFileName(nf.name)
+                val nContent = if (isBinary) {
+                    "[Binary Document: ${nf.name} (${formatFileSize(nf.length())})]"
+                } else {
+                    try { nf.readText() } catch (_: Exception) { "[Document file: ${nf.name}]" }
+                }
                 val nTitle = nf.nameWithoutExtension.replace('_', ' ').replace('-', ' ')
                     .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
                 notes.add(
@@ -1005,23 +1309,27 @@ class OfflineProblemRepository(
                         filename = nf.name,
                         title = nTitle,
                         content = nContent,
-                        lastModifiedMillis = nf.lastModified()
+                        lastModifiedMillis = nf.lastModified(),
+                        isBinaryDoc = isBinary,
+                        localFilePath = nf.absolutePath
                     )
                 )
             }
         }
 
-        // If no note files exist but metadata had a legacy note, seed notes/general.md
+        // If no note files exist but metadata had a legacy note, seed notes/<folderName>/general.md
         if (notes.isEmpty() && meta.has("notes") && meta.getString("notes").isNotBlank()) {
             val legacyContent = meta.getString("notes")
-            val defaultNote = File(notesDir.apply { mkdirs() }, "general.md")
+            val defaultNote = File(pNotesDir, "general.md")
             defaultNote.writeText(legacyContent)
             notes.add(
                 ProblemNote(
                     filename = "general.md",
                     title = "General Notes",
                     content = legacyContent,
-                    lastModifiedMillis = defaultNote.lastModified()
+                    lastModifiedMillis = defaultNote.lastModified(),
+                    isBinaryDoc = false,
+                    localFilePath = defaultNote.absolutePath
                 )
             )
         }
@@ -1119,7 +1427,7 @@ class OfflineProblemRepository(
             </ul>
             """.trimIndent()
         )
-        val twoSumNotes = File(twoSumDir, "notes").apply { mkdirs() }
+        val twoSumNotes = getProblemNotesDir("0001-two-sum")
         File(twoSumNotes, "intuition.md").writeText(
             """
             # Intuition & Hash Map Lookup
@@ -1222,7 +1530,7 @@ The distinct triplets are [-1,0,1] and [-1,-1,2].</pre>
             </ul>
             """.trimIndent()
         )
-        val threeSumNotes = File(threeSumDir, "notes").apply { mkdirs() }
+        val threeSumNotes = getProblemNotesDir("0015-3sum")
         File(threeSumNotes, "two_pointers_strategy.md").writeText(
             """
             # Two Pointers Strategy
@@ -1303,7 +1611,7 @@ The distinct triplets are [-1,0,1] and [-1,-1,2].</pre>
             </ul>
             """.trimIndent()
         )
-        val validParenNotes = File(validParenDir, "notes").apply { mkdirs() }
+        val validParenNotes = getProblemNotesDir("0020-valid-parentheses")
         File(validParenNotes, "stack_invariants.md").writeText(
             """
             # Stack Invariants

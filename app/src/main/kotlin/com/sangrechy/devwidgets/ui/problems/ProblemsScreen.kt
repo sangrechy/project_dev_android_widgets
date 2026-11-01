@@ -6,6 +6,10 @@ import android.content.Context
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
+import java.io.File
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -145,6 +149,8 @@ fun ProblemsScreenContent(
     onAddMultipleProblemsFromLeetCode: (List<String>, (Boolean) -> Unit) -> Unit = { list, cb ->
         if (list.isNotEmpty()) onAddProblemFromLeetCode(list.first(), cb) else cb(false)
     },
+    onUploadProblemDocument: (folderName: String, filename: String, bytes: ByteArray) -> Unit = { _, _, _ -> },
+    onUploadGeneralDocument: (filename: String, bytes: ByteArray) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -198,6 +204,8 @@ fun ProblemsScreenContent(
                 GeneralNotesSection(
                     notes = generalNotes,
                     onSelectNote = onSelectGeneralNote,
+                    onDeleteNote = onDeleteGeneralNote,
+                    onUploadDocument = onUploadGeneralDocument,
                     onCreateNewNote = {
                         onSelectGeneralNote(
                             CustomNote(
@@ -1193,13 +1201,36 @@ fun LeetCodeProblemDetailView(
     onDeleteOffline: () -> Unit,
     onSaveNote: (filename: String, content: String) -> Unit,
     onDeleteNote: (filename: String) -> Unit,
+    onUploadNoteDocument: (filename: String, bytes: ByteArray) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = Description, 1 = Code, 2 = Notes
+    var showAddNoteOptionsDialog by remember { mutableStateOf(false) }
     var showNewNoteModal by remember { mutableStateOf(false) }
     var newNoteFilename by remember { mutableStateOf("") }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
+
+    val docPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            var displayName = "document_${System.currentTimeMillis()}"
+            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                if (nameIndex != -1 && cursor.moveToFirst()) {
+                    val name = cursor.getString(nameIndex)
+                    if (!name.isNullOrBlank()) displayName = name
+                }
+            }
+            val bytes = try {
+                context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            } catch (_: Exception) { null }
+            if (bytes != null) {
+                onUploadNoteDocument(displayName, bytes)
+            }
+        }
+    }
 
     val diffColor = when (problem.difficulty.lowercase()) {
         "easy" -> ThemeAccentGreen
@@ -1364,12 +1395,96 @@ fun LeetCodeProblemDetailView(
                             onActiveNoteIndexChanged = onActiveNoteIndexChanged,
                             onSaveNote = onSaveNote,
                             onDeleteNote = onDeleteNote,
-                            onAddNewNote = { showNewNoteModal = true }
+                            onAddNewNote = { showAddNoteOptionsDialog = true }
                         )
                     }
                 }
             }
         }
+
+    // Modal to choose Write Note vs Upload Document
+    if (showAddNoteOptionsDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddNoteOptionsDialog = false },
+            containerColor = ThemeCardBg,
+            title = { Text("Add Note or Document", color = ThemeTextPrimary, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Choose how you want to add notes for #${problem.frontendId}:",
+                        color = ThemeTextSecondary,
+                        fontSize = 13.sp
+                    )
+
+                    // Option 1: Write Note
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(ThemeInnerBoxBg)
+                            .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(12.dp))
+                            .clickable {
+                                showAddNoteOptionsDialog = false
+                                showNewNoteModal = true
+                            }
+                            .padding(14.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.NoteAlt,
+                                contentDescription = null,
+                                tint = ThemeAccentBlue,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Column {
+                                Text("Write Note", color = ThemeTextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Text("Create Markdown or text note", color = ThemeTextSecondary, fontSize = 11.sp)
+                            }
+                        }
+                    }
+
+                    // Option 2: Upload Document
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(ThemeInnerBoxBg)
+                            .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(12.dp))
+                            .clickable {
+                                showAddNoteOptionsDialog = false
+                                docPickerLauncher.launch("*/*")
+                            }
+                            .padding(14.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Description,
+                                contentDescription = null,
+                                tint = ThemeAccentGreen,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Column {
+                                Text("Upload Document", color = ThemeTextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Text("Attach PDF, image, cheatsheet, or code", color = ThemeTextSecondary, fontSize = 11.sp)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showAddNoteOptionsDialog = false }) {
+                    Text("Cancel", color = ThemeTextMuted)
+                }
+            }
+        )
+    }
 
     // Modal to create a new note file
     if (showNewNoteModal) {
@@ -1848,7 +1963,7 @@ private fun LeetCodeNotesTab(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.NoteAlt,
+                            imageVector = if (note.isBinaryDoc) Icons.Default.Description else Icons.Default.NoteAlt,
                             contentDescription = null,
                             tint = if (isSelected) ThemeAccentBlue else ThemeTextSecondary,
                             modifier = Modifier.size(13.dp)
@@ -1888,6 +2003,8 @@ private fun LeetCodeNotesTab(
         }
 
         if (currentNote != null) {
+            val context = LocalContext.current
+
             // Note Editor Action Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1895,7 +2012,7 @@ private fun LeetCodeNotesTab(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Editing: ${currentNote.filename}",
+                    text = if (currentNote.isBinaryDoc) "Document: ${currentNote.filename}" else "Editing: ${currentNote.filename}",
                     color = ThemeTextSecondary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
@@ -1915,47 +2032,137 @@ private fun LeetCodeNotesTab(
                         )
                     }
 
-                    // Save Note button
-                    Button(
-                        onClick = { onSaveNote(currentNote.filename, noteContent) },
-                        colors = ButtonDefaults.buttonColors(containerColor = ThemeAccentBlue, contentColor = Color.Black),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.height(32.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    // Save Note button (only for text notes)
+                    if (!currentNote.isBinaryDoc) {
+                        Button(
+                            onClick = { onSaveNote(currentNote.filename, noteContent) },
+                            colors = ButtonDefaults.buttonColors(containerColor = ThemeAccentBlue, contentColor = Color.Black),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.height(32.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Save,
-                                contentDescription = "Save",
-                                tint = Color.Black,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Text("Save", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Save,
+                                    contentDescription = "Save",
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text("Save", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
             }
 
-            // Note Content Editor
-            OutlinedTextField(
-                value = noteContent,
-                onValueChange = { noteContent = it },
-                placeholder = { Text("Write intuition, edge cases, complexity analysis here...", color = ThemeTextMuted) },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = ThemeTextPrimary,
-                    unfocusedTextColor = ThemeTextPrimary,
-                    focusedContainerColor = ThemeTextEditorBg,
-                    unfocusedContainerColor = ThemeTextEditorBg,
-                    focusedBorderColor = ThemeAccentBlue,
-                    unfocusedBorderColor = ThemeTextFieldBorder
-                ),
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-            )
+            if (currentNote.isBinaryDoc) {
+                // Binary Document View Card
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(ThemeInnerBoxBg)
+                        .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(12.dp))
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(CircleShape)
+                                .background(ThemePillBg),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Description,
+                                contentDescription = null,
+                                tint = ThemeAccentBlue,
+                                modifier = Modifier.size(36.dp)
+                            )
+                        }
+                        Text(
+                            text = currentNote.filename,
+                            color = ThemeTextPrimary,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = currentNote.content,
+                            color = ThemeTextSecondary,
+                            fontSize = 12.sp
+                        )
+                        Button(
+                            onClick = {
+                                val file = File(currentNote.localFilePath)
+                                if (file.exists()) {
+                                    try {
+                                        val uri = FileProvider.getUriForFile(
+                                            context,
+                                            "${context.packageName}.fileprovider",
+                                            file
+                                        )
+                                        val ext = file.extension.lowercase()
+                                        val mimeType = android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "*/*"
+                                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                                            setDataAndType(uri, mimeType)
+                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        }
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "No app available to open this document", Toast.LENGTH_SHORT).show()
+                                    }
+                                } else {
+                                    Toast.makeText(context, "File does not exist on device", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = ThemeAccentBlue, contentColor = Color.Black),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                    contentDescription = "Open",
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text("Open Document", color = Color.Black, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Note Content Editor
+                OutlinedTextField(
+                    value = noteContent,
+                    onValueChange = { noteContent = it },
+                    placeholder = { Text("Write intuition, edge cases, complexity analysis here...", color = ThemeTextMuted) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = ThemeTextPrimary,
+                        unfocusedTextColor = ThemeTextPrimary,
+                        focusedContainerColor = ThemeTextEditorBg,
+                        unfocusedContainerColor = ThemeTextEditorBg,
+                        focusedBorderColor = ThemeAccentBlue,
+                        unfocusedBorderColor = ThemeTextFieldBorder
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                )
+            }
         } else {
             // No notes exist yet
             Box(
@@ -2035,8 +2242,35 @@ private fun LeetCodeNotesTab(
 private fun GeneralNotesSection(
     notes: List<CustomNote>,
     onSelectNote: (CustomNote) -> Unit,
+    onDeleteNote: (String) -> Unit,
+    onUploadDocument: (filename: String, bytes: ByteArray) -> Unit,
     onCreateNewNote: () -> Unit
 ) {
+    val context = LocalContext.current
+    var showAddOptionsDialog by remember { mutableStateOf(false) }
+    var activeBinaryDocModal by remember { mutableStateOf<CustomNote?>(null) }
+
+    val docPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            var displayName = "document_${System.currentTimeMillis()}"
+            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                if (nameIndex != -1 && cursor.moveToFirst()) {
+                    val name = cursor.getString(nameIndex)
+                    if (!name.isNullOrBlank()) displayName = name
+                }
+            }
+            val bytes = try {
+                context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            } catch (_: Exception) { null }
+            if (bytes != null) {
+                onUploadDocument(displayName, bytes)
+            }
+        }
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // Header with "+ New Note"
         Row(
@@ -2052,7 +2286,7 @@ private fun GeneralNotesSection(
             )
 
             Button(
-                onClick = onCreateNewNote,
+                onClick = { showAddOptionsDialog = true },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = ThemeAccentBlue,
                     contentColor = Color.Black
@@ -2111,10 +2345,173 @@ private fun GeneralNotesSection(
         } else {
             notes.forEach { note ->
                 key(note.id) {
-                    GeneralNoteCard(note = note, onClick = { onSelectNote(note) })
+                    GeneralNoteCard(
+                        note = note,
+                        onClick = {
+                            if (note.isBinaryDoc) {
+                                activeBinaryDocModal = note
+                            } else {
+                                onSelectNote(note)
+                            }
+                        }
+                    )
                 }
             }
         }
+    }
+
+    if (showAddOptionsDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddOptionsDialog = false },
+            containerColor = ThemeCardBg,
+            title = { Text("Add Note or Document", color = ThemeTextPrimary, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Choose note type to store in notes/general/:",
+                        color = ThemeTextSecondary,
+                        fontSize = 13.sp
+                    )
+
+                    // Option 1: Write Note
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(ThemeInnerBoxBg)
+                            .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(12.dp))
+                            .clickable {
+                                showAddOptionsDialog = false
+                                onCreateNewNote()
+                            }
+                            .padding(14.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.NoteAlt,
+                                contentDescription = null,
+                                tint = ThemeAccentBlue,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Column {
+                                Text("Write Note", color = ThemeTextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Text("Create Markdown or text note", color = ThemeTextSecondary, fontSize = 11.sp)
+                            }
+                        }
+                    }
+
+                    // Option 2: Upload Document
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(ThemeInnerBoxBg)
+                            .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(12.dp))
+                            .clickable {
+                                showAddOptionsDialog = false
+                                docPickerLauncher.launch("*/*")
+                            }
+                            .padding(14.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Description,
+                                contentDescription = null,
+                                tint = ThemeAccentGreen,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Column {
+                                Text("Upload Document", color = ThemeTextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Text("Attach PDF, image, cheatsheet, or code", color = ThemeTextSecondary, fontSize = 11.sp)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showAddOptionsDialog = false }) {
+                    Text("Cancel", color = ThemeTextMuted)
+                }
+            }
+        )
+    }
+
+    if (activeBinaryDocModal != null) {
+        val doc = activeBinaryDocModal!!
+        AlertDialog(
+            onDismissRequest = { activeBinaryDocModal = null },
+            containerColor = ThemeCardBg,
+            title = {
+                Text(
+                    text = doc.title,
+                    color = ThemeTextPrimary,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Document / Binary Attachment", color = ThemeTextSecondary, fontSize = 12.sp)
+                    Text(doc.content, color = ThemeTextMuted, fontSize = 11.sp)
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        activeBinaryDocModal = null
+                        val file = File(doc.localFilePath)
+                        if (file.exists()) {
+                            try {
+                                val uri = FileProvider.getUriForFile(
+                                    context,
+                                    "${context.packageName}.fileprovider",
+                                    file
+                                )
+                                val ext = file.extension.lowercase()
+                                val mimeType = android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "*/*"
+                                val intent = Intent(Intent.ACTION_VIEW).apply {
+                                    setDataAndType(uri, mimeType)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "No app available to open this document", Toast.LENGTH_SHORT).show()
+                            }
+                        } else {
+                            Toast.makeText(context, "File does not exist on device", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ThemeAccentBlue, contentColor = Color.Black)
+                ) {
+                    Text("Open Document", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(
+                        onClick = {
+                            val idToDelete = activeBinaryDocModal?.id
+                            activeBinaryDocModal = null
+                            if (idToDelete != null) onDeleteNote(idToDelete)
+                        }
+                    ) {
+                        Text("Delete", color = ThemeAccentRed)
+                    }
+                    TextButton(onClick = { activeBinaryDocModal = null }) {
+                        Text("Cancel", color = ThemeTextMuted)
+                    }
+                }
+            }
+        )
     }
 }
 
@@ -2147,15 +2544,28 @@ private fun GeneralNoteCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = note.title,
-                    color = ThemeTextPrimary,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.weight(1f, fill = false)
-                )
+                ) {
+                    if (note.isBinaryDoc) {
+                        Icon(
+                            imageVector = Icons.Default.Description,
+                            contentDescription = "Document",
+                            tint = ThemeAccentBlue,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    Text(
+                        text = note.title,
+                        color = ThemeTextPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = dateStr,
@@ -2166,9 +2576,14 @@ private fun GeneralNoteCard(
             }
 
             // Preview excerpt
-            val preview = note.content.lines().filter { it.isNotBlank() && !it.startsWith("#") }.take(2).joinToString(" ")
+            val preview = if (note.isBinaryDoc) {
+                "Document Attachment • Tap to open or manage"
+            } else {
+                note.content.lines().filter { it.isNotBlank() && !it.startsWith("#") }.take(2).joinToString(" ")
+                    .ifBlank { "Click to view note content..." }
+            }
             Text(
-                text = preview.ifBlank { "Click to view note content..." },
+                text = preview,
                 color = ThemeTextSecondary,
                 fontSize = 12.sp,
                 maxLines = 2,

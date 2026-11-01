@@ -4,7 +4,9 @@ data class ProblemNote(
     val filename: String,
     val title: String,
     val content: String,
-    val lastModifiedMillis: Long = System.currentTimeMillis()
+    val lastModifiedMillis: Long = System.currentTimeMillis(),
+    val isBinaryDoc: Boolean = false,
+    val localFilePath: String = ""
 )
 
 data class OfflineProblem(
@@ -42,7 +44,9 @@ data class CustomNote(
     val title: String,
     val content: String,
     val category: String = "General", // General, Algorithms, Math, Templates
-    val lastModifiedMillis: Long = System.currentTimeMillis()
+    val lastModifiedMillis: Long = System.currentTimeMillis(),
+    val isBinaryDoc: Boolean = false,
+    val localFilePath: String = ""
 )
 
 enum class ProblemsPlatform(val label: String) {

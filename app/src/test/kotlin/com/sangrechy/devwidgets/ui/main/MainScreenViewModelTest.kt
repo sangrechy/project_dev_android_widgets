@@ -301,6 +301,40 @@ class MainScreenViewModelTest {
         assertEquals("WHITE", viewModel.getWidgetInsideDivColor("leetcode_circle"))
         assertEquals(5, fakeRepo.updateWidgetsCallCount)
     }
+
+    @Test
+    fun testUploadProblemDocument() = runTest {
+        val fakeRepo = FakeDataRepository()
+        val viewModel = MainScreenViewModel(fakeRepo)
+
+        val testBytes = "PDF mock content".toByteArray(Charsets.UTF_8)
+        viewModel.uploadProblemDocument("0001-two-sum", "solution_breakdown.pdf", testBytes)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val updatedProblem = viewModel.selectedProblemDetail.value
+        assertEquals("0001-two-sum", updatedProblem?.folderName)
+        val note = updatedProblem?.notes?.find { it.filename == "solution_breakdown.pdf" }
+        assertTrue(note != null)
+        assertTrue(note!!.isBinaryDoc)
+        assertEquals("/mock/notes/0001-two-sum/solution_breakdown.pdf", note.localFilePath)
+    }
+
+    @Test
+    fun testUploadGeneralDocument() = runTest {
+        val fakeRepo = FakeDataRepository()
+        val viewModel = MainScreenViewModel(fakeRepo)
+
+        val testBytes = "Image mock bytes".toByteArray(Charsets.UTF_8)
+        viewModel.uploadGeneralDocument("cheatsheet.png", testBytes)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val notes = viewModel.generalNotesList.value
+        val note = notes.find { it.id == "cheatsheet.png" }
+        assertTrue(note != null)
+        assertTrue(note!!.isBinaryDoc)
+        assertEquals("/mock/notes/general/cheatsheet.png", note.localFilePath)
+        assertEquals("cheatsheet.png", viewModel.selectedGeneralNote.value?.id)
+    }
 }
 
 private class FakeProblemRepository : com.sangrechy.devwidgets.data.ProblemRepository {
@@ -389,6 +423,23 @@ private class FakeProblemRepository : com.sangrechy.devwidgets.data.ProblemRepos
         }
         return note
     }
+    override suspend fun saveProblemDocument(folderName: String, filename: String, bytes: ByteArray): com.sangrechy.devwidgets.data.model.ProblemNote {
+        val note = com.sangrechy.devwidgets.data.model.ProblemNote(
+            filename = filename,
+            title = filename,
+            content = "[Binary Document: $filename (${bytes.size} B)]",
+            lastModifiedMillis = 2000L,
+            isBinaryDoc = true,
+            localFilePath = "/mock/notes/$folderName/$filename"
+        )
+        val p = problems.find { it.folderName == folderName }
+        if (p != null) {
+            val updatedNotes = p.notes.filterNot { it.filename == filename } + note
+            val idx = problems.indexOf(p)
+            problems[idx] = p.copy(notes = updatedNotes)
+        }
+        return note
+    }
     override suspend fun deleteProblemNote(folderName: String, filename: String): Boolean {
         val p = problems.find { it.folderName == folderName } ?: return false
         val idx = problems.indexOf(p)
@@ -399,6 +450,20 @@ private class FakeProblemRepository : com.sangrechy.devwidgets.data.ProblemRepos
     override suspend fun getGeneralNotes(): List<com.sangrechy.devwidgets.data.model.CustomNote> = generalNotes
     override suspend fun saveGeneralNote(note: com.sangrechy.devwidgets.data.model.CustomNote): com.sangrechy.devwidgets.data.model.CustomNote {
         generalNotes.removeIf { it.id == note.id }
+        generalNotes.add(note)
+        return note
+    }
+    override suspend fun saveGeneralDocument(filename: String, bytes: ByteArray): com.sangrechy.devwidgets.data.model.CustomNote {
+        val note = com.sangrechy.devwidgets.data.model.CustomNote(
+            id = filename,
+            title = filename,
+            content = "[Binary Document: $filename (${bytes.size} B)]",
+            category = "General",
+            lastModifiedMillis = 2000L,
+            isBinaryDoc = true,
+            localFilePath = "/mock/notes/general/$filename"
+        )
+        generalNotes.removeIf { it.id == filename }
         generalNotes.add(note)
         return note
     }

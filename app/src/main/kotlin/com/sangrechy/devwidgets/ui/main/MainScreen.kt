@@ -588,7 +588,9 @@ fun MainScreen(
                             onSyncFromGitHubBackup = viewModel::syncFromGitHubBackupRepo,
                             onSelectGeneralNote = viewModel::selectGeneralNote,
                             onSaveGeneralNote = viewModel::saveGeneralNote,
-                            onDeleteGeneralNote = viewModel::deleteGeneralNote
+                            onDeleteGeneralNote = viewModel::deleteGeneralNote,
+                            onUploadProblemDocument = viewModel::uploadProblemDocument,
+                            onUploadGeneralDocument = viewModel::uploadGeneralDocument
                         )
 
                         AppScreen.WIDGETS -> WidgetsScreenContent(
@@ -713,6 +715,7 @@ fun MainScreen(
                         onDeleteOffline = { viewModel.deleteProblemOffline(problem.folderName) },
                         onSaveNote = { filename, content -> viewModel.saveProblemNote(problem.folderName, filename, content) },
                         onDeleteNote = { filename -> viewModel.deleteProblemNote(problem.folderName, filename) },
+                        onUploadNoteDocument = { filename, bytes -> viewModel.uploadProblemDocument(problem.folderName, filename, bytes) },
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(top = 28.dp, bottom = 12.dp, start = 12.dp, end = 12.dp)
