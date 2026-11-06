@@ -1425,9 +1425,11 @@ class OfflineProblemRepository(
             if (downloadedFiles > 0) break
         }
 
-        // 2. Fetch notes from notes/<cand>
+        // 2. Fetch notes from notes/<cand>, leetcode_problem/<cand>/notes, or <cand>/notes
         for (cand in distinctCandidates) {
             fetchAndSaveDir("notes/$cand", pNotesDir)
+            fetchAndSaveDir("leetcode_problem/$cand/notes", pNotesDir)
+            fetchAndSaveDir("$cand/notes", pNotesDir)
         }
 
         // 3. Purge stub file if a real submitted solution was downloaded

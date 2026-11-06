@@ -578,54 +578,74 @@ class DevApiService(private val okHttpClient: OkHttpClient = defaultClient()) {
 
     private fun fetchGitHubRecentEvents(username: String, token: String): List<GitHubEvent> {
         val cleanToken = normalizeToken(token)
-        val reqBuilder = Request.Builder()
-            .url("https://api.github.com/users/$username/events?per_page=100")
-            .header("Accept", "application/vnd.github.v3+json")
-            .header("User-Agent", "DevWidgets-Android")
+        val events = mutableListOf<GitHubEvent>()
 
-        if (cleanToken.isNotBlank()) {
-            reqBuilder.header("Authorization", "Bearer $cleanToken")
+        fun parseEvents(body: String) {
+            val arr = JSONArray(body)
+            for (i in 0 until arr.length()) {
+                val item = arr.getJSONObject(i)
+                val type = item.optString("type", "Activity")
+                val repo = item.optJSONObject("repo")?.optString("name", "repo") ?: "repo"
+                val createdAt = item.optString("created_at", "")
+
+                val summary = when (type) {
+                    "PushEvent" -> {
+                        val count = item.optJSONObject("payload")?.optJSONArray("commits")?.length() ?: 1
+                        "Pushed $count commit(s)"
+                    }
+                    "PullRequestEvent" -> {
+                        val action = item.optJSONObject("payload")?.optString("action", "action")
+                        "PR: $action"
+                    }
+                    "IssuesEvent" -> {
+                        val action = item.optJSONObject("payload")?.optString("action", "action")
+                        "Issue: $action"
+                    }
+                    "WatchEvent" -> "Starred repo"
+                    "ForkEvent" -> "Forked repo"
+                    "CreateEvent" -> "Created branch/tag"
+                    else -> type.replace("Event", "")
+                }
+
+                events.add(
+                    GitHubEvent(
+                        type = type,
+                        repoName = repo.substringAfter("/"),
+                        actionSummary = summary,
+                        createdAt = createdAt
+                    )
+                )
+            }
         }
 
-        val events = mutableListOf<GitHubEvent>()
         try {
-            okHttpClient.newCall(reqBuilder.build()).execute().use { response ->
-                if (response.isSuccessful) {
-                    val body = response.body?.string() ?: "[]"
-                    val arr = JSONArray(body)
-                    for (i in 0 until arr.length()) {
-                        val item = arr.getJSONObject(i)
-                        val type = item.optString("type", "Activity")
-                        val repo = item.optJSONObject("repo")?.optString("name", "repo") ?: "repo"
-                        val createdAt = item.optString("created_at", "")
+            if (cleanToken.isNotBlank()) {
+                val authReq = Request.Builder()
+                    .url("https://api.github.com/user/events?per_page=100")
+                    .header("Accept", "application/vnd.github.v3+json")
+                    .header("User-Agent", "DevWidgets-Android")
+                    .header("Authorization", "Bearer $cleanToken")
+                    .build()
+                okHttpClient.newCall(authReq).execute().use { response ->
+                    if (response.isSuccessful) {
+                        val body = response.body?.string() ?: "[]"
+                        parseEvents(body)
+                    }
+                }
+            }
 
-                        val summary = when (type) {
-                            "PushEvent" -> {
-                                val count = item.optJSONObject("payload")?.optJSONArray("commits")?.length() ?: 1
-                                "Pushed $count commit(s)"
-                            }
-                            "PullRequestEvent" -> {
-                                val action = item.optJSONObject("payload")?.optString("action", "action")
-                                "PR: $action"
-                            }
-                            "IssuesEvent" -> {
-                                val action = item.optJSONObject("payload")?.optString("action", "action")
-                                "Issue: $action"
-                            }
-                            "WatchEvent" -> "Starred repo"
-                            "ForkEvent" -> "Forked repo"
-                            "CreateEvent" -> "Created branch/tag"
-                            else -> type.replace("Event", "")
-                        }
-
-                        events.add(
-                            GitHubEvent(
-                                type = type,
-                                repoName = repo.substringAfter("/"),
-                                actionSummary = summary,
-                                createdAt = createdAt
-                            )
-                        )
+            if (events.isEmpty()) {
+                val pubReqBuilder = Request.Builder()
+                    .url("https://api.github.com/users/$username/events?per_page=100")
+                    .header("Accept", "application/vnd.github.v3+json")
+                    .header("User-Agent", "DevWidgets-Android")
+                if (cleanToken.isNotBlank()) {
+                    pubReqBuilder.header("Authorization", "Bearer $cleanToken")
+                }
+                okHttpClient.newCall(pubReqBuilder.build()).execute().use { response ->
+                    if (response.isSuccessful) {
+                        val body = response.body?.string() ?: "[]"
+                        parseEvents(body)
                     }
                 }
             }

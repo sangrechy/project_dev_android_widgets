@@ -95,8 +95,8 @@ class MainScreenViewModelTest {
         viewModel.setFeedLimit(FeedLimit.LIMIT_50)
         assertEquals(FeedLimit.LIMIT_50, viewModel.feedLimit.value)
 
-        viewModel.setFeedLimit(FeedLimit.LIMIT_100)
-        assertEquals(FeedLimit.LIMIT_100, viewModel.feedLimit.value)
+        viewModel.setFeedLimit(FeedLimit.LIMIT_5)
+        assertEquals(FeedLimit.LIMIT_5, viewModel.feedLimit.value)
     }
 
     @Test

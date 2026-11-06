@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -209,8 +210,9 @@ fun MainScreen(
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
 
-    // Check updates silently on initial launch
+    // Sync profiles and check updates silently on initial launch
     LaunchedEffect(Unit) {
+        viewModel.syncSilently()
         viewModel.checkForUpdates(manual = false)
     }
 
@@ -1658,7 +1660,7 @@ private fun GitHubDetailView(
                 AccountStatusBadge(
                     status = stats.status,
                     isVerifying = false,
-                    connectedText = if (stats.isAuthenticated) "Connected (Token)" else "Connected",
+                    connectedText = "Connected",
                     failedText = "Offline",
                     onClick = onNavigateToSettings
                 )
@@ -3495,7 +3497,8 @@ private fun SettingsScreenContent(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.weight(1f, fill = false)
                         ) {
                             Image(
                                 painter = painterResource(R.drawable.ic_leetcode_logo),
@@ -3513,8 +3516,9 @@ private fun SettingsScreenContent(
                         AccountStatusBadge(
                             status = dashboardData.leetCode.status,
                             isVerifying = isVerifyingLc,
-                            connectedText = "✓ Connected (${dashboardData.leetCode.totalSolved} solved)",
-                            failedText = "✗ Failed"
+                            connectedText = "Connected",
+                            failedText = "Failed",
+                            modifier = Modifier.wrapContentWidth()
                         )
                     }
 
@@ -3596,7 +3600,8 @@ private fun SettingsScreenContent(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.weight(1f, fill = false)
                         ) {
                             Image(
                                 painter = painterResource(R.drawable.ic_github_logo),
@@ -3611,16 +3616,12 @@ private fun SettingsScreenContent(
                             )
                         }
 
-                        val ghConnectedLabel = if (dashboardData.gitHub.isAuthenticated) {
-                            "✓ Connected (Token • ${dashboardData.gitHub.totalContributions} contribs)"
-                        } else {
-                            "✓ Connected (${dashboardData.gitHub.totalContributions} contribs)"
-                        }
                         AccountStatusBadge(
                             status = dashboardData.gitHub.status,
                             isVerifying = isVerifyingGh,
-                            connectedText = ghConnectedLabel,
-                            failedText = "✗ Failed"
+                            connectedText = "Connected",
+                            failedText = "Failed",
+                            modifier = Modifier.wrapContentWidth()
                         )
                     }
 
@@ -3962,7 +3963,9 @@ private fun AccountStatusBadge(
             text = text,
             color = ThemeTextSecondary,
             fontSize = 11.5.sp,
-            fontWeight = FontWeight.Medium
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            softWrap = false
         )
     }
 }

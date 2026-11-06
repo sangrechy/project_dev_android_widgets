@@ -40,9 +40,9 @@ enum class HomeTab {
 }
 
 enum class FeedLimit(val count: Int, val label: String) {
+    LIMIT_5(5, "Last 5"),
     LIMIT_10(10, "Last 10"),
-    LIMIT_50(50, "Last 50"),
-    LIMIT_100(100, "Last 100")
+    LIMIT_50(50, "Last 50")
 }
 
 class MainScreenViewModel(private val repository: DataRepository) : ViewModel() {
@@ -430,6 +430,12 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
 
     fun setProblemsSearchQuery(query: String) {
         _problemsSearchQuery.value = query
+        val trimmed = query.trim()
+        if (trimmed.isNotBlank()) {
+            searchLeetCode(trimmed)
+        } else {
+            clearLeetCodeSearchResults()
+        }
     }
 
     fun setDifficultyFilter(filter: ProblemDifficultyFilter) {
@@ -550,7 +556,12 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
                 if (idx != -1) _activeProblemNoteIndex.value = idx
             }
             loadProblems()
-            _syncMessage.value = "Saved note '${savedNote.filename}'"
+            val token = _gitHubTokenInput.value.trim()
+            if (token.isNotBlank()) {
+                _syncMessage.value = "Saved & pushed '${savedNote.filename}' to GitHub"
+            } else {
+                _syncMessage.value = "Saved note '${savedNote.filename}' locally"
+            }
         }
     }
 

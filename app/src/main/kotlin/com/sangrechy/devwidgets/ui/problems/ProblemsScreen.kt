@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -411,9 +412,6 @@ private fun LeetCodeProblemsSection(
         if (list.isNotEmpty()) onAddProblemFromLeetCode(list.first(), cb) else cb(false)
     }
 ) {
-    var showAddProblemModal by remember { mutableStateOf(false) }
-    var addProblemInput by remember { mutableStateOf("") }
-    val selectedProblems = remember { mutableStateListOf<LeetCodeSearchResult>() }
 
     val (savedSlugs, savedIds) = remember(problems) {
         val slugs = HashSet<String>(problems.size)
@@ -441,387 +439,30 @@ private fun LeetCodeProblemsSection(
             fontWeight = FontWeight.Medium
         )
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        OutlinedButton(
+            onClick = onSyncFromGitHubBackup,
+            enabled = !isSyncingBackupRepo,
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = ThemeTextPrimary
+            ),
+            shape = RoundedCornerShape(10.dp),
+            border = BorderStroke(1.dp, ThemeCardBorder),
+            modifier = Modifier.height(34.dp)
         ) {
-            OutlinedButton(
-                onClick = onSyncFromGitHubBackup,
-                enabled = !isSyncingBackupRepo,
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = ThemeTextPrimary
-                ),
-                shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, ThemeCardBorder),
-                modifier = Modifier.height(34.dp)
-            ) {
-                if (isSyncingBackupRepo) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(14.dp),
-                        strokeWidth = 2.dp,
-                        color = ThemeAccentBlue
-                    )
-                } else {
-                    Icon(Icons.Default.Sync, contentDescription = null, tint = ThemeAccentBlue, modifier = Modifier.size(15.dp))
-                }
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(if (isSyncingBackupRepo) "Syncing..." else "Sync Git", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-            }
-
-            Button(
-                onClick = {
-                    showAddProblemModal = true
-                    addProblemInput = ""
-                    selectedProblems.clear()
-                    onSearchLeetCode("")
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = ThemeCardBgElevated,
-                    contentColor = ThemeTextPrimary
-                ),
-                shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, ThemeCardBorder),
-                modifier = Modifier.height(34.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(15.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Add Problem", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-            }
-        }
-    }
-
-    // Add Problem Modal Dialog
-    if (showAddProblemModal) {
-        LaunchedEffect(addProblemInput) {
-            val q = addProblemInput.trim()
-            if (q.isNotBlank()) {
-                delay(250)
-                onSearchLeetCode(q)
+            if (isSyncingBackupRepo) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(14.dp),
+                    strokeWidth = 2.dp,
+                    color = ThemeAccentBlue
+                )
             } else {
-                onSearchLeetCode("")
+                Icon(Icons.Default.Sync, contentDescription = null, tint = ThemeAccentBlue, modifier = Modifier.size(15.dp))
             }
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(if (isSyncingBackupRepo) "Syncing..." else "Sync Git", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         }
-
-        AlertDialog(
-            onDismissRequest = {
-                if (!isAddingProblem) {
-                    showAddProblemModal = false
-                    addProblemInput = ""
-                    onClearLeetCodeSearch()
-                }
-            },
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CloudDownload,
-                        contentDescription = null,
-                        tint = ThemeAccentBlue,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        text = "Add Problem from LeetCode",
-                        fontWeight = FontWeight.Bold,
-                        color = ThemeTextPrimary,
-                        fontSize = 16.sp
-                    )
-                }
-            },
-            text = {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "Search by problem number (e.g. 1, 42), title (e.g. 'Two Sum'), slug, or paste full LeetCode URL.",
-                        color = ThemeTextSecondary,
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp
-                    )
-
-                    OutlinedTextField(
-                        value = addProblemInput,
-                        onValueChange = { addProblemInput = it },
-                        placeholder = {
-                            Text("e.g. 1, 42, two-sum, or https://leetcode.com/...", color = ThemeTextMuted, fontSize = 12.sp)
-                        },
-                        singleLine = true,
-                        leadingIcon = {
-                            Icon(Icons.Default.Search, contentDescription = null, tint = ThemeTextSecondary, modifier = Modifier.size(16.dp))
-                        },
-                        trailingIcon = {
-                            if (isSearchingLeetCode) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(16.dp),
-                                    strokeWidth = 2.dp,
-                                    color = ThemeAccentBlue
-                                )
-                            } else if (addProblemInput.isNotBlank()) {
-                                IconButton(onClick = {
-                                    addProblemInput = ""
-                                    onClearLeetCodeSearch()
-                                }, modifier = Modifier.size(20.dp)) {
-                                    Icon(Icons.Default.Close, contentDescription = "Clear", tint = ThemeTextMuted, modifier = Modifier.size(14.dp))
-                                }
-                            }
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = ThemeTextPrimary,
-                            unfocusedTextColor = ThemeTextPrimary,
-                            focusedContainerColor = ThemeTextFieldBg,
-                            unfocusedContainerColor = ThemeTextFieldBg,
-                            focusedBorderColor = ThemeAccentBlue,
-                            unfocusedBorderColor = ThemeTextFieldBorder
-                        ),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    // Live search results / catalog list from LeetCode
-                    if (leetCodeSearchResults.isNotEmpty()) {
-                        val unSavedResults = remember(leetCodeSearchResults, savedSlugs, savedIds) {
-                            leetCodeSearchResults.filter { res ->
-                                res.titleSlug.lowercase() !in savedSlugs && res.frontendId !in savedIds
-                            }
-                        }
-                        val allSelected = unSavedResults.isNotEmpty() && unSavedResults.all { res ->
-                            selectedProblems.any { it.titleSlug == res.titleSlug }
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = if (addProblemInput.isBlank()) "All Problems (${leetCodeSearchResults.size})" else "Results (${leetCodeSearchResults.size})",
-                                color = ThemeTextMuted,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            if (unSavedResults.isNotEmpty()) {
-                                Text(
-                                    text = if (allSelected) "Deselect All" else "Select All",
-                                    color = ThemeAccentBlue,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .clickable {
-                                            if (allSelected) {
-                                                selectedProblems.removeAll { res -> unSavedResults.any { it.titleSlug == res.titleSlug } }
-                                            } else {
-                                                unSavedResults.forEach { res ->
-                                                    if (selectedProblems.none { it.titleSlug == res.titleSlug }) {
-                                                        selectedProblems.add(res)
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 280.dp)
-                                .verticalScroll(rememberScrollState())
-                        ) {
-                            leetCodeSearchResults.forEach { result ->
-                                key(result.titleSlug) {
-                                    val badgeColor = when (result.difficulty.lowercase()) {
-                                        "easy" -> Color(0xFFFFFFFF)
-                                        "hard" -> Color(0xFFA3A3A3)
-                                        else -> Color(0xFFD4D4D4)
-                                    }
-                                    val isSaved = result.titleSlug.lowercase() in savedSlugs || result.frontendId in savedIds
-                                    val isSelected = selectedProblems.any { it.titleSlug == result.titleSlug }
-
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(if (isSelected) ThemeAccentBlue.copy(alpha = 0.08f) else ThemeInnerBoxBg)
-                                        .border(
-                                            width = 1.dp,
-                                            color = if (isSelected) ThemeAccentBlue.copy(alpha = 0.5f) else ThemeInnerBoxBorder,
-                                            shape = RoundedCornerShape(8.dp)
-                                        )
-                                        .clickable(enabled = !isAddingProblem && !isSaved) {
-                                            if (isSelected) {
-                                                selectedProblems.removeAll { it.titleSlug == result.titleSlug }
-                                            } else {
-                                                selectedProblems.add(result)
-                                            }
-                                        }
-                                        .padding(horizontal = 10.dp, vertical = 8.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    if (!isSaved) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(18.dp)
-                                                .clip(RoundedCornerShape(5.dp))
-                                                .background(if (isSelected) Color.White else Color.Transparent)
-                                                .border(1.5.dp, if (isSelected) Color.White else ThemeTextMuted, RoundedCornerShape(5.dp)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            if (isSelected) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Check,
-                                                    contentDescription = null,
-                                                    tint = Color.Black,
-                                                    modifier = Modifier.size(12.dp)
-                                                )
-                                            }
-                                        }
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                    }
-
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            Text(
-                                                text = "#${result.frontendId}",
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 12.sp,
-                                                color = ThemeAccentBlue
-                                            )
-                                            Text(
-                                                text = result.title,
-                                                fontWeight = FontWeight.Medium,
-                                                fontSize = 12.sp,
-                                                color = if (isSaved) ThemeTextMuted else ThemeTextPrimary,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-                                        if (result.topicTags.isNotEmpty()) {
-                                            Text(
-                                                text = result.topicTags.take(3).joinToString(", "),
-                                                fontSize = 10.sp,
-                                                color = ThemeTextMuted,
-                                                maxLines = 1
-                                            )
-                                        }
-                                    }
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    if (isSaved) {
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(4.dp))
-                                                .background(Color.White.copy(alpha = 0.1f))
-                                                .border(0.5.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(4.dp))
-                                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                                        ) {
-                                            Text(
-                                                text = "✓ Saved",
-                                                color = ThemeTextSecondary,
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                        }
-                                    } else {
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(4.dp))
-                                                .background(badgeColor.copy(alpha = 0.2f))
-                                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                                        ) {
-                                            Text(
-                                                text = result.difficulty,
-                                                color = badgeColor,
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                    if (isAddingProblem) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.padding(top = 4.dp)
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp,
-                                color = ThemeAccentBlue
-                            )
-                            Text(
-                                text = "Downloading authentic problem(s) from LeetCode...",
-                                color = ThemeTextSecondary,
-                                fontSize = 11.sp
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (selectedProblems.isNotEmpty() && !isAddingProblem) {
-                            val slugs = selectedProblems.map { it.titleSlug }
-                            onAddMultipleProblemsFromLeetCode(slugs) { success ->
-                                if (success) {
-                                    showAddProblemModal = false
-                                    addProblemInput = ""
-                                    selectedProblems.clear()
-                                    onClearLeetCodeSearch()
-                                }
-                            }
-                        }
-                    },
-                    enabled = selectedProblems.isNotEmpty() && !isAddingProblem,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = ThemeAccentBlue,
-                        contentColor = Color.Black,
-                        disabledContainerColor = ThemeCardBgElevated,
-                        disabledContentColor = ThemeTextMuted
-                    ),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Text(
-                        text = when {
-                            isAddingProblem -> "Downloading..."
-                            selectedProblems.isEmpty() -> "Select to Download"
-                            selectedProblems.size == 1 -> "Download 1 Problem"
-                            else -> "Download (${selectedProblems.size}) Problems"
-                        },
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showAddProblemModal = false
-                        addProblemInput = ""
-                        selectedProblems.clear()
-                        onClearLeetCodeSearch()
-                    },
-                    enabled = !isAddingProblem
-                ) {
-                    Text("Cancel", color = ThemeTextSecondary)
-                }
-            },
-            containerColor = ThemeCardBgElevated,
-            shape = RoundedCornerShape(18.dp)
-        )
     }
+
 
     // Search Bar
     OutlinedTextField(
@@ -902,9 +543,13 @@ private fun LeetCodeProblemsSection(
         }
     }
 
-    // Filter problems according to search and difficulty
-    val filteredProblems = remember(problems, searchQuery, difficultyFilter) {
-        problems.filter { problem ->
+    // Filter problems according to search, catalog matches, and difficulty
+    val filteredProblems = remember(problems, leetCodeSearchResults, searchQuery, difficultyFilter) {
+        val list = mutableListOf<OfflineProblem>()
+        val existingSlugs = HashSet<String>()
+        val existingFids = HashSet<String>()
+
+        problems.forEach { problem ->
             val matchesSearch = searchQuery.isBlank() ||
                 problem.title.contains(searchQuery, ignoreCase = true) ||
                 problem.frontendId.contains(searchQuery) ||
@@ -919,8 +564,46 @@ private fun LeetCodeProblemsSection(
                 ProblemDifficultyFilter.DOWNLOADED -> problem.isDownloadedOffline
             }
 
-            matchesSearch && matchesDifficulty
+            if (matchesSearch && matchesDifficulty) {
+                list.add(problem)
+                existingSlugs.add(problem.titleSlug.lowercase())
+                if (problem.frontendId.isNotBlank()) existingFids.add(problem.frontendId)
+            }
         }
+
+        // When searching, also show matching catalog problems that are not yet downloaded
+        if (searchQuery.isNotBlank() && difficultyFilter != ProblemDifficultyFilter.DOWNLOADED) {
+            leetCodeSearchResults.forEach { res ->
+                val sSlug = res.titleSlug.lowercase()
+                if (!existingSlugs.contains(sSlug) && !existingFids.contains(res.frontendId)) {
+                    val matchesDifficulty = when (difficultyFilter) {
+                        ProblemDifficultyFilter.ALL -> true
+                        ProblemDifficultyFilter.EASY -> res.difficulty.equals("Easy", ignoreCase = true)
+                        ProblemDifficultyFilter.MEDIUM -> res.difficulty.equals("Medium", ignoreCase = true)
+                        ProblemDifficultyFilter.HARD -> res.difficulty.equals("Hard", ignoreCase = true)
+                        ProblemDifficultyFilter.DOWNLOADED -> false
+                    }
+                    if (matchesDifficulty) {
+                        val num = res.frontendId.toIntOrNull()
+                        val folderName = if (num != null) "%04d-%s".format(num, res.titleSlug) else res.titleSlug
+                        list.add(
+                            OfflineProblem(
+                                folderName = folderName,
+                                frontendId = res.frontendId,
+                                title = res.title,
+                                titleSlug = res.titleSlug,
+                                difficulty = res.difficulty,
+                                topicTags = res.topicTags,
+                                isDownloadedOffline = false
+                            )
+                        )
+                        existingSlugs.add(sSlug)
+                        if (res.frontendId.isNotBlank()) existingFids.add(res.frontendId)
+                    }
+                }
+            }
+        }
+        list
     }
 
     // Problem Counter
@@ -1023,7 +706,7 @@ private fun ProblemItemCard(
                 ThemeCardBorder,
                 RoundedCornerShape(16.dp)
             )
-            .clickable(onClick = onClick)
+            .clickable(onClick = if (problem.isDownloadedOffline) onClick else onDownloadOffline)
             .padding(14.dp)
     ) {
         Row(
@@ -1055,6 +738,24 @@ private fun ProblemItemCard(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.weight(1f)
                     ) {
+                        if (!problem.isDownloadedOffline) {
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(CircleShape)
+                                    .background(ThemeAccentBlue.copy(alpha = 0.2f))
+                                    .border(1.dp, ThemeAccentBlue.copy(alpha = 0.5f), CircleShape)
+                                    .clickable(onClick = onDownloadOffline),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Download Offline",
+                                    tint = ThemeAccentBlue,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                        }
                         Text(
                             text = "#${problem.frontendId}",
                             color = ThemeTextSecondary,
@@ -1097,6 +798,7 @@ private fun ProblemItemCard(
                 ) {
                     // Topic tags excerpt
                     Row(
+                        modifier = Modifier.weight(1f, fill = false),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -1111,7 +813,9 @@ private fun ProblemItemCard(
                                 Text(
                                     text = tag,
                                     color = ThemeTextSecondary,
-                                    fontSize = 10.sp
+                                    fontSize = 10.sp,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         }
@@ -1119,13 +823,16 @@ private fun ProblemItemCard(
                             Text(
                                 text = "+${problem.topicTags.size - 2}",
                                 color = ThemeTextMuted,
-                                fontSize = 10.sp
+                                fontSize = 10.sp,
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
                     }
 
                     // Offline Status & Language
                     Row(
+                        modifier = Modifier.wrapContentWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -1141,13 +848,16 @@ private fun ProblemItemCard(
                                     text = problem.solutionLanguage,
                                     color = ThemeAccentBlue,
                                     fontSize = 10.sp,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         }
 
                         if (problem.isDownloadedOffline) {
                             Row(
+                                modifier = Modifier.wrapContentWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(3.dp)
                             ) {
@@ -1161,19 +871,32 @@ private fun ProblemItemCard(
                                     text = "Offline",
                                     color = ThemeAccentGreen,
                                     fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         } else {
-                            IconButton(
-                                onClick = onDownloadOffline,
-                                modifier = Modifier.size(24.dp)
+                            Row(
+                                modifier = Modifier
+                                    .wrapContentWidth()
+                                    .clickable(onClick = onDownloadOffline),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Download,
+                                    imageVector = Icons.Default.CloudDownload,
                                     contentDescription = "Download Offline",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(16.dp)
+                                    tint = ThemeAccentBlue,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Text(
+                                    text = "Download",
+                                    color = ThemeAccentBlue,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         }
@@ -1236,6 +959,12 @@ fun LeetCodeProblemDetailView(
 ) {
     val context = LocalContext.current
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = Description, 1 = Code, 2 = Notes
+
+    LaunchedEffect(selectedTab) {
+        if (selectedTab == 2) {
+            onSyncFromGit?.invoke()
+        }
+    }
     var showAddNoteOptionsDialog by remember { mutableStateOf(false) }
     var showNewNoteModal by remember { mutableStateOf(false) }
     var newNoteFilename by remember { mutableStateOf("") }
@@ -1453,7 +1182,9 @@ fun LeetCodeProblemDetailView(
                             onActiveNoteIndexChanged = onActiveNoteIndexChanged,
                             onSaveNote = onSaveNote,
                             onDeleteNote = onDeleteNote,
-                            onAddNewNote = { showAddNoteOptionsDialog = true }
+                            onAddNewNote = { showAddNoteOptionsDialog = true },
+                            onSyncNotes = onSyncFromGit,
+                            isSyncingNotes = isSyncingFromGit
                         )
                     }
                 }
@@ -2049,7 +1780,9 @@ private fun LeetCodeNotesTab(
     onActiveNoteIndexChanged: (Int) -> Unit,
     onSaveNote: (filename: String, content: String) -> Unit,
     onDeleteNote: (filename: String) -> Unit,
-    onAddNewNote: () -> Unit
+    onAddNewNote: () -> Unit,
+    onSyncNotes: (() -> Unit)? = null,
+    isSyncingNotes: Boolean = false
 ) {
     val notes = problem.notes
     val currentNote = notes.getOrNull(activeNoteIndex) ?: notes.firstOrNull()
@@ -2127,6 +1860,26 @@ private fun LeetCodeNotesTab(
                         modifier = Modifier.size(14.dp)
                     )
                     Text("Note", color = ThemeAccentBlue, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+
+            if (isSyncingNotes) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    strokeWidth = 2.dp,
+                    color = ThemeAccentBlue
+                )
+            } else if (onSyncNotes != null) {
+                IconButton(
+                    onClick = onSyncNotes,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Sync,
+                        contentDescription = "Sync Git Notes",
+                        tint = ThemeAccentBlue,
+                        modifier = Modifier.size(16.dp)
+                    )
                 }
             }
         }
