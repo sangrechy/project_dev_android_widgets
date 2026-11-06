@@ -232,7 +232,7 @@ object WallpaperManager {
     }
 
     fun isBitmapLight(bitmap: Bitmap?, dim: Float = 0.55f): Boolean {
-        if (bitmap == null) return false
+        if (bitmap == null || bitmap.isRecycled) return false
         return try {
             val sampleSize = 16
             val scaled = Bitmap.createScaledBitmap(bitmap, sampleSize, sampleSize, false)
@@ -267,10 +267,7 @@ object WallpaperManager {
                 val prefs = WidgetPreferences(context)
                 val dim = if (widgetKey != null) prefs.getWidgetWallpaperDimFor(widgetKey) else prefs.widgetWallpaperDim
                 val bmp = getWidgetWallpaperBitmap(context, width = 240, height = 160, widgetKey = widgetKey)
-                val isLight = bmp != null && isBitmapLight(bmp, dim)
-                if (bmp != null && !bmp.isRecycled) {
-                    bmp.recycle()
-                }
+                val isLight = bmp != null && !bmp.isRecycled && isBitmapLight(bmp, dim)
                 if (isLight) {
                     "BLACK"
                 } else {

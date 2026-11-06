@@ -797,12 +797,13 @@ private fun ProblemItemCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Topic tags excerpt
+                    val tagsToShow = if (problem.topicTags.isNotEmpty()) problem.topicTags else listOf("Algorithm")
                     Row(
                         modifier = Modifier.weight(1f, fill = false),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        problem.topicTags.take(2).forEach { tag ->
+                        tagsToShow.take(3).forEach { tag ->
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(4.dp))
@@ -812,16 +813,16 @@ private fun ProblemItemCard(
                             ) {
                                 Text(
                                     text = tag,
-                                    color = ThemeTextSecondary,
+                                    color = if (problem.topicTags.isNotEmpty()) ThemeTextSecondary else ThemeTextMuted,
                                     fontSize = 10.sp,
                                     maxLines = 1,
                                     softWrap = false
                                 )
                             }
                         }
-                        if (problem.topicTags.size > 2) {
+                        if (tagsToShow.size > 3) {
                             Text(
-                                text = "+${problem.topicTags.size - 2}",
+                                text = "+${tagsToShow.size - 3}",
                                 color = ThemeTextMuted,
                                 fontSize = 10.sp,
                                 maxLines = 1,

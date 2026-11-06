@@ -3310,7 +3310,12 @@ private fun WidgetGalleryCard(
             val context = LocalContext.current
             val previewWallpaperBitmap = remember(currentWidgetWallpaper, widgetKey) {
                 if (currentWidgetWallpaper in listOf("MATCH_APP", "CUSTOM", "PRESET")) {
-                    WallpaperManager.getWidgetWallpaperBitmap(context, width = 340, height = 180, widgetKey = widgetKey)
+                    try {
+                        val bmp = WallpaperManager.getWidgetWallpaperBitmap(context, width = 340, height = 180, widgetKey = widgetKey)
+                        if (bmp != null && !bmp.isRecycled) bmp else null
+                    } catch (_: Exception) {
+                        null
+                    }
                 } else null
             }
 
@@ -3332,7 +3337,7 @@ private fun WidgetGalleryCard(
                         }
                     )
             ) {
-                if (previewWallpaperBitmap != null) {
+                if (previewWallpaperBitmap != null && !previewWallpaperBitmap.isRecycled) {
                     Image(
                         bitmap = previewWallpaperBitmap.asImageBitmap(),
                         contentDescription = "Widget Wallpaper",

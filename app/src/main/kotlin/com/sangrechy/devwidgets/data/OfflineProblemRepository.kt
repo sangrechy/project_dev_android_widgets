@@ -396,12 +396,21 @@ class OfflineProblemRepository(
                         val title = meta.optString("problem_title", "")
                         val slug = meta.optString("problem_slug", "")
                         val diff = meta.optString("difficulty", "Medium")
+                        val catTags = mutableListOf<String>()
+                        val tArr = meta.optJSONArray("topic_tags") ?: meta.optJSONArray("topicTags") ?: meta.optJSONArray("tags")
+                        if (tArr != null) {
+                            for (j in 0 until tArr.length()) {
+                                val t = tArr.optString(j)
+                                if (t.isNotBlank()) catTags.add(t)
+                            }
+                        }
                         if (slug.isNotBlank() && title.isNotBlank() && !inMemoryCatalog.containsKey(slug)) {
                             inMemoryCatalog[slug] = LeetCodeSearchResult(
                                 frontendId = fid,
                                 title = title,
                                 titleSlug = slug,
-                                difficulty = diff
+                                difficulty = diff,
+                                topicTags = catTags
                             )
                         }
                     }
@@ -1598,9 +1607,30 @@ class OfflineProblemRepository(
         // Topic tags
         val topicTags = mutableListOf<String>()
         val tagsArr = meta.optJSONArray("topic_tags")
+            ?: meta.optJSONArray("topicTags")
+            ?: meta.optJSONArray("tags")
+            ?: meta.optJSONArray("topics")
         if (tagsArr != null) {
             for (i in 0 until tagsArr.length()) {
-                topicTags.add(tagsArr.getString(i))
+                val t = tagsArr.optString(i)
+                if (t.isNotBlank()) topicTags.add(t)
+            }
+        } else {
+            val commaTags = meta.optString("topic_tags").ifBlank {
+                meta.optString("topicTags").ifBlank {
+                    meta.optString("tags")
+                }
+            }
+            if (commaTags.isNotBlank()) {
+                topicTags.addAll(commaTags.split(",").map { it.trim() }.filter { it.isNotEmpty() })
+            }
+        }
+        if (topicTags.isEmpty()) {
+            ensureCatalogLoaded()
+            val catItem = inMemoryCatalog[titleSlug]
+                ?: inMemoryCatalog.values.firstOrNull { it.frontendId == frontendId || it.title.equals(title, ignoreCase = true) }
+            if (catItem != null && catItem.topicTags.isNotEmpty()) {
+                topicTags.addAll(catItem.topicTags)
             }
         }
 

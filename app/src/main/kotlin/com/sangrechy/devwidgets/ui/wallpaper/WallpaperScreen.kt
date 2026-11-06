@@ -117,10 +117,10 @@ fun WallpaperScreenContent(
                         fontWeight = FontWeight.Bold
                     )
 
-                    val appBadge = when (appWallpaperType) {
-                        "CUSTOM" -> "Custom"
-                        "PRESET" -> WallpaperPreset.fromId(appWallpaperPreset).title
-                        "GLASSY" -> "Glassy"
+                    val appBadge = when {
+                        appWallpaperType == "CUSTOM" -> "Custom"
+                        appWallpaperType == "PRESET" && appWallpaperPreset == WallpaperPreset.DEEP_COSMOS.id -> "Glassy"
+                        appWallpaperType == "PRESET" -> WallpaperPreset.fromId(appWallpaperPreset).title
                         else -> "Obsidian"
                     }
                     Box(
@@ -139,82 +139,15 @@ fun WallpaperScreenContent(
                     }
                 }
 
-                val isGlassy = (appWallpaperType == "PRESET" && appWallpaperPreset == WallpaperPreset.DEEP_COSMOS.id)
-
-                // Modes Row: Custom | Glassy | Obsidian
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Custom Photo
-                    val isCustom = appWallpaperType == "CUSTOM"
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(if (isCustom) ThemeAccentBlue.copy(alpha = 0.15f) else ThemeInnerBoxBg)
-                            .border(1.dp, if (isCustom) ThemeAccentBlue else ThemeInnerBoxBorder, RoundedCornerShape(10.dp))
-                            .clickable { appPhotoPicker.launch("image/*") }
-                            .padding(vertical = 10.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Custom",
-                            color = if (isCustom) ThemeAccentBlue else ThemeTextPrimary,
-                            fontSize = 12.sp,
-                            fontWeight = if (isCustom) FontWeight.Bold else FontWeight.Medium
-                        )
-                    }
-
-                    // Glassy
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(if (isGlassy) ThemeAccentBlue.copy(alpha = 0.15f) else ThemeInnerBoxBg)
-                            .border(1.dp, if (isGlassy) ThemeAccentBlue else ThemeInnerBoxBorder, RoundedCornerShape(10.dp))
-                            .clickable {
-                                viewModel.setAppWallpaperPreset(WallpaperPreset.DEEP_COSMOS.id)
-                                viewModel.setAppWallpaperDim(0.40f)
-                            }
-                            .padding(vertical = 10.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Glassy",
-                            color = if (isGlassy) ThemeAccentBlue else ThemeTextPrimary,
-                            fontSize = 12.sp,
-                            fontWeight = if (isGlassy) FontWeight.Bold else FontWeight.Medium
-                        )
-                    }
-
-                    // Obsidian (Default)
-                    val isDefault = appWallpaperType == "NONE"
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(if (isDefault) ThemeAccentBlue.copy(alpha = 0.15f) else ThemeInnerBoxBg)
-                            .border(1.dp, if (isDefault) ThemeAccentBlue else ThemeInnerBoxBorder, RoundedCornerShape(10.dp))
-                            .clickable { viewModel.setAppWallpaperDefault() }
-                            .padding(vertical = 10.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Obsidian",
-                            color = if (isDefault) ThemeAccentBlue else ThemeTextPrimary,
-                            fontSize = 12.sp,
-                            fontWeight = if (isDefault) FontWeight.Bold else FontWeight.Medium
-                        )
-                    }
-                }
-
-                // Presets
-                Text(
-                    text = "Presets",
-                    color = ThemeTextSecondary,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
+                // Single unified options: Obsidian | Custom | Glassy | Cyber Matrix | Terminal | Carbon | Sunset
+                val appThemes = listOf(
+                    "OBSIDIAN" to "Obsidian",
+                    "CUSTOM" to "Custom",
+                    "GLASSY" to "Glassy",
+                    WallpaperPreset.CYBER_MATRIX.id to "Cyber Matrix",
+                    WallpaperPreset.TERMINAL_CODE.id to "Terminal Code",
+                    WallpaperPreset.MINIMAL_CARBON.id to "Minimal Carbon",
+                    WallpaperPreset.SUNSET_DEV.id to "Sunset Dev"
                 )
 
                 FlowRow(
@@ -222,27 +155,43 @@ fun WallpaperScreenContent(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    WallpaperPreset.entries.forEach { preset ->
-                        val isSelected = (appWallpaperType == "PRESET" && appWallpaperPreset == preset.id && !isGlassy)
+                    appThemes.forEach { (key, label) ->
+                        val isSelected = when (key) {
+                            "OBSIDIAN" -> appWallpaperType == "NONE"
+                            "CUSTOM" -> appWallpaperType == "CUSTOM"
+                            "GLASSY" -> appWallpaperType == "PRESET" && appWallpaperPreset == WallpaperPreset.DEEP_COSMOS.id
+                            else -> appWallpaperType == "PRESET" && appWallpaperPreset == key
+                        }
+
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(if (isSelected) ThemeAccentBlue.copy(alpha = 0.15f) else ThemeInnerBoxBg)
                                 .border(1.dp, if (isSelected) ThemeAccentBlue else ThemeInnerBoxBorder, RoundedCornerShape(8.dp))
-                                .clickable { viewModel.setAppWallpaperPreset(preset.id) }
-                                .padding(horizontal = 10.dp, vertical = 7.dp)
+                                .clickable {
+                                    when (key) {
+                                        "OBSIDIAN" -> viewModel.setAppWallpaperDefault()
+                                        "CUSTOM" -> appPhotoPicker.launch("image/*")
+                                        "GLASSY" -> {
+                                            viewModel.setAppWallpaperPreset(WallpaperPreset.DEEP_COSMOS.id)
+                                            viewModel.setAppWallpaperDim(0.40f)
+                                        }
+                                        else -> viewModel.setAppWallpaperPreset(key)
+                                    }
+                                }
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
                         ) {
                             Text(
-                                text = preset.title,
+                                text = label,
                                 color = if (isSelected) ThemeAccentBlue else ThemeTextSecondary,
-                                fontSize = 11.5.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                             )
                         }
                     }
                 }
 
-                // Dim Slider if active
+                // Dim Slider if active (non-default)
                 if (appWallpaperType != "NONE") {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Row(
@@ -295,7 +244,8 @@ fun WallpaperScreenContent(
 
                     val widgetBadge = when (widgetWallpaperType) {
                         "CUSTOM" -> "Custom"
-                        "TRANSLUCENT", "TRANSPARENT" -> "Glassy"
+                        "TRANSLUCENT" -> "Glassy"
+                        "TRANSPARENT" -> "Clear"
                         "MATCH_APP" -> "Match App"
                         else -> "Obsidian"
                     }
@@ -315,26 +265,27 @@ fun WallpaperScreenContent(
                     }
                 }
 
-                // Modes Row: Custom | Glassy | Obsidian | Match App
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    val wStyles = listOf(
-                        "CUSTOM" to "Custom",
-                        "TRANSLUCENT" to "Glassy",
-                        "DEFAULT" to "Obsidian",
-                        "MATCH_APP" to "Match App"
-                    )
+                // Modes Row: Obsidian | Glassy | Clear | Match App | Custom
+                val widgetThemes = listOf(
+                    "DEFAULT" to "Obsidian",
+                    "TRANSLUCENT" to "Glassy",
+                    "TRANSPARENT" to "Clear",
+                    "MATCH_APP" to "Match App",
+                    "CUSTOM" to "Custom"
+                )
 
-                    wStyles.forEach { (typeKey, label) ->
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    widgetThemes.forEach { (typeKey, label) ->
                         val isSelected = (widgetWallpaperType == typeKey)
                         Box(
                             modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(10.dp))
+                                .clip(RoundedCornerShape(8.dp))
                                 .background(if (isSelected) ThemeAccentBlue.copy(alpha = 0.15f) else ThemeInnerBoxBg)
-                                .border(1.dp, if (isSelected) ThemeAccentBlue else ThemeInnerBoxBorder, RoundedCornerShape(10.dp))
+                                .border(1.dp, if (isSelected) ThemeAccentBlue else ThemeInnerBoxBorder, RoundedCornerShape(8.dp))
                                 .clickable {
                                     if (typeKey == "CUSTOM") {
                                         widgetPhotoPicker.launch("image/*")
@@ -342,17 +293,39 @@ fun WallpaperScreenContent(
                                         viewModel.setWidgetWallpaperType(typeKey)
                                     }
                                 }
-                                .padding(vertical = 10.dp),
-                            contentAlignment = Alignment.Center
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
                         ) {
                             Text(
                                 text = label,
-                                color = if (isSelected) ThemeAccentBlue else ThemeTextPrimary,
-                                fontSize = 11.5.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                maxLines = 1
+                                color = if (isSelected) ThemeAccentBlue else ThemeTextSecondary,
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                             )
                         }
+                    }
+                }
+
+                // Widget Dim Slider (if wallpaper active)
+                if (widgetWallpaperType in listOf("MATCH_APP", "CUSTOM")) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Widget Dim", color = ThemeTextSecondary, fontSize = 12.sp)
+                            Text("${(widgetWallpaperDim * 100).toInt()}%", color = ThemeAccentBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Slider(
+                            value = widgetWallpaperDim,
+                            onValueChange = viewModel::setWidgetWallpaperDim,
+                            valueRange = 0.20f..0.90f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = ThemeAccentBlue,
+                                activeTrackColor = ThemeAccentBlue,
+                                inactiveTrackColor = ThemeInnerBoxBorder
+                            )
+                        )
                     }
                 }
 
@@ -384,7 +357,7 @@ fun WallpaperScreenContent(
         }
 
         // =========================================================================
-        // 3. Compact Bottom Preview
+        // 3. Compact Dynamic Bottom Preview (Live Reacting to Both Settings)
         // =========================================================================
         Box(
             modifier = Modifier
@@ -402,8 +375,18 @@ fun WallpaperScreenContent(
                     fontWeight = FontWeight.Bold
                 )
 
-                val previewBitmap = remember(appWallpaperType, appWallpaperPreset, appWallpaperCustomPath) {
-                    WallpaperManager.getAppWallpaperBitmap(context, 720, 360)?.asImageBitmap()
+                val appPreviewBitmap = remember(appWallpaperType, appWallpaperPreset, appWallpaperCustomPath) {
+                    try {
+                        WallpaperManager.getAppWallpaperBitmap(context, 720, 360)?.asImageBitmap()
+                    } catch (_: Exception) { null }
+                }
+
+                val widgetCustomBitmap = remember(widgetWallpaperType, widgetWallpaperCustomPath) {
+                    if (widgetWallpaperType == "CUSTOM") {
+                        try {
+                            WallpaperManager.getHighResCustomWallpaperForWidget(widgetWallpaperCustomPath, 340, 180)?.asImageBitmap()
+                        } catch (_: Exception) { null }
+                    } else null
                 }
 
                 Box(
@@ -414,9 +397,10 @@ fun WallpaperScreenContent(
                         .background(ThemeInnerBoxBg)
                         .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(14.dp))
                 ) {
-                    if (appWallpaperType != "NONE" && previewBitmap != null) {
+                    // 1. App background canvas layer
+                    if (appWallpaperType != "NONE" && appPreviewBitmap != null) {
                         Image(
-                            bitmap = previewBitmap,
+                            bitmap = appPreviewBitmap,
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
@@ -428,6 +412,7 @@ fun WallpaperScreenContent(
                         )
                     }
 
+                    // 2. Widget Preview Cards reacting directly to widgetWallpaperType
                     val lcCircle = remember(dashboardData.leetCode) {
                         WidgetBitmapRenderer.renderLeetCodeCircle(dashboardData.leetCode, sizePx = 220).asImageBitmap()
                     }
@@ -442,61 +427,85 @@ fun WallpaperScreenContent(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(ThemeCardBg.copy(alpha = 0.9f))
-                                .border(1.dp, ThemeCardBorder, RoundedCornerShape(12.dp))
-                                .padding(6.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                        // Reusable lambda for widget card styling
+                        @Composable
+                        fun WidgetPreviewBox(title: String, imageBitmap: androidx.compose.ui.graphics.ImageBitmap) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .then(
+                                        when (widgetWallpaperType) {
+                                            "TRANSLUCENT" -> Modifier
+                                                .background(Color(0x33262A36))
+                                                .border(1.dp, Color(0x4DFFFFFF), RoundedCornerShape(12.dp))
+                                            "TRANSPARENT" -> Modifier
+                                                .background(Color(0x0DFFFFFF))
+                                                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(12.dp))
+                                            "MATCH_APP" -> Modifier
+                                                .background(Color(0x26000000))
+                                                .border(1.dp, ThemeCardBorder, RoundedCornerShape(12.dp))
+                                            "CUSTOM" -> Modifier
+                                                .background(Color(0x26000000))
+                                                .border(1.dp, ThemeCardBorder, RoundedCornerShape(12.dp))
+                                            else -> Modifier // DEFAULT (Obsidian)
+                                                .background(ThemeCardBg.copy(alpha = 0.95f))
+                                                .border(1.dp, ThemeCardBorder, RoundedCornerShape(12.dp))
+                                        }
+                                    )
                             ) {
-                                Text(
-                                    text = "LeetCode",
-                                    color = Color.White,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Image(
-                                    bitmap = lcCircle,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(72.dp)
-                                )
+                                // Background texture for MATCH_APP or CUSTOM
+                                if (widgetWallpaperType == "MATCH_APP" && appPreviewBitmap != null) {
+                                    Image(
+                                        bitmap = appPreviewBitmap,
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color.Black.copy(alpha = widgetWallpaperDim))
+                                    )
+                                } else if (widgetWallpaperType == "CUSTOM" && widgetCustomBitmap != null) {
+                                    Image(
+                                        bitmap = widgetCustomBitmap,
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color.Black.copy(alpha = widgetWallpaperDim))
+                                    )
+                                }
+
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(6.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = title,
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Image(
+                                        bitmap = imageBitmap,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(72.dp)
+                                    )
+                                }
                             }
                         }
 
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(ThemeCardBg.copy(alpha = 0.9f))
-                                .border(1.dp, ThemeCardBorder, RoundedCornerShape(12.dp))
-                                .padding(6.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                Text(
-                                    text = "GitHub",
-                                    color = Color.White,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Image(
-                                    bitmap = ghRadar,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(72.dp)
-                                )
-                            }
-                        }
+                        WidgetPreviewBox(title = "LeetCode", imageBitmap = lcCircle)
+                        WidgetPreviewBox(title = "GitHub", imageBitmap = ghRadar)
                     }
                 }
             }
