@@ -144,7 +144,7 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
     private val _selectedGeneralNote = MutableStateFlow<CustomNote?>(null)
     val selectedGeneralNote: StateFlow<CustomNote?> = _selectedGeneralNote.asStateFlow()
 
-    private val _backupRepoInput = MutableStateFlow(repository.getGitHubBackupRepo())
+    private val _backupRepoInput = MutableStateFlow(repository.getGitHubBackupRepo().ifBlank { "leetcode" })
     val backupRepoInput: StateFlow<String> = _backupRepoInput.asStateFlow()
 
     private val _isSyncingBackupRepo = MutableStateFlow(false)
@@ -596,34 +596,24 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
     }
 
     fun syncFromGitHubBackupRepo() {
-        val repo = _backupRepoInput.value.trim()
+        val repo = _backupRepoInput.value.trim().ifBlank { repository.getGitHubBackupRepo().ifBlank { "leetcode" } }
         val owner = _gitHubInput.value.trim().removePrefix("@")
         val token = _gitHubTokenInput.value.trim()
 
-        if (repo.isBlank()) {
-            _syncMessage.value = "Please specify a backup repository name (e.g. project_git_the_leet or leetcode-backup)."
-            return
-        }
-
-        val targetOwner = if (repo.contains("/")) repo.substringBefore("/").trim() else owner
+        val targetOwner = if (repo.contains("/")) repo.substringBefore("/").trim() else owner.ifBlank { "sangrechy" }
         val targetRepo = if (repo.contains("/")) repo.substringAfter("/").trim() else repo
-
-        if (targetOwner.isBlank()) {
-            _syncMessage.value = "Please configure your GitHub username in Settings or enter owner/repo."
-            return
-        }
 
         viewModelScope.launch {
             _isSyncingBackupRepo.value = true
-            _syncMessage.value = "Syncing LeetCode backup from GitHub ($targetOwner/$targetRepo)..."
+            _syncMessage.value = "Syncing with GitHub ($targetOwner/$targetRepo)..."
             val result = problemRepo.syncFromGitHubBackupRepo(targetOwner, targetRepo, token)
             _isSyncingBackupRepo.value = false
             if (result.isSuccess) {
                 val count = result.getOrDefault(0)
-                _syncMessage.value = "Successfully synced $count files from $owner/$repo!"
+                _syncMessage.value = "Successfully synced $count files with $targetOwner/$targetRepo!"
                 loadProblems()
             } else {
-                _syncMessage.value = "GitHub backup sync failed: ${result.exceptionOrNull()?.message ?: "Check repository name or permissions"}"
+                _syncMessage.value = "Git sync failed: ${result.exceptionOrNull()?.message ?: "Check repository name or permissions"}"
             }
         }
     }

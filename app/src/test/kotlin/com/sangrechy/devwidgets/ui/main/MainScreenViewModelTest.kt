@@ -359,6 +359,18 @@ class MainScreenViewModelTest {
         assertEquals("sangrechy/leetcode", fakeRepo.backupRepo)
         assertTrue(viewModel.syncMessage.value.orEmpty().contains("Successfully synced"))
     }
+
+    @Test
+    fun testSyncFromGitHubBackupRepo_defaultsToLeetCodeWhenEmpty() = runTest {
+        val fakeRepo = FakeDataRepository().apply { backupRepo = "" }
+        val viewModel = MainScreenViewModel(fakeRepo)
+
+        viewModel.onGitHubInputChanged("sangrechy")
+        viewModel.syncFromGitHubBackupRepo()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(viewModel.syncMessage.value.orEmpty().contains("Successfully synced"))
+    }
 }
 
 private class FakeProblemRepository : com.sangrechy.devwidgets.data.ProblemRepository {

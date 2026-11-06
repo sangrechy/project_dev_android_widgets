@@ -29,7 +29,7 @@ class WidgetPreferences(context: Context) {
         set(value) = prefs.edit().putString(KEY_GITHUB_TOKEN, value.trim()).apply()
 
     var gitHubBackupRepo: String
-        get() = prefs.getString(KEY_GITHUB_BACKUP_REPO, "") ?: ""
+        get() = prefs.getString(KEY_GITHUB_BACKUP_REPO, "")?.trim()?.ifBlank { "leetcode" } ?: "leetcode"
         set(value) = prefs.edit().putString(KEY_GITHUB_BACKUP_REPO, value.trim()).apply()
 
     var autoRefreshInterval: String

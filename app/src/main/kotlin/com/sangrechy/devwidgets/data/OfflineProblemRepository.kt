@@ -17,10 +17,12 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
+import java.net.URLEncoder
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import java.util.zip.ZipInputStream
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 interface ProblemRepository {
     suspend fun getProblems(): List<OfflineProblem>
@@ -960,81 +962,102 @@ class OfflineProblemRepository(
 
     // --- GitHub API Push & Delete Helpers ---
 
+    private fun encodeGitHubPath(path: String): String {
+        return path.trimStart('/').split('/').joinToString("/") { part ->
+            URLEncoder.encode(part, "UTF-8").replace("+", "%20")
+        }
+    }
+
+    private fun pushFileToGitHubDirect(
+        subPath: String,
+        bytes: ByteArray,
+        owner: String,
+        repo: String,
+        token: String
+    ): Boolean {
+        if (token.isBlank() || owner.isBlank() || repo.isBlank()) return false
+        val cleanPath = subPath.trimStart('/')
+        val encodedPath = encodeGitHubPath(cleanPath)
+        val url = "https://api.github.com/repos/$owner/$repo/contents/$encodedPath"
+
+        var existingSha: String? = null
+        try {
+            val getReq = Request.Builder()
+                .url(url)
+                .header("Accept", "application/vnd.github.v3+json")
+                .header("User-Agent", "DevLife-Android")
+                .header("Authorization", "Bearer $token")
+                .get()
+                .build()
+
+            okHttpClient.newCall(getReq).execute().use { resp ->
+                if (resp.isSuccessful) {
+                    val obj = JSONObject(resp.body?.string() ?: "{}")
+                    existingSha = obj.optString("sha").ifBlank { null }
+                }
+            }
+        } catch (_: Exception) {}
+
+        val base64Content = java.util.Base64.getEncoder().encodeToString(bytes)
+        val putBody = JSONObject().apply {
+            put("message", "Sync note $cleanPath")
+            put("content", base64Content)
+            if (existingSha != null) {
+                put("sha", existingSha)
+            }
+        }
+
+        val putReq = Request.Builder()
+            .url(url)
+            .header("Accept", "application/vnd.github.v3+json")
+            .header("User-Agent", "DevLife-Android")
+            .header("Authorization", "Bearer $token")
+            .put(putBody.toString().toRequestBody("application/json".toMediaType()))
+            .build()
+
+        return try {
+            okHttpClient.newCall(putReq).execute().use { it.isSuccessful }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     private fun launchGitHubPush(subPath: String, bytes: ByteArray) {
-        val repoConfig = prefs.gitHubBackupRepo.trim()
-        if (repoConfig.isBlank()) return
+        val repoConfig = prefs.gitHubBackupRepo.trim().ifBlank { "leetcode" }
         val token = DevApiService.normalizeToken(prefs.gitHubToken)
         if (token.isBlank()) return
-        val owner = if (repoConfig.contains('/')) repoConfig.substringBefore('/').trim() else prefs.gitHubUsername.trim()
+        val owner = if (repoConfig.contains('/')) repoConfig.substringBefore('/').trim() else prefs.gitHubUsername.trim().removePrefix("@")
         val repo = if (repoConfig.contains('/')) repoConfig.substringAfter('/').trim() else repoConfig
         if (owner.isBlank() || repo.isBlank()) return
 
-        val cleanPath = subPath.trimStart('/')
         CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val getUrl = "https://api.github.com/repos/$owner/$repo/contents/$cleanPath"
-                val getReq = Request.Builder()
-                    .url(getUrl)
-                    .header("Accept", "application/vnd.github.v3+json")
-                    .header("User-Agent", "DevLife-Android")
-                    .header("Authorization", "Bearer $token")
-                    .get()
-                    .build()
-
-                var existingSha: String? = null
-                try {
-                    okHttpClient.newCall(getReq).execute().use { resp ->
-                        if (resp.isSuccessful) {
-                            val obj = JSONObject(resp.body?.string() ?: "{}")
-                            existingSha = obj.optString("sha").ifBlank { null }
-                        }
-                    }
-                } catch (_: Exception) {}
-
-                val base64Content = java.util.Base64.getEncoder().encodeToString(bytes)
-                val putBody = JSONObject().apply {
-                    put("message", "Sync note $cleanPath")
-                    put("content", base64Content)
-                    if (existingSha != null) {
-                        put("sha", existingSha)
-                    }
-                }
-
-                val putReq = Request.Builder()
-                    .url(getUrl)
-                    .header("Accept", "application/vnd.github.v3+json")
-                    .header("User-Agent", "DevLife-Android")
-                    .header("Authorization", "Bearer $token")
-                    .put(putBody.toString().toRequestBody("application/json".toMediaType()))
-                    .build()
-
-                okHttpClient.newCall(putReq).execute().close()
-            } catch (_: Exception) {}
+            pushFileToGitHubDirect(subPath, bytes, owner, repo, token)
         }
     }
 
     private fun launchGitHubDelete(subPath: String) {
-        val repoConfig = prefs.gitHubBackupRepo.trim()
-        if (repoConfig.isBlank()) return
+        val repoConfig = prefs.gitHubBackupRepo.trim().ifBlank { "leetcode" }
         val token = DevApiService.normalizeToken(prefs.gitHubToken)
         if (token.isBlank()) return
-        val owner = if (repoConfig.contains('/')) repoConfig.substringBefore('/').trim() else prefs.gitHubUsername.trim()
+        val owner = if (repoConfig.contains('/')) repoConfig.substringBefore('/').trim() else prefs.gitHubUsername.trim().removePrefix("@")
         val repo = if (repoConfig.contains('/')) repoConfig.substringAfter('/').trim() else repoConfig
         if (owner.isBlank() || repo.isBlank()) return
 
         val cleanPath = subPath.trimStart('/')
+        val encodedPath = encodeGitHubPath(cleanPath)
+        val url = "https://api.github.com/repos/$owner/$repo/contents/$encodedPath"
+
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val getUrl = "https://api.github.com/repos/$owner/$repo/contents/$cleanPath"
+                var existingSha: String? = null
                 val getReq = Request.Builder()
-                    .url(getUrl)
+                    .url(url)
                     .header("Accept", "application/vnd.github.v3+json")
                     .header("User-Agent", "DevLife-Android")
                     .header("Authorization", "Bearer $token")
                     .get()
                     .build()
 
-                var existingSha: String? = null
                 try {
                     okHttpClient.newCall(getReq).execute().use { resp ->
                         if (resp.isSuccessful) {
@@ -1050,7 +1073,7 @@ class OfflineProblemRepository(
                         put("sha", existingSha)
                     }
                     val delReq = Request.Builder()
-                        .url(getUrl)
+                        .url(url)
                         .header("Accept", "application/vnd.github.v3+json")
                         .header("User-Agent", "DevLife-Android")
                         .header("Authorization", "Bearer $token")
@@ -1099,16 +1122,19 @@ class OfflineProblemRepository(
         val (cleanOwner, cleanRepo) = if (repo.contains("/")) {
             val pOwner = repo.substringBefore("/").trim()
             val pRepo = repo.substringAfter("/").trim()
-            Pair(pOwner.ifBlank { owner.trim() }, pRepo)
+            Pair(pOwner.ifBlank { owner.trim().removePrefix("@") }, pRepo)
         } else {
-            Pair(owner.trim(), repo.trim())
+            Pair(
+                owner.trim().removePrefix("@").ifBlank { prefs.gitHubUsername.trim().removePrefix("@") },
+                repo.trim().ifBlank { prefs.gitHubBackupRepo.ifBlank { "leetcode" } }
+            )
         }
 
         if (cleanOwner.isBlank() || cleanRepo.isBlank()) {
             return@withContext Result.failure(Exception("GitHub username/owner and repository name are required."))
         }
 
-        val cleanToken = DevApiService.normalizeToken(token)
+        val cleanToken = DevApiService.normalizeToken(token.ifBlank { prefs.gitHubToken })
 
         try {
             // 1. Detect default branch from repository info
@@ -1128,94 +1154,151 @@ class OfflineProblemRepository(
                 }
             } catch (_: Exception) { "main" }
 
-            // 2. Fetch Git tree recursively
-            val branchesToTry = listOf(detectedBranch, "main", "master").distinct()
-            var treeBody: String? = null
+            var importedCount = 0
+            val remoteNotesMap = mutableMapOf<String, ByteArray>()
+            var zipDownloadSuccessful = false
             var lastHttpCode = 0
 
-            for (branch in branchesToTry) {
-                val treeUrl = "https://api.github.com/repos/$cleanOwner/$cleanRepo/git/trees/$branch?recursive=1"
+            // 2. Fast Path: Download entire repository as single ZIP archive in 1 HTTP call
+            val zipUrlsToTry = listOf(
+                "https://api.github.com/repos/$cleanOwner/$cleanRepo/zipball/$detectedBranch",
+                "https://github.com/$cleanOwner/$cleanRepo/archive/refs/heads/$detectedBranch.zip",
+                "https://api.github.com/repos/$cleanOwner/$cleanRepo/zipball/main",
+                "https://github.com/$cleanOwner/$cleanRepo/archive/refs/heads/main.zip"
+            ).distinct()
+
+            for (zipUrl in zipUrlsToTry) {
                 val reqBuilder = Request.Builder()
-                    .url(treeUrl)
-                    .header("Accept", "application/vnd.github.v3+json")
+                    .url(zipUrl)
                     .header("User-Agent", "DevLife-Android")
-                if (cleanToken.isNotBlank()) {
+                if (cleanToken.isNotBlank() && zipUrl.contains("api.github.com")) {
                     reqBuilder.header("Authorization", "Bearer $cleanToken")
                 }
 
                 try {
                     okHttpClient.newCall(reqBuilder.build()).execute().use { resp ->
                         lastHttpCode = resp.code
-                        if (resp.isSuccessful) {
-                            treeBody = resp.body?.string()
+                        if (resp.isSuccessful && resp.body != null) {
+                            ZipInputStream(resp.body!!.byteStream()).use { zis ->
+                                var entry = zis.nextEntry
+                                while (entry != null) {
+                                    if (!entry.isDirectory) {
+                                        val rawName = entry.name
+                                        val slashIdx = rawName.indexOf('/')
+                                        val relPath = if (slashIdx != -1) rawName.substring(slashIdx + 1) else rawName
+                                        val bytes = zis.readBytes()
+
+                                        if (relPath.startsWith("notes/")) {
+                                            val noteSub = relPath.removePrefix("notes/")
+                                            val targetFile = File(rootNotesDir, noteSub)
+                                            targetFile.parentFile?.mkdirs()
+                                            if (!targetFile.exists() || !targetFile.readBytes().contentEquals(bytes)) {
+                                                targetFile.writeBytes(bytes)
+                                            }
+                                            remoteNotesMap[relPath] = bytes
+                                            importedCount++
+                                        } else if (relPath.startsWith("leetcode_problem/")) {
+                                            val parts = relPath.split('/')
+                                            if (parts.size >= 3) {
+                                                val folderName = parts[1]
+                                                val sub = parts.subList(2, parts.size).joinToString("/")
+                                                val targetFile = File(baseProblemsDir, "$folderName/$sub")
+                                                targetFile.parentFile?.mkdirs()
+                                                targetFile.writeBytes(bytes)
+                                                importedCount++
+                                            }
+                                        } else {
+                                            val parts = relPath.split('/')
+                                            if (parts.size >= 2 && parts[0].matches(Regex("^\\d{4}-.*"))) {
+                                                val folderName = parts[0]
+                                                val sub = parts.subList(1, parts.size).joinToString("/")
+                                                val targetFile = File(baseProblemsDir, "$folderName/$sub")
+                                                targetFile.parentFile?.mkdirs()
+                                                targetFile.writeBytes(bytes)
+                                                importedCount++
+                                            }
+                                        }
+                                    }
+                                    zis.closeEntry()
+                                    entry = zis.nextEntry
+                                }
+                            }
+                            zipDownloadSuccessful = true
                             return@use
                         }
                     }
                 } catch (_: Exception) {}
 
-                if (treeBody != null) break
+                if (zipDownloadSuccessful) break
             }
 
-            if (treeBody == null) {
-                val msg = when (lastHttpCode) {
-                    401 -> "GitHub token is invalid or unauthorized."
-                    403 -> "GitHub API rate limit exceeded. Check token permissions."
-                    404 -> "Repository '$cleanOwner/$cleanRepo' not found or is private."
-                    else -> "Failed to access repository '$cleanOwner/$cleanRepo' (HTTP $lastHttpCode)"
-                }
-                return@withContext Result.failure(Exception(msg))
-            }
+            // 3. Fallback: If zipball was blocked, use Git Tree API
+            if (!zipDownloadSuccessful) {
+                val branchesToTry = listOf(detectedBranch, "main", "master").distinct()
+                var treeBody: String? = null
 
-            val root = JSONObject(treeBody ?: "{}")
-            val tree = root.optJSONArray("tree") ?: JSONArray()
-            var importedCount = 0
+                for (branch in branchesToTry) {
+                    val treeUrl = "https://api.github.com/repos/$cleanOwner/$cleanRepo/git/trees/$branch?recursive=1"
+                    val reqBuilder = Request.Builder()
+                        .url(treeUrl)
+                        .header("Accept", "application/vnd.github.v3+json")
+                        .header("User-Agent", "DevLife-Android")
+                    if (cleanToken.isNotBlank()) {
+                        reqBuilder.header("Authorization", "Bearer $cleanToken")
+                    }
 
-            for (i in 0 until tree.length()) {
-                val entry = tree.getJSONObject(i)
-                val path = entry.optString("path")
-                val type = entry.optString("type")
-                if (type != "blob") continue
-                val blobUrl = entry.optString("url")
-                if (blobUrl.isBlank()) continue
+                    try {
+                        okHttpClient.newCall(reqBuilder.build()).execute().use { resp ->
+                            lastHttpCode = resp.code
+                            if (resp.isSuccessful) {
+                                treeBody = resp.body?.string()
+                                return@use
+                            }
+                        }
+                    } catch (_: Exception) {}
 
-                // Format 1: Root notes/ directory (e.g. notes/0001-two-sum/notes.md, notes/general/dp.md)
-                if (path.startsWith("notes/")) {
-                    val relPath = path.removePrefix("notes/")
-                    downloadBlobToFile(blobUrl, cleanToken, File(rootNotesDir, relPath))
-                    importedCount++
-                    continue
+                    if (treeBody != null) break
                 }
 
-                // Format 2: leetcode_problem/<folder>/...
-                if (path.startsWith("leetcode_problem/")) {
-                    val parts = path.split('/')
-                    if (parts.size < 3) continue
-                    val folderName = parts[1] // e.g. "0001-two-sum"
-                    val subPath = parts.subList(2, parts.size).joinToString("/")
+                if (treeBody == null) {
+                    val msg = when (lastHttpCode) {
+                        401 -> "GitHub token is invalid or unauthorized."
+                        403 -> "GitHub API rate limit exceeded. Check token permissions in Settings."
+                        404 -> "Repository '$cleanOwner/$cleanRepo' not found or is private. Check repository name in Settings."
+                        else -> "Failed to access repository '$cleanOwner/$cleanRepo' (HTTP $lastHttpCode)"
+                    }
+                    return@withContext Result.failure(Exception(msg))
+                }
 
-                    if (subPath.startsWith("notes/")) {
-                        val noteName = subPath.removePrefix("notes/")
-                        downloadBlobToFile(blobUrl, cleanToken, File(getProblemNotesDir(folderName), noteName))
-                    } else {
-                        val targetFile = File(baseProblemsDir, "$folderName/$subPath")
+                val root = JSONObject(treeBody ?: "{}")
+                val tree = root.optJSONArray("tree") ?: JSONArray()
+
+                for (i in 0 until tree.length()) {
+                    val entry = tree.getJSONObject(i)
+                    if (entry.optString("type") != "blob") continue
+                    val path = entry.optString("path")
+                    val blobUrl = entry.optString("url")
+                    if (blobUrl.isBlank()) continue
+
+                    val targetFile = when {
+                        path.startsWith("notes/") -> File(rootNotesDir, path.removePrefix("notes/"))
+                        path.startsWith("leetcode_problem/") -> {
+                            val parts = path.split('/')
+                            if (parts.size >= 3) File(baseProblemsDir, "${parts[1]}/${parts.subList(2, parts.size).joinToString("/")}") else null
+                        }
+                        path.matches(Regex("^\\d{4}-.*")) -> File(baseProblemsDir, path)
+                        else -> null
+                    }
+
+                    if (targetFile != null) {
                         downloadBlobToFile(blobUrl, cleanToken, targetFile)
+                        if (targetFile.exists()) {
+                            if (path.startsWith("notes/")) {
+                                remoteNotesMap[path] = targetFile.readBytes()
+                            }
+                            importedCount++
+                        }
                     }
-                    importedCount++
-                    continue
-                }
-
-                // Format 3: Root problem directories e.g. 0001-two-sum/...
-                val parts = path.split('/')
-                if (parts.size >= 2 && parts[0].matches(Regex("^\\d{4}-.*"))) {
-                    val folderName = parts[0]
-                    val subPath = parts.subList(1, parts.size).joinToString("/")
-                    if (subPath.startsWith("notes/")) {
-                        val noteName = subPath.removePrefix("notes/")
-                        downloadBlobToFile(blobUrl, cleanToken, File(getProblemNotesDir(folderName), noteName))
-                    } else {
-                        downloadBlobToFile(blobUrl, cleanToken, File(baseProblemsDir, "$folderName/$subPath"))
-                    }
-                    importedCount++
                 }
             }
 
@@ -1231,16 +1314,32 @@ class OfflineProblemRepository(
                 }
             }
 
-            Result.success(importedCount)
+            // 4. Bidirectional Sync: PUSH local notes to GitHub that are missing or newer
+            var pushedCount = 0
+            if (cleanToken.isNotBlank()) {
+                rootNotesDir.walkTopDown().filter { it.isFile && !it.name.startsWith(".") }.forEach { localFile ->
+                    val relPath = "notes/" + localFile.relativeTo(rootNotesDir).path.replace('\\', '/')
+                    val localBytes = try { localFile.readBytes() } catch (_: Exception) { null }
+                    if (localBytes != null && localBytes.isNotEmpty()) {
+                        val remoteBytes = remoteNotesMap[relPath]
+                        if (remoteBytes == null || !remoteBytes.contentEquals(localBytes)) {
+                            val pushed = pushFileToGitHubDirect(relPath, localBytes, cleanOwner, cleanRepo, cleanToken)
+                            if (pushed) pushedCount++
+                        }
+                    }
+                }
+            }
+
+            Result.success(importedCount + pushedCount)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
     override suspend fun syncSingleProblemFromGitHub(folderName: String): Result<OfflineProblem> = withContext(Dispatchers.IO) {
-        val repoConfig = prefs.gitHubBackupRepo.trim()
+        val repoConfig = prefs.gitHubBackupRepo.trim().ifBlank { "leetcode" }
         val token = DevApiService.normalizeToken(prefs.gitHubToken)
-        val owner = if (repoConfig.contains('/')) repoConfig.substringBefore('/').trim() else prefs.gitHubUsername.trim()
+        val owner = if (repoConfig.contains('/')) repoConfig.substringBefore('/').trim() else prefs.gitHubUsername.trim().removePrefix("@")
         val repo = if (repoConfig.contains('/')) repoConfig.substringAfter('/').trim() else repoConfig
 
         if (owner.isBlank() || repo.isBlank()) {
@@ -1265,7 +1364,8 @@ class OfflineProblemRepository(
         var downloadedFiles = 0
 
         fun fetchAndSaveDir(remotePath: String, localDir: File) {
-            val url = "https://api.github.com/repos/$owner/$repo/contents/$remotePath"
+            val encodedRemotePath = encodeGitHubPath(remotePath)
+            val url = "https://api.github.com/repos/$owner/$repo/contents/$encodedRemotePath"
             val req = Request.Builder()
                 .url(url)
                 .header("Accept", "application/vnd.github.v3+json")
@@ -1283,11 +1383,32 @@ class OfflineProblemRepository(
                                 val item = arr.getJSONObject(i)
                                 val type = item.optString("type")
                                 val gitUrl = item.optString("git_url")
+                                val downloadUrl = item.optString("download_url")
                                 val name = item.optString("name")
-                                if (type == "file" && gitUrl.isNotBlank() && name.isNotBlank()) {
+                                if (type == "file" && name.isNotBlank()) {
                                     val targetFile = File(localDir, name)
-                                    downloadBlobToFile(gitUrl, token, targetFile)
-                                    downloadedFiles++
+                                    var written = false
+                                    if (downloadUrl.isNotBlank()) {
+                                        try {
+                                            val rawReq = Request.Builder()
+                                                .url(downloadUrl)
+                                                .header("User-Agent", "DevLife-Android")
+                                                .apply { if (token.isNotBlank()) header("Authorization", "Bearer $token") }
+                                                .build()
+                                            okHttpClient.newCall(rawReq).execute().use { rawResp ->
+                                                if (rawResp.isSuccessful && rawResp.body != null) {
+                                                    targetFile.parentFile?.mkdirs()
+                                                    targetFile.writeBytes(rawResp.body!!.bytes())
+                                                    written = true
+                                                    downloadedFiles++
+                                                }
+                                            }
+                                        } catch (_: Exception) {}
+                                    }
+                                    if (!written && gitUrl.isNotBlank()) {
+                                        downloadBlobToFile(gitUrl, token, targetFile)
+                                        if (targetFile.exists()) downloadedFiles++
+                                    }
                                 }
                             }
                         }
@@ -1332,6 +1453,16 @@ class OfflineProblemRepository(
                     File(targetDir, "content.html").writeText(details.contentHtml)
                 }
             } catch (_: Exception) {}
+        }
+
+        // 5. Push local notes for this problem to GitHub if token available
+        if (token.isNotBlank()) {
+            pNotesDir.listFiles { f -> f.isFile && !f.name.startsWith(".") }?.forEach { nFile ->
+                try {
+                    val bytes = nFile.readBytes()
+                    pushFileToGitHubDirect("notes/$folderName/${nFile.name}", bytes, owner, repo, token)
+                } catch (_: Exception) {}
+            }
         }
 
         val reloaded = loadProblemFromDir(targetDir)
