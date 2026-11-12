@@ -458,6 +458,16 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
                 if (full != null && _selectedProblemDetail.value?.folderName == problem.folderName) {
                     _selectedProblemDetail.value = full
                 }
+                // Silently pull remote notes from GitHub in the background
+                try {
+                    val synced = problemRepo.syncSingleProblemFromGitHub(problem.folderName)
+                    if (synced.isSuccess) {
+                        val updated = synced.getOrNull()
+                        if (updated != null && _selectedProblemDetail.value?.folderName == problem.folderName) {
+                            _selectedProblemDetail.value = updated
+                        }
+                    }
+                } catch (_: Exception) {}
             }
         }
     }

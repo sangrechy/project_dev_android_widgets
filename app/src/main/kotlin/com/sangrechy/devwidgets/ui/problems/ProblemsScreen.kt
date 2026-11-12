@@ -1006,7 +1006,7 @@ private fun ProblemItemCard(
                                     color = if (problem.topicTags.isNotEmpty()) ThemeTextSecondary else ThemeTextMuted,
                                     fontSize = 10.sp,
                                     maxLines = 1,
-                                    softWrap = false
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }

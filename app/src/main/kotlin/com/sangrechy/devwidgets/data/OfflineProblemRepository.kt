@@ -1111,6 +1111,7 @@ class OfflineProblemRepository(
                     val bytes = java.util.Base64.getMimeDecoder().decode(base64Content)
                     targetFile.parentFile?.mkdirs()
                     targetFile.writeBytes(bytes)
+                    targetFile.setLastModified(System.currentTimeMillis())
 
                     // If we just wrote a real solution file, check if there's an obsolete stub in the directory and remove it!
                     if (targetFile.name.startsWith("solution.", ignoreCase = true) && !isDefaultStubFile(targetFile)) {
@@ -1290,20 +1291,70 @@ class OfflineProblemRepository(
                     if (blobUrl.isBlank()) continue
 
                     val targetFile = when {
-                        path.startsWith("notes/") -> File(rootNotesDir, path.removePrefix("notes/"))
+                        path.startsWith("notes/") -> {
+                            val relNotesPath = path.removePrefix("notes/")
+                            val sep = relNotesPath.indexOf('/')
+                            if (sep != -1) {
+                                val probFolder = relNotesPath.substring(0, sep).trim()
+                                val rest = relNotesPath.substring(sep + 1)
+                                val sIdx = probFolder.indexOfFirst { it == '-' || it == '.' || it == '_' }
+                                val nPart = if (sIdx != -1) probFolder.substring(0, sIdx).trim() else ""
+                                val slPart = if (sIdx != -1) probFolder.substring(sIdx + 1).trim() else probFolder
+                                val n = nPart.toIntOrNull()
+                                val canon = if (n != null) "%04d-%s".format(n, slPart) else probFolder
+                                File(rootNotesDir, "$canon/$rest")
+                            } else {
+                                File(rootNotesDir, relNotesPath)
+                            }
+                        }
                         path.startsWith("leetcode_problem/") -> {
                             val parts = path.split('/')
-                            if (parts.size >= 3) File(baseProblemsDir, "${parts[1]}/${parts.subList(2, parts.size).joinToString("/")}") else null
+                            if (parts.size >= 3) {
+                                val pFolder = parts[1]
+                                val sub = parts.subList(2, parts.size).joinToString("/")
+                                if (sub.startsWith("notes/") || sub == "notes.md" || sub == "notes.txt") {
+                                    val sIdx = pFolder.indexOfFirst { it == '-' || it == '.' || it == '_' }
+                                    val nPart = if (sIdx != -1) pFolder.substring(0, sIdx).trim() else ""
+                                    val slPart = if (sIdx != -1) pFolder.substring(sIdx + 1).trim() else pFolder
+                                    val n = nPart.toIntOrNull()
+                                    val canon = if (n != null) "%04d-%s".format(n, slPart) else pFolder
+                                    val noteName = sub.removePrefix("notes/")
+                                    File(rootNotesDir, "$canon/$noteName")
+                                } else {
+                                    File(baseProblemsDir, "$pFolder/$sub")
+                                }
+                            } else null
                         }
-                        path.matches(Regex("^\\d{4}-.*")) -> File(baseProblemsDir, path)
+                        path.matches(Regex("^\\d{1,5}[-._\\s].*")) -> {
+                            val parts = path.split('/')
+                            if (parts.size >= 2) {
+                                val pFolder = parts[0]
+                                val sub = parts.subList(1, parts.size).joinToString("/")
+                                if (sub.startsWith("notes/") || sub == "notes.md" || sub == "notes.txt") {
+                                    val sIdx = pFolder.indexOfFirst { it == '-' || it == '.' || it == '_' }
+                                    val nPart = if (sIdx != -1) pFolder.substring(0, sIdx).trim() else ""
+                                    val slPart = if (sIdx != -1) pFolder.substring(sIdx + 1).trim() else pFolder
+                                    val n = nPart.toIntOrNull()
+                                    val canon = if (n != null) "%04d-%s".format(n, slPart) else pFolder
+                                    val noteName = sub.removePrefix("notes/")
+                                    File(rootNotesDir, "$canon/$noteName")
+                                } else {
+                                    File(baseProblemsDir, path)
+                                }
+                            } else {
+                                File(baseProblemsDir, path)
+                            }
+                        }
                         else -> null
                     }
 
                     if (targetFile != null) {
                         downloadBlobToFile(blobUrl, cleanToken, targetFile)
                         if (targetFile.exists()) {
-                            if (path.startsWith("notes/")) {
-                                remoteNotesMap[path] = targetFile.readBytes()
+                            remoteNotesMap[path] = targetFile.readBytes()
+                            if (targetFile.startsWith(rootNotesDir)) {
+                                val relToRoot = "notes/" + targetFile.relativeTo(rootNotesDir).path.replace('\\', '/')
+                                remoteNotesMap[relToRoot] = targetFile.readBytes()
                             }
                             importedCount++
                         }
@@ -1323,15 +1374,15 @@ class OfflineProblemRepository(
                 }
             }
 
-            // 4. Bidirectional Sync: PUSH local notes to GitHub that are missing or newer
+            // 4. Bidirectional Sync: PUSH local notes to GitHub that are missing on remote
             var pushedCount = 0
             if (cleanToken.isNotBlank()) {
                 rootNotesDir.walkTopDown().filter { it.isFile && !it.name.startsWith(".") }.forEach { localFile ->
                     val relPath = "notes/" + localFile.relativeTo(rootNotesDir).path.replace('\\', '/')
                     val localBytes = try { localFile.readBytes() } catch (_: Exception) { null }
                     if (localBytes != null && localBytes.isNotEmpty()) {
-                        val remoteBytes = remoteNotesMap[relPath]
-                        if (remoteBytes == null || !remoteBytes.contentEquals(localBytes)) {
+                        // Crucial fix: never overwrite GitHub notes! Remote is downloaded above. Only push local-only files.
+                        if (!remoteNotesMap.containsKey(relPath)) {
                             val pushed = pushFileToGitHubDirect(relPath, localBytes, cleanOwner, cleanRepo, cleanToken)
                             if (pushed) pushedCount++
                         }
@@ -1500,6 +1551,10 @@ class OfflineProblemRepository(
             fetchAndSaveDir("$cand/notes", pNotesDir)
             fetchAndSaveSingleFile("notes/$cand.md", File(pNotesDir, "notes.md"))
             fetchAndSaveSingleFile("notes/$cand.txt", File(pNotesDir, "notes.txt"))
+            fetchAndSaveSingleFile("leetcode_problem/$cand/notes.md", File(pNotesDir, "notes.md"))
+            fetchAndSaveSingleFile("$cand/notes.md", File(pNotesDir, "notes.md"))
+            fetchAndSaveSingleFile("leetcode_problem/$cand/notes.txt", File(pNotesDir, "notes.txt"))
+            fetchAndSaveSingleFile("$cand/notes.txt", File(pNotesDir, "notes.txt"))
         }
 
         // 2.5 Fallback: if problem dir has README.md and pNotesDir has no user notes, copy README.md as notes.md
@@ -1836,7 +1891,9 @@ class OfflineProblemRepository(
         if (legacyNotesDir.exists() && legacyNotesDir.isDirectory) {
             legacyNotesDir.listFiles()?.forEach { nf ->
                 val target = File(pNotesDir, nf.name)
-                if (!target.exists()) nf.copyTo(target)
+                if (!target.exists() || nf.lastModified() > target.lastModified()) {
+                    nf.copyTo(target, overwrite = true)
+                }
                 nf.delete()
             }
             legacyNotesDir.delete()

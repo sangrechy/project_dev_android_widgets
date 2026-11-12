@@ -246,7 +246,7 @@ fun WallpaperScreenContent(
                         "CUSTOM" -> "Custom"
                         "TRANSLUCENT" -> "Glassy"
                         "TRANSPARENT" -> "Clear"
-                        "MATCH_APP" -> "Match App"
+                        "MATCH_APP" -> "App"
                         else -> "Obsidian"
                     }
                     Box(
@@ -265,10 +265,10 @@ fun WallpaperScreenContent(
                     }
                 }
 
-                // Modes Row: Custom | Match App | Glassy | Obsidian | Clear
+                // Modes Row: Custom | App | Glassy | Obsidian | Clear
                 val widgetThemes = listOf(
                     "CUSTOM" to "Custom",
-                    "MATCH_APP" to "Match App",
+                    "MATCH_APP" to "App",
                     "TRANSLUCENT" to "Glassy",
                     "DEFAULT" to "Obsidian",
                     "TRANSPARENT" to "Clear"

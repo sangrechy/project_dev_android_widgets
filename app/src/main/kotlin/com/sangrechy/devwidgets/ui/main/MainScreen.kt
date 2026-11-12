@@ -2564,13 +2564,12 @@ private fun WidgetsScreenContent(
             },
             hasOffsetControls = true,
             offsetX = lcOffsetX,
-            offsetY = lcOffsetY,
-            onNudge = { dx, dy ->
+            offsetY = 0f,
+            onNudge = { dx, _ ->
                 val nx = (lcOffsetX + dx).coerceIn(-60f, 60f)
-                val ny = (lcOffsetY + dy).coerceIn(-20f, 20f)
                 lcOffsetX = nx
-                lcOffsetY = ny
-                onSetWidgetElementOffset("leetcode_circle", nx, ny)
+                lcOffsetY = 0f
+                onSetWidgetElementOffset("leetcode_circle", nx, 0f)
             },
             onResetOffset = {
                 lcOffsetX = 0f
@@ -2627,7 +2626,7 @@ private fun WidgetsScreenContent(
                                 .offset {
                                     IntOffset(
                                         (lcOffsetX * density.density).roundToInt(),
-                                        (lcOffsetY * density.density).roundToInt()
+                                        0
                                     )
                                 }
                                 .size(86.dp)
@@ -2677,13 +2676,12 @@ private fun WidgetsScreenContent(
             },
             hasOffsetControls = true,
             offsetX = ghOffsetX,
-            offsetY = ghOffsetY,
-            onNudge = { dx, dy ->
+            offsetY = 0f,
+            onNudge = { dx, _ ->
                 val nx = (ghOffsetX + dx).coerceIn(-60f, 60f)
-                val ny = (ghOffsetY + dy).coerceIn(-20f, 20f)
                 ghOffsetX = nx
-                ghOffsetY = ny
-                onSetWidgetElementOffset("github_circle", nx, ny)
+                ghOffsetY = 0f
+                onSetWidgetElementOffset("github_circle", nx, 0f)
             },
             onResetOffset = {
                 ghOffsetX = 0f
@@ -2740,7 +2738,7 @@ private fun WidgetsScreenContent(
                                 .offset {
                                     IntOffset(
                                         (ghOffsetX * density.density).roundToInt(),
-                                        (ghOffsetY * density.density).roundToInt()
+                                        0
                                     )
                                 }
                                 .size(86.dp)
