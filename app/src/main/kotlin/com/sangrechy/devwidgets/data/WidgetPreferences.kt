@@ -157,16 +157,31 @@ class WidgetPreferences(context: Context) {
             .apply()
     }
 
+    fun getWidgetShowHeading(widgetKey: String): Boolean {
+        val norm = widgetKey.trim().uppercase()
+        return prefs.getBoolean("KEY_WIDGET_SHOW_HEADING_$norm", prefs.getBoolean("KEY_WIDGET_SHOW_HEADING_$widgetKey", true))
+    }
+
+    fun setWidgetShowHeading(widgetKey: String, show: Boolean) {
+        val norm = widgetKey.trim().uppercase()
+        prefs.edit()
+            .putBoolean("KEY_WIDGET_SHOW_HEADING_$norm", show)
+            .putBoolean("KEY_WIDGET_SHOW_HEADING_$widgetKey", show)
+            .apply()
+    }
+
     fun getWidgetOuterDivSize(widgetKey: String): String {
         val norm = widgetKey.trim().uppercase()
-        return prefs.getString("KEY_WIDGET_OUTER_SIZE_$norm", prefs.getString("KEY_WIDGET_OUTER_SIZE_$widgetKey", "2x2")) ?: "2x2"
+        val raw = prefs.getString("KEY_WIDGET_OUTER_SIZE_$norm", prefs.getString("KEY_WIDGET_OUTER_SIZE_$widgetKey", "x*2")) ?: "x*2"
+        return if (raw == "x*3" || raw.endsWith("x3") || raw.endsWith("*3")) "x*3" else "x*2"
     }
 
     fun setWidgetOuterDivSize(widgetKey: String, size: String) {
         val norm = widgetKey.trim().uppercase()
+        val normalized = if (size == "x*3") "x*3" else "x*2"
         prefs.edit()
-            .putString("KEY_WIDGET_OUTER_SIZE_$norm", size)
-            .putString("KEY_WIDGET_OUTER_SIZE_$widgetKey", size)
+            .putString("KEY_WIDGET_OUTER_SIZE_$norm", normalized)
+            .putString("KEY_WIDGET_OUTER_SIZE_$widgetKey", normalized)
             .apply()
     }
 

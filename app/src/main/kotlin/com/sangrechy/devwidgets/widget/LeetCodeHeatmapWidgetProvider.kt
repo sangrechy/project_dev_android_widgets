@@ -48,6 +48,8 @@ class LeetCodeHeatmapWidgetProvider : AppWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.widget_leetcode_heatmap)
             WidgetWallpaperHelper.applyWallpaper(context, views, 340, 200, widgetKey = "LEETCODE_HEATMAP")
             val prefs = WidgetPreferences(context)
+            val showHeading = prefs.getWidgetShowHeading("LEETCODE_HEATMAP")
+            views.setViewVisibility(R.id.header_bar, if (showHeading) android.view.View.VISIBLE else android.view.View.GONE)
             val lcHeatmap = WidgetBitmapRenderer.renderHeatmap(
                 data.leetCode.submissionCalendar,
                 isLeetCode = true,

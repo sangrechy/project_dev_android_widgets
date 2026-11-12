@@ -49,6 +49,8 @@ class GitHubWidgetProvider : AppWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.widget_github)
             WidgetWallpaperHelper.applyWallpaper(context, views, 340, 200, widgetKey = "GITHUB")
             val prefs = WidgetPreferences(context)
+            val showHeading = prefs.getWidgetShowHeading("GITHUB")
+            views.setViewVisibility(R.id.header_bar, if (showHeading) android.view.View.VISIBLE else android.view.View.GONE)
             val ghRadar = WidgetBitmapRenderer.renderGitHubTypeMap(data.gitHub, sizePx = 360)
             val ghHeatmap = WidgetBitmapRenderer.renderHeatmap(
                 data.gitHub.contributionDays,

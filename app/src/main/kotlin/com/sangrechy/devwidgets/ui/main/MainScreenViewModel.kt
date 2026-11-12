@@ -556,12 +556,7 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
                 if (idx != -1) _activeProblemNoteIndex.value = idx
             }
             loadProblems()
-            val token = _gitHubTokenInput.value.trim()
-            if (token.isNotBlank()) {
-                _syncMessage.value = "Saved & pushed '${savedNote.filename}' to GitHub"
-            } else {
-                _syncMessage.value = "Saved note '${savedNote.filename}' locally"
-            }
+            _syncMessage.value = "Successfully saved"
         }
     }
 
@@ -752,6 +747,11 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
     fun getWidgetInsideDivColor(widgetKey: String): String = repository.getWidgetInsideDivColor(widgetKey)
     fun setWidgetInsideDivColor(widgetKey: String, color: String) {
         repository.setWidgetInsideDivColor(widgetKey, color)
+        applyWidgetWallpaperToAllWidgets()
+    }
+    fun getWidgetShowHeading(widgetKey: String): Boolean = repository.getWidgetShowHeading(widgetKey)
+    fun setWidgetShowHeading(widgetKey: String, show: Boolean) {
+        repository.setWidgetShowHeading(widgetKey, show)
         applyWidgetWallpaperToAllWidgets()
     }
 

@@ -127,6 +127,9 @@ class DevActivityWidgetProvider : AppWidgetProvider() {
             val layoutId = if (heightDp < 220) R.layout.widget_dev_activity_compact else R.layout.widget_dev_activity
             val views = RemoteViews(context.packageName, layoutId)
             WidgetWallpaperHelper.applyWallpaper(context, views, widthDp, heightDp, widgetKey = "DEV_ACTIVITY")
+            val prefs = WidgetPreferences(context)
+            val showHeading = prefs.getWidgetShowHeading("DEV_ACTIVITY")
+            views.setViewVisibility(R.id.header_bar, if (showHeading) android.view.View.VISIBLE else android.view.View.GONE)
 
             val sectionHeightDp = ((heightDp - 56) / 2).coerceAtLeast(80)
             val visualRowHeightDp = (sectionHeightDp - 36).coerceAtLeast(60)
@@ -139,7 +142,6 @@ class DevActivityWidgetProvider : AppWidgetProvider() {
             val hmWidthPx = (heatmapWidthDp * scale).toInt().coerceIn(240, 960)
             val hmHeightPx = (visualRowHeightDp * scale).toInt().coerceIn(160, 960)
             val circleSizePx = (circleSizeDp * scale).toInt().coerceIn(200, 600)
-            val prefs = WidgetPreferences(context)
             val orientation = prefs.heatmapOrientation
 
             val lcCircle = WidgetBitmapRenderer.renderLeetCodeCircle(data.leetCode, sizePx = circleSizePx)

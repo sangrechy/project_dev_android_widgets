@@ -196,12 +196,7 @@ fun MainScreen(
     val syncMessage by viewModel.syncMessage.collectAsStateWithLifecycle()
     val dashboardData by viewModel.dashboardData.collectAsStateWithLifecycle()
 
-    LaunchedEffect(syncMessage) {
-        if (syncMessage != null) {
-            kotlinx.coroutines.delay(3500)
-            viewModel.dismissMessage()
-        }
-    }
+
 
     val showUpdateDialog by viewModel.showUpdateDialog.collectAsStateWithLifecycle()
     val updateInfo by viewModel.updateInfo.collectAsStateWithLifecycle()
@@ -616,6 +611,8 @@ fun MainScreen(
                             getWidgetOuterDivSize = viewModel::getWidgetOuterDivSize,
                             onSetWidgetInsideDivColor = viewModel::setWidgetInsideDivColor,
                             getWidgetInsideDivColor = viewModel::getWidgetInsideDivColor,
+                            onSetWidgetShowHeading = viewModel::setWidgetShowHeading,
+                            getWidgetShowHeading = viewModel::getWidgetShowHeading,
                             onPinWidget = { providerClass -> pinWidgetToHomeScreen(context, providerClass) }
                         )
 
@@ -655,54 +652,61 @@ fun MainScreen(
             }
         }
 
-        // Floating Top-Right Notification Sticker (Overlay, zero layout shift)
-        androidx.compose.animation.AnimatedVisibility(
-            visible = syncMessage != null,
-            enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInHorizontally(initialOffsetX = { it }),
-            exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.slideOutHorizontally(targetOffsetX = { it }),
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 56.dp, end = 16.dp)
-        ) {
-            syncMessage?.let { msg ->
-                Box(
-                    modifier = Modifier
-                        .shadow(12.dp, RoundedCornerShape(12.dp))
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xF0181B24))
-                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(12.dp))
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                ) {
+        // Centered Modal Dialog for Alerts, Confirmations, and Save Notifications
+        syncMessage?.let { msg ->
+            val isError = msg.contains("fail", ignoreCase = true) || msg.contains("error", ignoreCase = true)
+            AlertDialog(
+                onDismissRequest = viewModel::dismissMessage,
+                containerColor = ThemeCardBgElevated,
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.border(1.dp, ThemeCardBorder, RoundedCornerShape(20.dp)),
+                title = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(6.dp)
+                                .size(28.dp)
                                 .clip(CircleShape)
-                                .background(ThemeAccentBlue)
-                        )
-                        Text(
-                            text = msg,
-                            color = ThemeTextPrimary,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        IconButton(
-                            onClick = viewModel::dismissMessage,
-                            modifier = Modifier.size(18.dp)
+                                .background(if (isError) ThemeAccentRed.copy(alpha = 0.2f) else ThemeAccentGreen.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Dismiss",
-                                tint = ThemeTextSecondary,
-                                modifier = Modifier.size(14.dp)
+                                imageVector = if (isError) Icons.Default.Close else Icons.Default.Check,
+                                contentDescription = null,
+                                tint = if (isError) ThemeAccentRed else ThemeAccentGreen,
+                                modifier = Modifier.size(16.dp)
                             )
                         }
+                        Text(
+                            text = if (isError) "Notice" else "Success",
+                            color = ThemeTextPrimary,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                },
+                text = {
+                    Text(
+                        text = msg,
+                        color = ThemeTextSecondary,
+                        fontSize = 14.sp
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = viewModel::dismissMessage,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isError) ThemeAccentRed else ThemeAccentGreen,
+                            contentColor = Color.Black
+                        ),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("OK", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 }
-            }
+            )
         }
 
         // Problem Detail In-Hierarchy View (Wallpaper completely visible behind outer margins)
@@ -2089,9 +2093,11 @@ private fun WidgetsScreenContent(
     onSetWidgetElementOffset: (widgetKey: String, dx: Float, dy: Float) -> Unit = { _, _, _ -> },
     getWidgetElementOffset: (widgetKey: String) -> Pair<Float, Float> = { 0f to 0f },
     onSetWidgetOuterDivSize: (widgetKey: String, size: String) -> Unit = { _, _ -> },
-    getWidgetOuterDivSize: (widgetKey: String) -> String = { "2x2" },
+    getWidgetOuterDivSize: (widgetKey: String) -> String = { "x*2" },
     onSetWidgetInsideDivColor: (widgetKey: String, color: String) -> Unit = { _, _ -> },
     getWidgetInsideDivColor: (widgetKey: String) -> String = { "AUTO" },
+    onSetWidgetShowHeading: (widgetKey: String, show: Boolean) -> Unit = { _, _ -> },
+    getWidgetShowHeading: (widgetKey: String) -> Boolean = { true },
     onPinWidget: (Class<out AppWidgetProvider>) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -2394,14 +2400,20 @@ private fun WidgetsScreenContent(
             fontWeight = FontWeight.Bold
         )
 
-        // 1. LeetCode Heatmap (Heatmap Only)
+        // 1. LeetCode Heatmap (4x2)
+        var lcHmShowHeading by remember { mutableStateOf(getWidgetShowHeading("leetcode_heatmap")) }
         WidgetGalleryCard(
             title = "LeetCode Heatmap (4x2)",
             subtitle = "Full-width dedicated LeetCode submission activity calendar",
-            tag = "LC Heatmap",
+            tag = "Fixed 4x2",
             widgetKey = "leetcode_heatmap",
             currentWidgetWallpaper = getWidgetSpecificWallpaper("leetcode_heatmap"),
             onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("leetcode_heatmap", it) },
+            showHeading = lcHmShowHeading,
+            onToggleShowHeading = {
+                lcHmShowHeading = it
+                onSetWidgetShowHeading("leetcode_heatmap", it)
+            },
             onClick = { onPinWidget(LeetCodeHeatmapWidgetProvider::class.java) },
             content = {
                 val lcHeatmap = remember(dashboardData.leetCode.submissionCalendar, heatmapOrientation) {
@@ -2414,22 +2426,60 @@ private fun WidgetsScreenContent(
                         orientation = heatmapOrientation
                     ).asImageBitmap()
                 }
-                Image(
-                    bitmap = lcHeatmap,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxWidth().height(110.dp)
-                )
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    if (lcHmShowHeading) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Image(
+                                    painter = painterResource(R.drawable.ic_leetcode_logo),
+                                    contentDescription = "LeetCode",
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text("LeetCode", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    if (dashboardData.leetCode.username.isNotBlank()) "@${dashboardData.leetCode.username}" else "@dev",
+                                    color = Color(0xFFAAAAAA),
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Text("Sync: Just now", color = Color(0xFFCBD5E1), fontSize = 9.sp)
+                        }
+                    }
+                    Image(
+                        bitmap = lcHeatmap,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(110.dp)
+                    )
+                }
             }
         )
 
-        // 2. GitHub Heatmap (Heatmap Only)
+        // 2. GitHub Heatmap (4x2)
+        var ghHmShowHeading by remember { mutableStateOf(getWidgetShowHeading("github_heatmap")) }
         WidgetGalleryCard(
             title = "GitHub Heatmap (4x2)",
             subtitle = "Full-width dedicated GitHub emerald contribution activity calendar",
-            tag = "GH Heatmap",
+            tag = "Fixed 4x2",
             widgetKey = "github_heatmap",
             currentWidgetWallpaper = getWidgetSpecificWallpaper("github_heatmap"),
             onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("github_heatmap", it) },
+            showHeading = ghHmShowHeading,
+            onToggleShowHeading = {
+                ghHmShowHeading = it
+                onSetWidgetShowHeading("github_heatmap", it)
+            },
             onClick = { onPinWidget(GitHubHeatmapWidgetProvider::class.java) },
             content = {
                 val ghHeatmap = remember(dashboardData.gitHub.contributionDays, heatmapOrientation) {
@@ -2442,68 +2492,110 @@ private fun WidgetsScreenContent(
                         orientation = heatmapOrientation
                     ).asImageBitmap()
                 }
-                Image(
-                    bitmap = ghHeatmap,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxWidth().height(110.dp)
-                )
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    if (ghHmShowHeading) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Image(
+                                    painter = painterResource(R.drawable.ic_github_logo),
+                                    contentDescription = "GitHub",
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text("GitHub", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    if (dashboardData.gitHub.username.isNotBlank()) "@${dashboardData.gitHub.username}" else "@dev",
+                                    color = Color(0xFFAAAAAA),
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Text("Sync: Just now", color = Color(0xFFCBD5E1), fontSize = 9.sp)
+                        }
+                    }
+                    Image(
+                        bitmap = ghHeatmap,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(110.dp)
+                    )
+                }
             }
         )
 
-        // 3. LeetCode Circle (Circle Only - Div Inside Div)
+        // 3. LeetCode Solved Circle (Customizable x*2 or x*3)
         var lcOuterSize by remember { mutableStateOf(getWidgetOuterDivSize("leetcode_circle")) }
+        var lcShowHeading by remember { mutableStateOf(getWidgetShowHeading("leetcode_circle")) }
         var lcWidgetWallpaper by remember { mutableStateOf(getWidgetSpecificWallpaper("leetcode_circle")) }
-        var lcInsideDivColor by remember { mutableStateOf(getWidgetInsideDivColor("leetcode_circle")) }
-        val lcOuterWidthDp = when (lcOuterSize) {
-            "2x2" -> 160.dp
-            "3x2" -> 230.dp
-            "4x2" -> 300.dp
-            else -> Dp.Unspecified // 5x2 (Full Width)
-        }
-        val lcMaxOffsetX = when (lcOuterSize) {
-            "2x2" -> 37f
-            "3x2" -> 72f
-            "4x2" -> 107f
-            else -> 137f
-        }
+        val lcInitialOffset = remember { getWidgetElementOffset("leetcode_circle") }
+        var lcOffsetX by remember { mutableStateOf(lcInitialOffset.first.coerceIn(-60f, 60f)) }
+        var lcOffsetY by remember { mutableStateOf(lcInitialOffset.second.coerceIn(-20f, 20f)) }
 
         WidgetGalleryCard(
             title = "LeetCode Solved Circle ($lcOuterSize)",
-            subtitle = "Circle gauge with selectable outer div size ($lcOuterSize) & edge alignment",
-            tag = "LC Circle",
+            subtitle = "Circle gauge with responsive sizing ($lcOuterSize) & element positioning",
+            tag = "Customizable",
             widgetKey = "leetcode_circle",
             currentWidgetWallpaper = lcWidgetWallpaper,
             onSelectWidgetWallpaper = {
                 lcWidgetWallpaper = it
                 onSetWidgetSpecificWallpaper("leetcode_circle", it)
             },
+            showHeading = lcShowHeading,
+            onToggleShowHeading = {
+                lcShowHeading = it
+                onSetWidgetShowHeading("leetcode_circle", it)
+            },
+            outerSize = lcOuterSize,
+            onSelectOuterSize = {
+                lcOuterSize = it
+                onSetWidgetOuterDivSize("leetcode_circle", it)
+            },
+            hasOffsetControls = true,
+            offsetX = lcOffsetX,
+            offsetY = lcOffsetY,
+            onNudge = { dx, dy ->
+                val nx = (lcOffsetX + dx).coerceIn(-60f, 60f)
+                val ny = (lcOffsetY + dy).coerceIn(-20f, 20f)
+                lcOffsetX = nx
+                lcOffsetY = ny
+                onSetWidgetElementOffset("leetcode_circle", nx, ny)
+            },
+            onResetOffset = {
+                lcOffsetX = 0f
+                lcOffsetY = 0f
+                onSetWidgetElementOffset("leetcode_circle", 0f, 0f)
+            },
             onClick = { onPinWidget(LeetCodeCircleWidgetProvider::class.java) },
             content = {
                 val context = LocalContext.current
                 val density = LocalDensity.current
-                val initialOffset = remember { getWidgetElementOffset("leetcode_circle") }
-                var offsetX by remember { mutableStateOf(initialOffset.first.coerceIn(-lcMaxOffsetX, lcMaxOffsetX)) }
-                var offsetY by remember { mutableStateOf(initialOffset.second.coerceIn(-20f, 20f)) }
                 val lcCircle = remember(dashboardData.leetCode) {
                     WidgetBitmapRenderer.renderLeetCodeCircle(dashboardData.leetCode, sizePx = 360).asImageBitmap()
                 }
-                val lcPodColor = remember(lcWidgetWallpaper, lcInsideDivColor) {
-                    if (lcInsideDivColor == "WHITE") "WHITE"
-                    else if (lcInsideDivColor == "BLACK") "BLACK"
-                    else WallpaperManager.resolvePodColorForWallpaper(context, lcWidgetWallpaper, "leetcode_circle")
+                val lcPodColor = remember(lcWidgetWallpaper) {
+                    WallpaperManager.resolvePodColorForWallpaper(context, lcWidgetWallpaper, "leetcode_circle")
                 }
+                val isLcPodBlack = (lcPodColor == "BLACK")
 
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // Fixed Stationary Header
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    if (lcShowHeading) {
                         Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
@@ -2512,353 +2604,111 @@ private fun WidgetsScreenContent(
                                 contentDescription = "LeetCode",
                                 modifier = Modifier.size(14.dp)
                             )
+                            Text("LeetCode", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             Text(
-                                text = "LeetCode",
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = if (dashboardData.leetCode.username.isNotBlank())
-                                    "@${dashboardData.leetCode.username}"
-                                else "@dev",
+                                if (dashboardData.leetCode.username.isNotBlank()) "@${dashboardData.leetCode.username}" else "@dev",
                                 color = Color(0xFFAAAAAA),
                                 fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1
+                                fontWeight = FontWeight.Bold
                             )
                         }
-
-                        // Directional Nudge Arrows + Reset
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(3.dp)
-                        ) {
-                            if (offsetX != 0f || offsetY != 0f) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0x33FFFFFF))
-                                        .clickable {
-                                            offsetX = 0f
-                                            offsetY = 0f
-                                            onSetWidgetElementOffset("leetcode_circle", 0f, 0f)
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("↺", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(Color(0x26FFFFFF))
-                                    .clickable {
-                                        val newX = (offsetX - 10f).coerceIn(-lcMaxOffsetX, lcMaxOffsetX)
-                                        offsetX = newX
-                                        onSetWidgetElementOffset("leetcode_circle", newX, offsetY)
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("←", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(Color(0x26FFFFFF))
-                                    .clickable {
-                                        val newX = (offsetX + 10f).coerceIn(-lcMaxOffsetX, lcMaxOffsetX)
-                                        offsetX = newX
-                                        onSetWidgetElementOffset("leetcode_circle", newX, offsetY)
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("→", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(Color(0x26FFFFFF))
-                                    .clickable {
-                                        val newY = (offsetY - 5f).coerceIn(-20f, 20f)
-                                        offsetY = newY
-                                        onSetWidgetElementOffset("leetcode_circle", offsetX, newY)
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("↑", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(Color(0x26FFFFFF))
-                                    .clickable {
-                                        val newY = (offsetY + 5f).coerceIn(-20f, 20f)
-                                        offsetY = newY
-                                        onSetWidgetElementOffset("leetcode_circle", offsetX, newY)
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("↓", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
                     }
 
-                    // Outer Div Size Selector (2x2 | 3x2 | 4x2 | 5x2)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Outer Div:",
-                            color = Color(0xFFAAAAAA),
-                            fontSize = 10.5.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        listOf("2x2", "3x2", "4x2", "5x2").forEach { size ->
-                            val isSelected = (lcOuterSize == size)
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (isSelected) Color.White else Color(0x22FFFFFF))
-                                    .clickable {
-                                        lcOuterSize = size
-                                        onSetWidgetOuterDivSize("leetcode_circle", size)
-                                        val newMax = when (size) {
-                                            "2x2" -> 37f
-                                            "3x2" -> 72f
-                                            "4x2" -> 107f
-                                            else -> 137f
-                                        }
-                                        val clampedX = offsetX.coerceIn(-newMax, newMax)
-                                        offsetX = clampedX
-                                        onSetWidgetElementOffset("leetcode_circle", clampedX, offsetY)
-                                    }
-                                    .padding(vertical = 4.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = size,
-                                    color = if (isSelected) Color.Black else Color.White,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                )
-                            }
-                        }
-                    }
-
-                    // Snap to Edge Alignment Buttons: [ ⇱ Leftmost ] [ ⦿ Center ] [ ⇲ Rightmost ]
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0x22FFFFFF))
-                                .clickable {
-                                    val leftX = -lcMaxOffsetX
-                                    offsetX = leftX
-                                    onSetWidgetElementOffset("leetcode_circle", leftX, offsetY)
-                                }
-                                .padding(vertical = 4.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("⇱ Leftmost", color = Color.White, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0x22FFFFFF))
-                                .clickable {
-                                    offsetX = 0f
-                                    onSetWidgetElementOffset("leetcode_circle", 0f, offsetY)
-                                }
-                                .padding(vertical = 4.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("⦿ Center", color = Color.White, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0x22FFFFFF))
-                                .clickable {
-                                    val rightX = lcMaxOffsetX
-                                    offsetX = rightX
-                                    onSetWidgetElementOffset("leetcode_circle", rightX, offsetY)
-                                }
-                                .padding(vertical = 4.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("⇲ Rightmost", color = Color.White, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-
-                    // Inside Div Color Selector (Auto | White | Black)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Inside Div:",
-                            color = Color(0xFFAAAAAA),
-                            fontSize = 10.5.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        listOf(
-                            "AUTO" to "Auto",
-                            "WHITE" to "White",
-                            "BLACK" to "Black"
-                        ).forEach { (colorKey, label) ->
-                            val isSelected = (lcInsideDivColor == colorKey)
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (isSelected) Color.White else Color(0x22FFFFFF))
-                                    .clickable {
-                                        lcInsideDivColor = colorKey
-                                        onSetWidgetInsideDivColor("leetcode_circle", colorKey)
-                                    }
-                                    .padding(vertical = 4.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = label,
-                                    color = if (isSelected) Color.Black else Color.White,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                )
-                            }
-                        }
-                    }
-
-                    // Circle Stage: Outer Div container with inner transparent div
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(134.dp),
+                            .height(if (lcOuterSize == "x*3") 170.dp else 115.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        // Outer Div Container Box (matches selected outer div size)
                         Box(
-                            modifier = (if (lcOuterWidthDp != Dp.Unspecified) Modifier.width(lcOuterWidthDp) else Modifier.fillMaxWidth())
-                                .fillMaxHeight()
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(Color(0x0DFFFFFF))
-                                .border(1.dp, Color(0x2EFFFFFF), RoundedCornerShape(16.dp)),
+                            modifier = Modifier
+                                .offset {
+                                    IntOffset(
+                                        (lcOffsetX * density.density).roundToInt(),
+                                        (lcOffsetY * density.density).roundToInt()
+                                    )
+                                }
+                                .size(86.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isLcPodBlack) Color(0xD90B0B0D) else Color(0x26FFFFFF))
+                                .border(1.dp, if (isLcPodBlack) Color(0x33FFFFFF) else Color(0x38FFFFFF), RoundedCornerShape(12.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                            // Compact Inner Circular Div: Small & Visible frosted pod
-                            val isLcPodBlack = (lcPodColor == "BLACK")
-                            Box(
-                                modifier = Modifier
-                                    .offset {
-                                        IntOffset(
-                                            (offsetX * density.density).roundToInt(),
-                                            (offsetY * density.density).roundToInt()
-                                        )
-                                    }
-                                    .pointerInput(lcMaxOffsetX) {
-                                        detectDragGestures(
-                                            onDragEnd = {
-                                                onSetWidgetElementOffset("leetcode_circle", offsetX, offsetY)
-                                            }
-                                        ) { change, dragAmount ->
-                                            change.consume()
-                                            val dragDpX = dragAmount.x / density.density
-                                            val dragDpY = dragAmount.y / density.density
-                                            val newX = (offsetX + dragDpX).coerceIn(-lcMaxOffsetX, lcMaxOffsetX)
-                                            val newY = (offsetY + dragDpY).coerceIn(-20f, 20f)
-                                            offsetX = newX
-                                            offsetY = newY
-                                        }
-                                    }
-                                    .size(86.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isLcPodBlack) Color(0xD90B0B0D) else Color(0x26FFFFFF))
-                                    .border(1.dp, if (isLcPodBlack) Color(0x33FFFFFF) else Color(0x38FFFFFF), RoundedCornerShape(12.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Image(
-                                    bitmap = lcCircle,
-                                    contentDescription = "LeetCode Gauge",
-                                    modifier = Modifier.size(76.dp)
-                                )
-                            }
+                            Image(
+                                bitmap = lcCircle,
+                                contentDescription = "LeetCode Gauge",
+                                modifier = Modifier.size(76.dp)
+                            )
                         }
                     }
                 }
             }
         )
 
-        // 4. GitHub Circle (Circle Only - Div Inside Div)
+        // 4. GitHub Contribution Circle (Customizable x*2 or x*3)
         var ghOuterSize by remember { mutableStateOf(getWidgetOuterDivSize("github_circle")) }
+        var ghShowHeading by remember { mutableStateOf(getWidgetShowHeading("github_circle")) }
         var ghWidgetWallpaper by remember { mutableStateOf(getWidgetSpecificWallpaper("github_circle")) }
-        var ghInsideDivColor by remember { mutableStateOf(getWidgetInsideDivColor("github_circle")) }
-        val ghOuterWidthDp = when (ghOuterSize) {
-            "2x2" -> 160.dp
-            "3x2" -> 230.dp
-            "4x2" -> 300.dp
-            else -> Dp.Unspecified // 5x2 (Full Width)
-        }
-        val ghMaxOffsetX = when (ghOuterSize) {
-            "2x2" -> 37f
-            "3x2" -> 72f
-            "4x2" -> 107f
-            else -> 137f
-        }
+        val ghInitialOffset = remember { getWidgetElementOffset("github_circle") }
+        var ghOffsetX by remember { mutableStateOf(ghInitialOffset.first.coerceIn(-60f, 60f)) }
+        var ghOffsetY by remember { mutableStateOf(ghInitialOffset.second.coerceIn(-20f, 20f)) }
 
         WidgetGalleryCard(
-            title = "GitHub Contribution Circle ($ghOuterSize)",
-            subtitle = "Circle gauge with selectable outer div size ($ghOuterSize) & edge alignment",
-            tag = "GH Circle",
+            title = "GitHub Contribution Circle ()",
+            subtitle = "Circle gauge with responsive sizing () & positioning",
+            tag = "Customizable",
             widgetKey = "github_circle",
             currentWidgetWallpaper = ghWidgetWallpaper,
             onSelectWidgetWallpaper = {
                 ghWidgetWallpaper = it
                 onSetWidgetSpecificWallpaper("github_circle", it)
             },
+            showHeading = ghShowHeading,
+            onToggleShowHeading = {
+                ghShowHeading = it
+                onSetWidgetShowHeading("github_circle", it)
+            },
+            outerSize = ghOuterSize,
+            onSelectOuterSize = {
+                ghOuterSize = it
+                onSetWidgetOuterDivSize("github_circle", it)
+            },
+            hasOffsetControls = true,
+            offsetX = ghOffsetX,
+            offsetY = ghOffsetY,
+            onNudge = { dx, dy ->
+                val nx = (ghOffsetX + dx).coerceIn(-60f, 60f)
+                val ny = (ghOffsetY + dy).coerceIn(-20f, 20f)
+                ghOffsetX = nx
+                ghOffsetY = ny
+                onSetWidgetElementOffset("github_circle", nx, ny)
+            },
+            onResetOffset = {
+                ghOffsetX = 0f
+                ghOffsetY = 0f
+                onSetWidgetElementOffset("github_circle", 0f, 0f)
+            },
             onClick = { onPinWidget(GitHubCircleWidgetProvider::class.java) },
             content = {
                 val context = LocalContext.current
                 val density = LocalDensity.current
-                val initialOffset = remember { getWidgetElementOffset("github_circle") }
-                var offsetX by remember { mutableStateOf(initialOffset.first.coerceIn(-ghMaxOffsetX, ghMaxOffsetX)) }
-                var offsetY by remember { mutableStateOf(initialOffset.second.coerceIn(-20f, 20f)) }
                 val ghCircle = remember(dashboardData.gitHub) {
                     WidgetBitmapRenderer.renderGitHubTypeMap(dashboardData.gitHub, sizePx = 360).asImageBitmap()
                 }
-                val ghPodColor = remember(ghWidgetWallpaper, ghInsideDivColor) {
-                    if (ghInsideDivColor == "WHITE") "WHITE"
-                    else if (ghInsideDivColor == "BLACK") "BLACK"
-                    else WallpaperManager.resolvePodColorForWallpaper(context, ghWidgetWallpaper, "github_circle")
+                val ghPodColor = remember(ghWidgetWallpaper) {
+                    WallpaperManager.resolvePodColorForWallpaper(context, ghWidgetWallpaper, "github_circle")
                 }
+                val isGhPodBlack = (ghPodColor == "BLACK")
 
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // Fixed Stationary Header
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    if (ghShowHeading) {
                         Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
@@ -2867,307 +2717,61 @@ private fun WidgetsScreenContent(
                                 contentDescription = "GitHub",
                                 modifier = Modifier.size(14.dp)
                             )
+                            Text("GitHub", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             Text(
-                                text = "GitHub",
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = if (dashboardData.gitHub.username.isNotBlank())
-                                    "@${dashboardData.gitHub.username}"
-                                else "@dev",
+                                if (dashboardData.gitHub.username.isNotBlank()) "@${dashboardData.gitHub.username}" else "@dev",
                                 color = Color(0xFFAAAAAA),
                                 fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1
+                                fontWeight = FontWeight.Bold
                             )
                         }
-
-                        // Directional Nudge Arrows + Reset
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(3.dp)
-                        ) {
-                            if (offsetX != 0f || offsetY != 0f) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0x33FFFFFF))
-                                        .clickable {
-                                            offsetX = 0f
-                                            offsetY = 0f
-                                            onSetWidgetElementOffset("github_circle", 0f, 0f)
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("↺", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(Color(0x26FFFFFF))
-                                    .clickable {
-                                        val newX = (offsetX - 10f).coerceIn(-ghMaxOffsetX, ghMaxOffsetX)
-                                        offsetX = newX
-                                        onSetWidgetElementOffset("github_circle", newX, offsetY)
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("←", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(Color(0x26FFFFFF))
-                                    .clickable {
-                                        val newX = (offsetX + 10f).coerceIn(-ghMaxOffsetX, ghMaxOffsetX)
-                                        offsetX = newX
-                                        onSetWidgetElementOffset("github_circle", newX, offsetY)
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("→", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(Color(0x26FFFFFF))
-                                    .clickable {
-                                        val newY = (offsetY - 5f).coerceIn(-20f, 20f)
-                                        offsetY = newY
-                                        onSetWidgetElementOffset("github_circle", offsetX, newY)
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("↑", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(Color(0x26FFFFFF))
-                                    .clickable {
-                                        val newY = (offsetY + 5f).coerceIn(-20f, 20f)
-                                        offsetY = newY
-                                        onSetWidgetElementOffset("github_circle", offsetX, newY)
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("↓", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
                     }
 
-                    // Outer Div Size Selector (2x2 | 3x2 | 4x2 | 5x2)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Outer Div:",
-                            color = Color(0xFFAAAAAA),
-                            fontSize = 10.5.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        listOf("2x2", "3x2", "4x2", "5x2").forEach { size ->
-                            val isSelected = (ghOuterSize == size)
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (isSelected) Color.White else Color(0x22FFFFFF))
-                                    .clickable {
-                                        ghOuterSize = size
-                                        onSetWidgetOuterDivSize("github_circle", size)
-                                        val newMax = when (size) {
-                                            "2x2" -> 37f
-                                            "3x2" -> 72f
-                                            "4x2" -> 107f
-                                            else -> 137f
-                                        }
-                                        val clampedX = offsetX.coerceIn(-newMax, newMax)
-                                        offsetX = clampedX
-                                        onSetWidgetElementOffset("github_circle", clampedX, offsetY)
-                                    }
-                                    .padding(vertical = 4.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = size,
-                                    color = if (isSelected) Color.Black else Color.White,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                )
-                            }
-                        }
-                    }
-
-                    // Snap to Edge Alignment Buttons: [ ⇱ Leftmost ] [ ⦿ Center ] [ ⇲ Rightmost ]
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0x22FFFFFF))
-                                .clickable {
-                                    val leftX = -ghMaxOffsetX
-                                    offsetX = leftX
-                                    onSetWidgetElementOffset("github_circle", leftX, offsetY)
-                                }
-                                .padding(vertical = 4.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("⇱ Leftmost", color = Color.White, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0x22FFFFFF))
-                                .clickable {
-                                    offsetX = 0f
-                                    onSetWidgetElementOffset("github_circle", 0f, offsetY)
-                                }
-                                .padding(vertical = 4.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("⦿ Center", color = Color.White, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0x22FFFFFF))
-                                .clickable {
-                                    val rightX = ghMaxOffsetX
-                                    offsetX = rightX
-                                    onSetWidgetElementOffset("github_circle", rightX, offsetY)
-                                }
-                                .padding(vertical = 4.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("⇲ Rightmost", color = Color.White, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-
-                    // Inside Div Color Selector (Auto | White | Black)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Inside Div:",
-                            color = Color(0xFFAAAAAA),
-                            fontSize = 10.5.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        listOf(
-                            "AUTO" to "Auto",
-                            "WHITE" to "White",
-                            "BLACK" to "Black"
-                        ).forEach { (colorKey, label) ->
-                            val isSelected = (ghInsideDivColor == colorKey)
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (isSelected) Color.White else Color(0x22FFFFFF))
-                                    .clickable {
-                                        ghInsideDivColor = colorKey
-                                        onSetWidgetInsideDivColor("github_circle", colorKey)
-                                    }
-                                    .padding(vertical = 4.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = label,
-                                    color = if (isSelected) Color.Black else Color.White,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                )
-                            }
-                        }
-                    }
-
-                    // Circle Stage: Outer Div container with inner transparent div
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(134.dp),
+                            .height(if (ghOuterSize == "x*3") 170.dp else 115.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        // Outer Div Container Box (matches selected outer div size)
                         Box(
-                            modifier = (if (ghOuterWidthDp != Dp.Unspecified) Modifier.width(ghOuterWidthDp) else Modifier.fillMaxWidth())
-                                .fillMaxHeight()
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(Color(0x0DFFFFFF))
-                                .border(1.dp, Color(0x2EFFFFFF), RoundedCornerShape(16.dp)),
+                            modifier = Modifier
+                                .offset {
+                                    IntOffset(
+                                        (ghOffsetX * density.density).roundToInt(),
+                                        (ghOffsetY * density.density).roundToInt()
+                                    )
+                                }
+                                .size(86.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isGhPodBlack) Color(0xD90B0B0D) else Color(0x26FFFFFF))
+                                .border(1.dp, if (isGhPodBlack) Color(0x33FFFFFF) else Color(0x38FFFFFF), RoundedCornerShape(12.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                            // Compact Inner Circular Div: Small & Visible frosted pod
-                            val isGhPodBlack = (ghPodColor == "BLACK")
-                            Box(
-                                modifier = Modifier
-                                    .offset {
-                                        IntOffset(
-                                            (offsetX * density.density).roundToInt(),
-                                            (offsetY * density.density).roundToInt()
-                                        )
-                                    }
-                                    .pointerInput(ghMaxOffsetX) {
-                                        detectDragGestures(
-                                            onDragEnd = {
-                                                onSetWidgetElementOffset("github_circle", offsetX, offsetY)
-                                            }
-                                        ) { change, dragAmount ->
-                                            change.consume()
-                                            val dragDpX = dragAmount.x / density.density
-                                            val dragDpY = dragAmount.y / density.density
-                                            val newX = (offsetX + dragDpX).coerceIn(-ghMaxOffsetX, ghMaxOffsetX)
-                                            val newY = (offsetY + dragDpY).coerceIn(-20f, 20f)
-                                            offsetX = newX
-                                            offsetY = newY
-                                        }
-                                    }
-                                    .size(86.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isGhPodBlack) Color(0xD90B0B0D) else Color(0x26FFFFFF))
-                                    .border(1.dp, if (isGhPodBlack) Color(0x33FFFFFF) else Color(0x38FFFFFF), RoundedCornerShape(12.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Image(
-                                    bitmap = ghCircle,
-                                    contentDescription = "GitHub Contribution Circle",
-                                    modifier = Modifier.size(76.dp)
-                                )
-                            }
+                            Image(
+                                bitmap = ghCircle,
+                                contentDescription = "GitHub Contribution Circle",
+                                modifier = Modifier.size(76.dp)
+                            )
                         }
                     }
                 }
             }
         )
 
-        // 5. LeetCode Full (Circle + Heatmap)
+        // 5. LeetCode Full (Circle + Heatmap) (4x2)
+        var lcFullShowHeading by remember { mutableStateOf(getWidgetShowHeading("leetcode")) }
         WidgetGalleryCard(
             title = "LeetCode Full: Circle + Heatmap (4x2)",
             subtitle = "Speedometer circle gauge and 52-week submission calendar side-by-side",
-            tag = "LC Full",
+            tag = "Fixed 4x2",
             widgetKey = "leetcode",
             currentWidgetWallpaper = getWidgetSpecificWallpaper("leetcode"),
             onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("leetcode", it) },
+            showHeading = lcFullShowHeading,
+            onToggleShowHeading = {
+                lcFullShowHeading = it
+                onSetWidgetShowHeading("leetcode", it)
+            },
             onClick = { onPinWidget(LeetCodeWidgetProvider::class.java) },
             content = {
                 val lcCircle = remember(dashboardData.leetCode) {
@@ -3183,28 +2787,64 @@ private fun WidgetsScreenContent(
                         orientation = heatmapOrientation
                     ).asImageBitmap()
                 }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(110.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Image(bitmap = lcCircle, contentDescription = null, modifier = Modifier.weight(0.42f).fillMaxHeight())
-                    Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(ThemeCardBorder))
-                    Image(bitmap = lcHeatmap, contentDescription = null, modifier = Modifier.weight(0.58f).fillMaxHeight())
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    if (lcFullShowHeading) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Image(
+                                    painter = painterResource(R.drawable.ic_leetcode_logo),
+                                    contentDescription = "LeetCode",
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text("LeetCode", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    if (dashboardData.leetCode.username.isNotBlank()) "@${dashboardData.leetCode.username}" else "@dev",
+                                    color = Color(0xFFAAAAAA),
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Text("Sync: Just now", color = Color(0xFFCBD5E1), fontSize = 9.sp)
+                        }
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(110.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(bitmap = lcCircle, contentDescription = null, modifier = Modifier.weight(0.42f).fillMaxHeight())
+                        Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(ThemeCardBorder))
+                        Image(bitmap = lcHeatmap, contentDescription = null, modifier = Modifier.weight(0.58f).fillMaxHeight())
+                    }
                 }
             }
         )
 
-        // 6. GitHub Full (Circle + Heatmap)
+        // 6. GitHub Full (Circle + Heatmap) (4x2)
+        var ghFullShowHeading by remember { mutableStateOf(getWidgetShowHeading("github")) }
         WidgetGalleryCard(
             title = "GitHub Full: Circle + Heatmap (4x2)",
             subtitle = "Contribution radar polygon and 52-week activity heatmap side-by-side",
-            tag = "GH Full",
+            tag = "Fixed 4x2",
             widgetKey = "github",
             currentWidgetWallpaper = getWidgetSpecificWallpaper("github"),
             onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("github", it) },
+            showHeading = ghFullShowHeading,
+            onToggleShowHeading = {
+                ghFullShowHeading = it
+                onSetWidgetShowHeading("github", it)
+            },
             onClick = { onPinWidget(GitHubWidgetProvider::class.java) },
             content = {
                 val ghRadar = remember(dashboardData.gitHub) {
@@ -3220,30 +2860,66 @@ private fun WidgetsScreenContent(
                         orientation = heatmapOrientation
                     ).asImageBitmap()
                 }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(110.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Image(bitmap = ghRadar, contentDescription = null, modifier = Modifier.weight(0.42f).fillMaxHeight())
-                    Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(ThemeCardBorder))
-                    Image(bitmap = ghHeatmap, contentDescription = null, modifier = Modifier.weight(0.58f).fillMaxHeight())
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    if (ghFullShowHeading) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Image(
+                                    painter = painterResource(R.drawable.ic_github_logo),
+                                    contentDescription = "GitHub",
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text("GitHub", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    if (dashboardData.gitHub.username.isNotBlank()) "@${dashboardData.gitHub.username}" else "@dev",
+                                    color = Color(0xFFAAAAAA),
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Text("Sync: Just now", color = Color(0xFFCBD5E1), fontSize = 9.sp)
+                        }
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(110.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(bitmap = ghRadar, contentDescription = null, modifier = Modifier.weight(0.42f).fillMaxHeight())
+                        Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(ThemeCardBorder))
+                        Image(bitmap = ghHeatmap, contentDescription = null, modifier = Modifier.weight(0.58f).fillMaxHeight())
+                    }
                 }
             }
         )
 
         // 7. Combined All: Master Dev Life (4x4)
+        var devActShowHeading by remember { mutableStateOf(getWidgetShowHeading("dev_activity")) }
         WidgetGalleryCard(
             title = "Combined All: Master Dev Life (4x4)",
             subtitle = "Master dashboard with LeetCode & GitHub gauges and dual uniform heatmaps",
-            tag = "Combined All",
+            tag = "Fixed 4x4",
             widgetKey = "dev_activity",
             currentWidgetWallpaper = getWidgetSpecificWallpaper("dev_activity"),
             onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("dev_activity", it) },
+            showHeading = devActShowHeading,
+            onToggleShowHeading = {
+                devActShowHeading = it
+                onSetWidgetShowHeading("dev_activity", it)
+            },
             onClick = { onPinWidget(DevActivityWidgetProvider::class.java) },
-            content = { WidgetVisualPreview(data = dashboardData, orientation = heatmapOrientation) }
+            content = { WidgetVisualPreview(data = dashboardData, orientation = heatmapOrientation, showHeading = devActShowHeading) }
         )
     }
 }
@@ -3256,6 +2932,15 @@ private fun WidgetGalleryCard(
     widgetKey: String? = null,
     currentWidgetWallpaper: String = "DEFAULT",
     onSelectWidgetWallpaper: (String) -> Unit = {},
+    showHeading: Boolean = true,
+    onToggleShowHeading: ((Boolean) -> Unit)? = null,
+    outerSize: String? = null,
+    onSelectOuterSize: ((String) -> Unit)? = null,
+    hasOffsetControls: Boolean = false,
+    offsetX: Float = 0f,
+    offsetY: Float = 0f,
+    onNudge: ((dx: Float, dy: Float) -> Unit)? = null,
+    onResetOffset: (() -> Unit)? = null,
     onClick: () -> Unit,
     content: @Composable () -> Unit
 ) {
@@ -3272,6 +2957,7 @@ private fun WidgetGalleryCard(
             .padding(14.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // 1. Header: Name (Size if fixed widget) + Subtitle + Tag
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -3306,7 +2992,228 @@ private fun WidgetGalleryCard(
                 }
             }
 
-            // Visual Preview Block (Chassis with Wallpaper / Style preview)
+            // 2. Options Block (Wallpaper, Heading, Size if customizable, Position arrows + Reset)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(ThemeInnerBoxBg)
+                    .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(12.dp))
+                    .padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // Wallpaper Row
+                if (widgetKey != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Wallpaper:",
+                            color = ThemeTextSecondary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        listOf(
+                            "DEFAULT" to "Obsidian",
+                            "TRANSLUCENT" to "Frost",
+                            "TRANSPARENT" to "Clear",
+                            "MATCH_APP" to "App"
+                        ).forEach { (styleKey, label) ->
+                            val isSelected = currentWidgetWallpaper == styleKey
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) ThemeTextPrimary else ThemeCardBg)
+                                    .border(
+                                        1.dp,
+                                        if (isSelected) ThemeTextPrimary else ThemeCardBorder,
+                                        RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable { onSelectWidgetWallpaper(styleKey) }
+                                    .padding(vertical = 5.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSelected) ThemeBgDark else ThemeTextSecondary,
+                                    fontSize = 10.5.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Heading Toggle & Size Row
+                if (onToggleShowHeading != null || (outerSize != null && onSelectOuterSize != null)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (onToggleShowHeading != null) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Heading:",
+                                    color = ThemeTextSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                listOf(true to "Show", false to "Hide").forEach { (show, label) ->
+                                    val isSelected = (showHeading == show)
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(if (isSelected) ThemeTextPrimary else ThemeCardBg)
+                                            .border(
+                                                1.dp,
+                                                if (isSelected) ThemeTextPrimary else ThemeCardBorder,
+                                                RoundedCornerShape(8.dp)
+                                            )
+                                            .clickable { onToggleShowHeading(show) }
+                                            .padding(vertical = 5.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = label,
+                                            color = if (isSelected) ThemeBgDark else ThemeTextSecondary,
+                                            fontSize = 10.5.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        if (outerSize != null && onSelectOuterSize != null) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Size:",
+                                    color = ThemeTextSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                listOf("x*2", "x*3").forEach { size ->
+                                    val isSelected = (outerSize == size)
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(if (isSelected) ThemeTextPrimary else ThemeCardBg)
+                                            .border(
+                                                1.dp,
+                                                if (isSelected) ThemeTextPrimary else ThemeCardBorder,
+                                                RoundedCornerShape(8.dp)
+                                            )
+                                            .clickable { onSelectOuterSize(size) }
+                                            .padding(vertical = 5.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = size,
+                                            color = if (isSelected) ThemeBgDark else ThemeTextSecondary,
+                                            fontSize = 10.5.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Position / Move Controls (if movable)
+                if (hasOffsetControls) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Position:",
+                            color = ThemeTextSecondary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (offsetX != 0f || offsetY != 0f) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(ThemeAccentRed.copy(alpha = 0.2f))
+                                        .border(1.dp, ThemeAccentRed.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                                        .clickable { onResetOffset?.invoke() }
+                                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("↺ Reset", color = ThemeTextPrimary, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(ThemeCardBg)
+                                    .border(1.dp, ThemeCardBorder, RoundedCornerShape(6.dp))
+                                    .clickable { onNudge?.invoke(-10f, 0f) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("←", color = ThemeTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(ThemeCardBg)
+                                    .border(1.dp, ThemeCardBorder, RoundedCornerShape(6.dp))
+                                    .clickable { onNudge?.invoke(10f, 0f) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("→", color = ThemeTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(ThemeCardBg)
+                                    .border(1.dp, ThemeCardBorder, RoundedCornerShape(6.dp))
+                                    .clickable { onNudge?.invoke(0f, -5f) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("↑", color = ThemeTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(ThemeCardBg)
+                                    .border(1.dp, ThemeCardBorder, RoundedCornerShape(6.dp))
+                                    .clickable { onNudge?.invoke(0f, 5f) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("↓", color = ThemeTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Visual Preview Chassis (Clean Wallpaper Chassis with ONLY Content)
             val context = LocalContext.current
             val previewWallpaperBitmap = remember(currentWidgetWallpaper, widgetKey) {
                 if (currentWidgetWallpaper in listOf("MATCH_APP", "CUSTOM", "PRESET")) {
@@ -3360,51 +3267,7 @@ private fun WidgetGalleryCard(
                 }
             }
 
-            // Per-Widget Wallpaper Selector Row
-            if (widgetKey != null) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Wallpaper:",
-                        color = ThemeTextSecondary,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    listOf(
-                        "DEFAULT" to "Obsidian",
-                        "TRANSLUCENT" to "Frost",
-                        "TRANSPARENT" to "Clear",
-                        "MATCH_APP" to "App"
-                    ).forEach { (styleKey, label) ->
-                        val isSelected = currentWidgetWallpaper == styleKey
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSelected) ThemeTextPrimary else ThemeInnerBoxBg)
-                                .border(
-                                    1.dp,
-                                    if (isSelected) ThemeTextPrimary else ThemeInnerBoxBorder,
-                                    RoundedCornerShape(8.dp)
-                                )
-                                .clickable { onSelectWidgetWallpaper(styleKey) }
-                                .padding(vertical = 5.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = label,
-                                color = if (isSelected) ThemeBgDark else ThemeTextSecondary,
-                                fontSize = 10.5.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                            )
-                        }
-                    }
-                }
-            }
-
+            // 4. Add Widget to Home Screen Button
             Button(
                 onClick = onClick,
                 modifier = Modifier.fillMaxWidth(),
@@ -3720,9 +3583,9 @@ private fun SettingsScreenContent(
                         )
                         Text(
                             text = when {
-                                tokenAuthenticated -> "token: connected & authenticated (GraphQL API + private contributions enabled)"
-                                hasToken -> "token: entered (click verify below to authenticate with GitHub)"
-                                else -> "token: disconnected (public contributions only)"
+                                tokenAuthenticated -> "Token: Connected"
+                                hasToken -> "Token: Unverified (Click verify)"
+                                else -> "Token: None"
                             },
                             color = ThemeTextSecondary,
                             fontSize = 11.sp
@@ -3978,7 +3841,7 @@ private fun AccountStatusBadge(
 private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 
 @Composable
-fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizontal") {
+fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizontal", showHeading: Boolean = true) {
     var isReversed by remember { mutableStateOf(false) }
     var lcOffsetX by remember { mutableStateOf(0f) }
     var lcOffsetY by remember { mutableStateOf(0f) }
@@ -4026,13 +3889,14 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             // Header with Dev Life brand and Interactive Div Controls (Swap & Reset)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            if (showHeading) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(
                         painter = painterResource(R.drawable.ic_skill_jane),
@@ -4096,6 +3960,7 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
                         }
                     }
                 }
+            }
             }
 
             // Composables for each Div

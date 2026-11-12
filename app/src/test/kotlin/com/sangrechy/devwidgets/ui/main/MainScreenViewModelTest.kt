@@ -371,6 +371,17 @@ class MainScreenViewModelTest {
 
         assertTrue(viewModel.syncMessage.value.orEmpty().contains("Successfully synced"))
     }
+
+    @Test
+    fun testWidgetShowHeading() {
+        val fakeRepo = FakeDataRepository()
+        val viewModel = MainScreenViewModel(fakeRepo)
+
+        assertTrue(viewModel.getWidgetShowHeading("leetcode_circle"))
+        viewModel.setWidgetShowHeading("leetcode_circle", false)
+        assertFalse(viewModel.getWidgetShowHeading("leetcode_circle"))
+        assertTrue(fakeRepo.updateWidgetsCallCount > 0)
+    }
 }
 
 private class FakeProblemRepository : com.sangrechy.devwidgets.data.ProblemRepository {
@@ -635,6 +646,12 @@ private class FakeDataRepository : DataRepository {
     override fun getWidgetInsideDivColor(widgetKey: String): String = insideDivColors[widgetKey.trim().uppercase()] ?: "AUTO"
     override fun setWidgetInsideDivColor(widgetKey: String, color: String) {
         insideDivColors[widgetKey.trim().uppercase()] = color
+    }
+
+    private val widgetShowHeadings = mutableMapOf<String, Boolean>()
+    override fun getWidgetShowHeading(widgetKey: String): Boolean = widgetShowHeadings[widgetKey.trim().uppercase()] ?: true
+    override fun setWidgetShowHeading(widgetKey: String, show: Boolean) {
+        widgetShowHeadings[widgetKey.trim().uppercase()] = show
     }
 
     override suspend fun saveCustomWallpaperFromUri(uri: android.net.Uri, forWidget: Boolean): String? = "/mock/path.jpg"

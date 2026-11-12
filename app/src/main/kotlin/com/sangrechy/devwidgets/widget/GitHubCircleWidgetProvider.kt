@@ -49,14 +49,12 @@ class GitHubCircleWidgetProvider : AppWidgetProvider() {
             val minHeightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0).toFloat()
 
             val selectedOuterSize = prefs.getWidgetOuterDivSize("GITHUB_CIRCLE")
-            val refWidthDp = when (selectedOuterSize) {
-                "3x2" -> 230f
-                "4x2" -> 300f
-                "5x2" -> 360f
-                else -> 160f
-            }
-            val actualWidthDp = if (minWidthDp > 120f) minWidthDp else refWidthDp
-            val actualHeightDp = if (minHeightDp > 100f) minHeightDp else 140f
+            val defaultHeightDp = if (selectedOuterSize == "x*3") 210f else 140f
+            val actualWidthDp = if (minWidthDp > 120f) minWidthDp else 160f
+            val actualHeightDp = if (minHeightDp > 100f) minHeightDp else defaultHeightDp
+
+            val showHeading = prefs.getWidgetShowHeading("GITHUB_CIRCLE")
+            views.setViewVisibility(R.id.header_bar, if (showHeading) android.view.View.VISIBLE else android.view.View.GONE)
 
             WidgetWallpaperHelper.applyWallpaper(
                 context, views,
@@ -70,10 +68,8 @@ class GitHubCircleWidgetProvider : AppWidgetProvider() {
             val density = context.resources.displayMetrics.density
 
             val innerDivWidthDp = 86f
-            val refMaxOffsetX = ((refWidthDp - innerDivWidthDp) / 2f).coerceAtLeast(10f)
-            val fractionX = (offsetX / refMaxOffsetX).coerceIn(-1f, 1f)
             val actualMaxOffsetX = ((actualWidthDp - innerDivWidthDp) / 2f).coerceAtLeast(0f)
-            val effectiveDxDp = fractionX * actualMaxOffsetX
+            val effectiveDxDp = if (actualMaxOffsetX > 0f) offsetX.coerceIn(-actualMaxOffsetX, actualMaxOffsetX) else 0f
             val effectiveDyDp = offsetY.coerceIn(-24f, 24f)
 
             val maxShiftPx = (actualMaxOffsetX * 2f * density).toInt()

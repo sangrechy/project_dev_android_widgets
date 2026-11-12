@@ -49,6 +49,8 @@ class LeetCodeWidgetProvider : AppWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.widget_leetcode)
             WidgetWallpaperHelper.applyWallpaper(context, views, 340, 200, widgetKey = "LEETCODE")
             val prefs = WidgetPreferences(context)
+            val showHeading = prefs.getWidgetShowHeading("LEETCODE")
+            views.setViewVisibility(R.id.header_bar, if (showHeading) android.view.View.VISIBLE else android.view.View.GONE)
             val lcCircle = WidgetBitmapRenderer.renderLeetCodeCircle(data.leetCode, sizePx = 360)
             val lcHeatmap = WidgetBitmapRenderer.renderHeatmap(
                 data.leetCode.submissionCalendar,

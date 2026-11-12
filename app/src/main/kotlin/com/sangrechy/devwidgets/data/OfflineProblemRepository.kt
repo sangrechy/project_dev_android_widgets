@@ -1367,6 +1367,10 @@ class OfflineProblemRepository(
         if (num != null) {
             candidateNames.add("%04d-%s".format(num, slugPart))
             candidateNames.add("$num-$slugPart")
+            candidateNames.add(num.toString())
+        }
+        if (slugPart.isNotBlank()) {
+            candidateNames.add(slugPart)
         }
         val distinctCandidates = candidateNames.distinct()
 
@@ -1397,7 +1401,29 @@ class OfflineProblemRepository(
                                 if (type == "file" && name.isNotBlank()) {
                                     val targetFile = File(localDir, name)
                                     var written = false
-                                    if (downloadUrl.isNotBlank()) {
+
+                                    // 1. First try raw GitHub API contents endpoint (guaranteed to work with token)
+                                    val rawApiUrl = "https://api.github.com/repos/$owner/$repo/contents/$encodedRemotePath/${encodeGitHubPath(name)}"
+                                    try {
+                                        val rawApiReq = Request.Builder()
+                                            .url(rawApiUrl)
+                                            .header("Accept", "application/vnd.github.v3.raw")
+                                            .header("User-Agent", "DevLife-Android")
+                                            .apply { if (token.isNotBlank()) header("Authorization", "Bearer $token") }
+                                            .build()
+                                        okHttpClient.newCall(rawApiReq).execute().use { rawResp ->
+                                            if (rawResp.isSuccessful && rawResp.body != null) {
+                                                targetFile.parentFile?.mkdirs()
+                                                targetFile.writeBytes(rawResp.body!!.bytes())
+                                                targetFile.setLastModified(System.currentTimeMillis())
+                                                written = true
+                                                downloadedFiles++
+                                            }
+                                        }
+                                    } catch (_: Exception) {}
+
+                                    // 2. Fall back to downloadUrl
+                                    if (!written && downloadUrl.isNotBlank()) {
                                         try {
                                             val rawReq = Request.Builder()
                                                 .url(downloadUrl)
@@ -1408,15 +1434,21 @@ class OfflineProblemRepository(
                                                 if (rawResp.isSuccessful && rawResp.body != null) {
                                                     targetFile.parentFile?.mkdirs()
                                                     targetFile.writeBytes(rawResp.body!!.bytes())
+                                                    targetFile.setLastModified(System.currentTimeMillis())
                                                     written = true
                                                     downloadedFiles++
                                                 }
                                             }
                                         } catch (_: Exception) {}
                                     }
+
+                                    // 3. Fall back to Git Blob API
                                     if (!written && gitUrl.isNotBlank()) {
                                         downloadBlobToFile(gitUrl, token, targetFile)
-                                        if (targetFile.exists()) downloadedFiles++
+                                        if (targetFile.exists()) {
+                                            targetFile.setLastModified(System.currentTimeMillis())
+                                            downloadedFiles++
+                                        }
                                     }
                                 }
                             }
@@ -1466,16 +1498,7 @@ class OfflineProblemRepository(
             } catch (_: Exception) {}
         }
 
-        // 5. Push local notes for this problem to GitHub if token available
-        if (token.isNotBlank()) {
-            pNotesDir.listFiles { f -> f.isFile && !f.name.startsWith(".") }?.forEach { nFile ->
-                try {
-                    val bytes = nFile.readBytes()
-                    pushFileToGitHubDirect("notes/$folderName/${nFile.name}", bytes, owner, repo, token)
-                } catch (_: Exception) {}
-            }
-        }
-
+        // Pull completed without pushing stale local notes over remote edits
         val reloaded = loadProblemFromDir(targetDir)
         if (reloaded != null) {
             Result.success(reloaded)
@@ -1573,6 +1596,47 @@ class OfflineProblemRepository(
 
     // --- Helpers ---
 
+    private fun inferTopicTags(title: String, slug: String): List<String> {
+        val text = "$title $slug".lowercase()
+        val tags = mutableListOf<String>()
+        if (text.contains("tree") || text.contains("bst")) tags.add("Tree")
+        if (text.contains("binary tree") || text.contains("binary-tree")) tags.add("Binary Tree")
+        if (text.contains("graph") || text.contains("island") || text.contains("course")) tags.add("Graph")
+        if (text.contains("dynamic") || text.contains("dp") || text.contains("paint") || text.contains("rob") ||
+            text.contains("subsequence") || text.contains("coin") || text.contains("climb") ||
+            text.contains("grid") || text.contains("matrix") || text.contains("partition") || text.contains("jump")
+        ) {
+            tags.add("Dynamic Programming")
+        }
+        if (text.contains("matrix") || text.contains("grid")) tags.add("Matrix")
+        if (text.contains("string") || text.contains("substring") || text.contains("word") ||
+            text.contains("parenthes") || text.contains("palindrom") || text.contains("roman") || text.contains("anagram")
+        ) {
+            tags.add("String")
+        }
+        if (text.contains("hash") || text.contains("map") || text.contains("two sum") || text.contains("two-sum")) tags.add("Hash Table")
+        if (text.contains("array") || text.contains("sorted") || text.contains("sum") ||
+            text.contains("subarrays") || text.contains("duplicate") || text.contains("stock") ||
+            text.contains("element") || text.contains("rotate")
+        ) {
+            tags.add("Array")
+        }
+        if (text.contains("linked list") || text.contains("linked-list") || text.contains("node")) tags.add("Linked List")
+        if (text.contains("search") || text.contains("binary search") || text.contains("binary-search")) tags.add("Binary Search")
+        if (text.contains("two pointer") || text.contains("two-pointer") || text.contains("pointers") || text.contains("container")) tags.add("Two Pointers")
+        if (text.contains("stack")) tags.add("Stack")
+        if (text.contains("queue")) tags.add("Queue")
+        if (text.contains("heap") || text.contains("priority")) tags.add("Heap")
+        if (text.contains("greedy") || text.contains("interval") || text.contains("meeting")) tags.add("Greedy")
+        if (text.contains("math") || text.contains("digit") || text.contains("integer") || text.contains("prime") || text.contains("pow") || text.contains("divide")) tags.add("Math")
+        if (text.contains("bit") || text.contains("xor") || text.contains("and") || text.contains("hamming")) tags.add("Bit Manipulation")
+        if (text.contains("backtrack") || text.contains("permutation") || text.contains("combination") || text.contains("subset")) tags.add("Backtracking")
+        if (text.contains("sort")) tags.add("Sorting")
+        if (text.contains("trie") || text.contains("prefix")) tags.add("Trie")
+        if (text.contains("sliding") || text.contains("window")) tags.add("Sliding Window")
+        return if (tags.isNotEmpty()) tags.distinct() else listOf("Algorithms")
+    }
+
     private fun loadProblemFromDir(dir: File): OfflineProblem? {
         val folderName = dir.name
         val metaFile = File(dir, "metadata.json")
@@ -1632,6 +1696,9 @@ class OfflineProblemRepository(
             if (catItem != null && catItem.topicTags.isNotEmpty()) {
                 topicTags.addAll(catItem.topicTags)
             }
+        }
+        if (topicTags.isEmpty()) {
+            topicTags.addAll(inferTopicTags(title, titleSlug))
         }
 
         // Hints

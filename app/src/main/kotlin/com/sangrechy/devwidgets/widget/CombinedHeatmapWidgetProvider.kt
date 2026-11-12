@@ -48,6 +48,8 @@ class CombinedHeatmapWidgetProvider : AppWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.widget_combined_heatmap)
             WidgetWallpaperHelper.applyWallpaper(context, views, 340, 200, widgetKey = "COMBINED")
             val prefs = WidgetPreferences(context)
+            val showHeading = prefs.getWidgetShowHeading("COMBINED")
+            views.setViewVisibility(R.id.header_bar, if (showHeading) android.view.View.VISIBLE else android.view.View.GONE)
             val orientation = prefs.heatmapOrientation
             val lcHeatmap = WidgetBitmapRenderer.renderHeatmap(
                 data.leetCode.submissionCalendar,

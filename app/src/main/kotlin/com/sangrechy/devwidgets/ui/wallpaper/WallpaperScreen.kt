@@ -139,11 +139,11 @@ fun WallpaperScreenContent(
                     }
                 }
 
-                // Single unified options: Obsidian | Custom | Glassy | Cyber Matrix | Terminal | Carbon | Sunset
+                // Single unified options: Custom | Glassy | Obsidian | Cyber Matrix | Terminal | Carbon | Sunset
                 val appThemes = listOf(
-                    "OBSIDIAN" to "Obsidian",
                     "CUSTOM" to "Custom",
                     "GLASSY" to "Glassy",
+                    "OBSIDIAN" to "Obsidian",
                     WallpaperPreset.CYBER_MATRIX.id to "Cyber Matrix",
                     WallpaperPreset.TERMINAL_CODE.id to "Terminal Code",
                     WallpaperPreset.MINIMAL_CARBON.id to "Minimal Carbon",
@@ -265,13 +265,13 @@ fun WallpaperScreenContent(
                     }
                 }
 
-                // Modes Row: Obsidian | Glassy | Clear | Match App | Custom
+                // Modes Row: Custom | Match App | Glassy | Obsidian | Clear
                 val widgetThemes = listOf(
-                    "DEFAULT" to "Obsidian",
-                    "TRANSLUCENT" to "Glassy",
-                    "TRANSPARENT" to "Clear",
+                    "CUSTOM" to "Custom",
                     "MATCH_APP" to "Match App",
-                    "CUSTOM" to "Custom"
+                    "TRANSLUCENT" to "Glassy",
+                    "DEFAULT" to "Obsidian",
+                    "TRANSPARENT" to "Clear"
                 )
 
                 FlowRow(

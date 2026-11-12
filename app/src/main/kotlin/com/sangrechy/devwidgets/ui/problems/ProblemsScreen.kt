@@ -11,9 +11,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
 import java.io.File
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -606,18 +608,89 @@ private fun LeetCodeProblemsSection(
         list
     }
 
-    // Problem Counter
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = "${filteredProblems.size} Problems (${problems.count { it.isDownloadedOffline }} Offline)",
-            color = ThemeTextSecondary,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium
-        )
+    var isProblemMultiSelectMode by remember { mutableStateOf(false) }
+    var selectedProblemFolders by remember { mutableStateOf(setOf<String>()) }
+    var showProblemBulkDeleteConfirm by remember { mutableStateOf(false) }
+
+    if (isProblemMultiSelectMode) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                IconButton(
+                    onClick = {
+                        isProblemMultiSelectMode = false
+                        selectedProblemFolders = emptySet()
+                    },
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = "Cancel", tint = ThemeTextSecondary)
+                }
+                Text(
+                    text = "${selectedProblemFolders.size} Selected",
+                    color = ThemeTextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                TextButton(
+                    onClick = {
+                        selectedProblemFolders = if (selectedProblemFolders.size == filteredProblems.size) {
+                            emptySet()
+                        } else {
+                            filteredProblems.map { it.folderName }.toSet()
+                        }
+                    }
+                ) {
+                    Text(
+                        text = if (selectedProblemFolders.size == filteredProblems.size) "Deselect All" else "Select All",
+                        color = ThemeAccentBlue,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                if (selectedProblemFolders.isNotEmpty()) {
+                    Button(
+                        onClick = { showProblemBulkDeleteConfirm = true },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = ThemeAccentRed,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Delete (${selectedProblemFolders.size})", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    } else {
+        // Problem Counter
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "${filteredProblems.size} Problems (${problems.count { it.isDownloadedOffline }} Offline)",
+                color = ThemeTextSecondary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
 
     if (isLoadingProblems) {
@@ -666,9 +739,28 @@ private fun LeetCodeProblemsSection(
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             filteredProblems.forEach { problem ->
                 key(problem.folderName) {
+                    val isSelected = selectedProblemFolders.contains(problem.folderName)
                     ProblemItemCard(
                         problem = problem,
-                        onClick = { onSelectProblem(problem) },
+                        isMultiSelectMode = isProblemMultiSelectMode,
+                        isSelected = isSelected,
+                        onClick = {
+                            if (isProblemMultiSelectMode) {
+                                selectedProblemFolders = if (isSelected) {
+                                    selectedProblemFolders - problem.folderName
+                                } else {
+                                    selectedProblemFolders + problem.folderName
+                                }
+                            } else {
+                                onSelectProblem(problem)
+                            }
+                        },
+                        onLongClick = {
+                            if (!isProblemMultiSelectMode) {
+                                isProblemMultiSelectMode = true
+                                selectedProblemFolders = setOf(problem.folderName)
+                            }
+                        },
                         onDownloadOffline = { onDownloadProblemOffline(problem.folderName, problem.titleSlug) },
                         onDeleteOffline = { onDeleteProblemOffline(problem.folderName) }
                     )
@@ -676,37 +768,98 @@ private fun LeetCodeProblemsSection(
             }
         }
     }
+
+    if (showProblemBulkDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showProblemBulkDeleteConfirm = false },
+            containerColor = ThemeCardBgElevated,
+            shape = RoundedCornerShape(18.dp),
+            modifier = Modifier.border(1.dp, ThemeCardBorder, RoundedCornerShape(18.dp)),
+            title = { Text("Delete Problems", color = ThemeTextPrimary, fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "Are you sure you want to delete ${selectedProblemFolders.size} offline problem${if (selectedProblemFolders.size > 1) "s" else ""}?",
+                    color = ThemeTextSecondary,
+                    fontSize = 13.5.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val foldersToDelete = selectedProblemFolders.toList()
+                        showProblemBulkDeleteConfirm = false
+                        isProblemMultiSelectMode = false
+                        selectedProblemFolders = emptySet()
+                        foldersToDelete.forEach { onDeleteProblemOffline(it) }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ThemeAccentRed, contentColor = Color.White),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Delete", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showProblemBulkDeleteConfirm = false }) {
+                    Text("Cancel", color = ThemeTextSecondary)
+                }
+            }
+        )
+    }
 }
 
 // -----------------------------------------------------------------------------
 // Problem Item Card
 // -----------------------------------------------------------------------------
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 private fun ProblemItemCard(
     problem: OfflineProblem,
+    isMultiSelectMode: Boolean = false,
+    isSelected: Boolean = false,
     onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
     onDownloadOffline: () -> Unit,
     onDeleteOffline: () -> Unit
 ) {
     val diffColor = when (problem.difficulty.lowercase()) {
-        "easy" -> Color(0xFFFFFFFF)
-        "hard" -> Color(0xFFA3A3A3)
-        else -> Color(0xFFD4D4D4)
+        "easy" -> ThemeAccentGreen
+        "hard" -> ThemeAccentRed
+        else -> ThemeAccentAmber
+    }
+
+    val statusColor = when {
+        problem.runtime.contains("TLE", ignoreCase = true) ||
+        problem.runtime.contains("Time Limit", ignoreCase = true) ||
+        problem.runtime.contains("Wrong", ignoreCase = true) ||
+        problem.runtime.contains("WA", ignoreCase = true) ||
+        problem.runtime.contains("Error", ignoreCase = true) -> ThemeAccentRed
+        (problem.solutionCode.isNotBlank() && !problem.solutionCode.contains("class Solution:\n    pass")) || problem.submittedAt.isNotBlank() -> ThemeAccentGreen
+        else -> ThemeAccentAmber
     }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(ThemeCardBg)
+            .background(if (isSelected) ThemeAccentBlue.copy(alpha = 0.15f) else ThemeCardBg)
             .border(
                 1.dp,
-                ThemeCardBorder,
+                if (isSelected) ThemeAccentBlue else ThemeCardBorder,
                 RoundedCornerShape(16.dp)
             )
-            .clickable(onClick = if (problem.isDownloadedOffline) onClick else onDownloadOffline)
+            .combinedClickable(
+                onClick = {
+                    if (isMultiSelectMode) {
+                        onClick()
+                    } else if (problem.isDownloadedOffline) {
+                        onClick()
+                    } else {
+                        onDownloadOffline()
+                    }
+                },
+                onLongClick = onLongClick
+            )
             .padding(14.dp)
     ) {
         Row(
@@ -714,13 +867,28 @@ private fun ProblemItemCard(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left Difficulty Accent Indicator Bar
+            if (isMultiSelectMode) {
+                Box(
+                    modifier = Modifier
+                        .size(20.dp)
+                        .clip(CircleShape)
+                        .background(if (isSelected) ThemeAccentBlue else ThemeInnerBoxBg)
+                        .border(1.dp, if (isSelected) ThemeAccentBlue else ThemeInnerBoxBorder, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isSelected) {
+                        Icon(Icons.Default.Check, contentDescription = null, tint = Color.Black, modifier = Modifier.size(13.dp))
+                    }
+                }
+            }
+
+            // Left Status Accent Indicator Bar (Green = Submitted, Red = Unsolved Attempted/TLE, Yellow = Not Solved)
             Box(
                 modifier = Modifier
                     .width(4.dp)
                     .height(48.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(diffColor)
+                    .background(statusColor)
             )
 
             Column(
@@ -736,12 +904,12 @@ private fun ProblemItemCard(
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f, fill = false)
                     ) {
-                        if (!problem.isDownloadedOffline) {
+                        if (!problem.isDownloadedOffline && !isMultiSelectMode) {
                             Box(
                                 modifier = Modifier
-                                    .size(24.dp)
+                                    .size(22.dp)
                                     .clip(CircleShape)
                                     .background(ThemeAccentBlue.copy(alpha = 0.2f))
                                     .border(1.dp, ThemeAccentBlue.copy(alpha = 0.5f), CircleShape)
@@ -752,19 +920,12 @@ private fun ProblemItemCard(
                                     imageVector = Icons.Default.Add,
                                     contentDescription = "Download Offline",
                                     tint = ThemeAccentBlue,
-                                    modifier = Modifier.size(15.dp)
+                                    modifier = Modifier.size(14.dp)
                                 )
                             }
                         }
                         Text(
-                            text = "#${problem.frontendId}",
-                            color = ThemeTextSecondary,
-                            fontSize = 13.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
-                        )
-                        Text(
-                            text = problem.title,
+                            text = "${problem.frontendId}. ${problem.title}",
                             color = ThemeTextPrimary,
                             fontSize = 14.5.sp,
                             fontWeight = FontWeight.Bold,
@@ -1020,7 +1181,7 @@ fun LeetCodeProblemDetailView(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = "#${problem.frontendId}. ${problem.title}",
+                        text = "${problem.frontendId}. ${problem.title}",
                         color = ThemeTextPrimary,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
@@ -2133,6 +2294,10 @@ private fun GeneralNotesSection(
     var showAddOptionsDialog by remember { mutableStateOf(false) }
     var activeBinaryDocModal by remember { mutableStateOf<CustomNote?>(null) }
 
+    var isMultiSelectMode by remember { mutableStateOf(false) }
+    var selectedNoteIds by remember { mutableStateOf(setOf<String>()) }
+    var showBulkDeleteConfirmation by remember { mutableStateOf(false) }
+
     val docPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -2155,39 +2320,103 @@ private fun GeneralNotesSection(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // Header with "+ New Note"
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "${notes.size} Standalone Notes",
-                color = ThemeTextSecondary,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium
-            )
-
-            Button(
-                onClick = { showAddOptionsDialog = true },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = ThemeAccentBlue,
-                    contentColor = Color.Black
-                ),
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.height(34.dp)
+        if (isMultiSelectMode) {
+            // Multi-Select Action Bar
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "New Note",
-                        tint = Color.Black,
-                        modifier = Modifier.size(16.dp)
+                    IconButton(
+                        onClick = {
+                            isMultiSelectMode = false
+                            selectedNoteIds = emptySet()
+                        },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Cancel", tint = ThemeTextSecondary)
+                    }
+                    Text(
+                        text = "${selectedNoteIds.size} Selected",
+                        color = ThemeTextPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
                     )
-                    Text("New Note", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    TextButton(
+                        onClick = {
+                            selectedNoteIds = if (selectedNoteIds.size == notes.size) emptySet() else notes.map { it.id }.toSet()
+                        }
+                    ) {
+                        Text(
+                            text = if (selectedNoteIds.size == notes.size) "Deselect All" else "Select All",
+                            color = ThemeAccentBlue,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    if (selectedNoteIds.isNotEmpty()) {
+                        Button(
+                            onClick = { showBulkDeleteConfirmation = true },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = ThemeAccentRed,
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Delete (${selectedNoteIds.size})", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        } else {
+            // Header with "+ New Note"
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${notes.size} Standalone Notes",
+                    color = ThemeTextSecondary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+
+                Button(
+                    onClick = { showAddOptionsDialog = true },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ThemeAccentBlue,
+                        contentColor = Color.Black
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.height(34.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "New Note",
+                            tint = Color.Black,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text("New Note", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
@@ -2228,19 +2457,67 @@ private fun GeneralNotesSection(
         } else {
             notes.forEach { note ->
                 key(note.id) {
+                    val isSelected = selectedNoteIds.contains(note.id)
                     GeneralNoteCard(
                         note = note,
+                        isMultiSelectMode = isMultiSelectMode,
+                        isSelected = isSelected,
                         onClick = {
-                            if (note.isBinaryDoc) {
+                            if (isMultiSelectMode) {
+                                selectedNoteIds = if (isSelected) selectedNoteIds - note.id else selectedNoteIds + note.id
+                            } else if (note.isBinaryDoc) {
                                 activeBinaryDocModal = note
                             } else {
                                 onSelectNote(note)
+                            }
+                        },
+                        onLongClick = {
+                            if (!isMultiSelectMode) {
+                                isMultiSelectMode = true
+                                selectedNoteIds = setOf(note.id)
                             }
                         }
                     )
                 }
             }
         }
+    }
+
+    if (showBulkDeleteConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showBulkDeleteConfirmation = false },
+            containerColor = ThemeCardBgElevated,
+            shape = RoundedCornerShape(18.dp),
+            modifier = Modifier.border(1.dp, ThemeCardBorder, RoundedCornerShape(18.dp)),
+            title = { Text("Delete Notes", color = ThemeTextPrimary, fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "Are you sure you want to delete ${selectedNoteIds.size} note${if (selectedNoteIds.size > 1) "s" else ""} permanently?",
+                    color = ThemeTextSecondary,
+                    fontSize = 13.5.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val idsToDelete = selectedNoteIds.toList()
+                        showBulkDeleteConfirmation = false
+                        isMultiSelectMode = false
+                        selectedNoteIds = emptySet()
+                        idsToDelete.forEach { onDeleteNote(it) }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ThemeAccentRed, contentColor = Color.White),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Delete", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBulkDeleteConfirmation = false }) {
+                    Text("Cancel", color = ThemeTextSecondary)
+                }
+            }
+        )
     }
 
     if (showAddOptionsDialog) {
@@ -2398,10 +2675,14 @@ private fun GeneralNotesSection(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun GeneralNoteCard(
     note: CustomNote,
-    onClick: () -> Unit
+    isMultiSelectMode: Boolean = false,
+    isSelected: Boolean = false,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {}
 ) {
     val dateStr = remember(note.lastModifiedMillis) {
         val sdf = SimpleDateFormat("MMM dd, yyyy • HH:mm", Locale.getDefault())
@@ -2412,67 +2693,91 @@ private fun GeneralNoteCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(ThemeCardBg)
+            .background(if (isSelected) ThemeAccentBlue.copy(alpha = 0.15f) else ThemeCardBg)
             .border(
                 1.dp,
-                ThemeCardBorder,
+                if (isSelected) ThemeAccentBlue else ThemeCardBorder,
                 RoundedCornerShape(16.dp)
             )
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .padding(14.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.weight(1f, fill = false)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (isMultiSelectMode) {
+                Box(
+                    modifier = Modifier
+                        .size(20.dp)
+                        .clip(CircleShape)
+                        .background(if (isSelected) ThemeAccentBlue else ThemeInnerBoxBg)
+                        .border(1.dp, if (isSelected) ThemeAccentBlue else ThemeInnerBoxBorder, CircleShape),
+                    contentAlignment = Alignment.Center
                 ) {
-                    if (note.isBinaryDoc) {
-                        Icon(
-                            imageVector = Icons.Default.Description,
-                            contentDescription = "Document",
-                            tint = ThemeAccentBlue,
-                            modifier = Modifier.size(16.dp)
-                        )
+                    if (isSelected) {
+                        Icon(Icons.Default.Check, contentDescription = null, tint = Color.Black, modifier = Modifier.size(13.dp))
                     }
-                    Text(
-                        text = note.title,
-                        color = ThemeTextPrimary,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = dateStr,
-                    color = ThemeTextMuted,
-                    fontSize = 10.sp,
-                    maxLines = 1
-                )
             }
 
-            // Preview excerpt
-            val preview = if (note.isBinaryDoc) {
-                "Document Attachment • Tap to open or manage"
-            } else {
-                note.content.lines().filter { it.isNotBlank() && !it.startsWith("#") }.take(2).joinToString(" ")
-                    .ifBlank { "Click to view note content..." }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
+                        if (note.isBinaryDoc) {
+                            Icon(
+                                imageVector = Icons.Default.Description,
+                                contentDescription = "Document",
+                                tint = ThemeAccentBlue,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        Text(
+                            text = note.title,
+                            color = ThemeTextPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = dateStr,
+                        color = ThemeTextMuted,
+                        fontSize = 10.sp,
+                        maxLines = 1
+                    )
+                }
+
+                // Preview excerpt
+                val preview = if (note.isBinaryDoc) {
+                    "Document Attachment • Tap to open or manage"
+                } else {
+                    note.content.lines().filter { it.isNotBlank() && !it.startsWith("#") }.take(2).joinToString(" ")
+                        .ifBlank { "Click to view note content..." }
+                }
+                Text(
+                    text = preview,
+                    color = ThemeTextSecondary,
+                    fontSize = 12.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 16.sp
+                )
             }
-            Text(
-                text = preview,
-                color = ThemeTextSecondary,
-                fontSize = 12.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                lineHeight = 16.sp
-            )
         }
     }
 }
