@@ -349,6 +349,40 @@ class MainScreenViewModelTest {
     }
 
     @Test
+    fun testSyncSingleProblemFromGitHub_silentDoesNotTriggerModal() = runTest {
+        val fakeRepo = FakeDataRepository()
+        val viewModel = MainScreenViewModel(fakeRepo)
+
+        viewModel.syncSingleProblemFromGitHub("0001-two-sum", silent = true)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("0001-two-sum", viewModel.selectedProblemDetail.value?.folderName)
+        assertEquals(null, viewModel.syncMessage.value)
+    }
+
+    @Test
+    fun testDeleteMultipleProblemsOffline() = runTest {
+        val fakeRepo = FakeDataRepository()
+        val viewModel = MainScreenViewModel(fakeRepo)
+
+        viewModel.deleteMultipleProblemsOffline(listOf("0001-two-sum"))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(null, viewModel.selectedProblemDetail.value)
+    }
+
+    @Test
+    fun testDeleteMultipleGeneralNotes() = runTest {
+        val fakeRepo = FakeDataRepository()
+        val viewModel = MainScreenViewModel(fakeRepo)
+
+        viewModel.deleteMultipleGeneralNotes(listOf("note-1", "note-2"))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(null, viewModel.selectedGeneralNote.value)
+    }
+
+    @Test
     fun testSaveBackupRepoTriggersSync() = runTest {
         val fakeRepo = FakeDataRepository()
         val viewModel = MainScreenViewModel(fakeRepo)

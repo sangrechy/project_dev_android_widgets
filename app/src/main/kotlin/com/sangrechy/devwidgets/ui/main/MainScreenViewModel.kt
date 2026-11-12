@@ -25,6 +25,8 @@ import com.sangrechy.devwidgets.data.WallpaperManager
 import com.sangrechy.devwidgets.data.WallpaperPreset
 import com.sangrechy.devwidgets.widget.WidgetManagerHelper
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 
 enum class AppScreen(val title: String) {
     HOME("Home"),
@@ -341,13 +343,11 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
     fun setRefreshInterval(interval: String) {
         _selectedInterval.value = interval
         repository.setRefreshInterval(interval)
-        _syncMessage.value = "Auto-refresh frequency set to $interval"
     }
 
     fun setHeatmapOrientation(orientation: String) {
         _heatmapOrientation.value = orientation
         repository.setHeatmapOrientation(orientation)
-        _syncMessage.value = "Heatmap orientation set to $orientation"
     }
 
     fun checkForUpdates(manual: Boolean = true) {
@@ -428,11 +428,18 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
         _problemsSubTab.value = subTab
     }
 
+    private var searchDebounceJob: Job? = null
+    private var activeSearchJob: Job? = null
+
     fun setProblemsSearchQuery(query: String) {
         _problemsSearchQuery.value = query
+        searchDebounceJob?.cancel()
         val trimmed = query.trim()
         if (trimmed.isNotBlank()) {
-            searchLeetCode(trimmed)
+            searchDebounceJob = viewModelScope.launch {
+                delay(200)
+                searchLeetCode(trimmed)
+            }
         } else {
             clearLeetCodeSearchResults()
         }
@@ -478,7 +485,8 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
 
     fun searchLeetCode(query: String) {
         val q = query.trim()
-        viewModelScope.launch {
+        activeSearchJob?.cancel()
+        activeSearchJob = viewModelScope.launch {
             _isSearchingLeetCode.value = true
             val res = problemRepo.searchLeetCode(q)
             _isSearchingLeetCode.value = false
@@ -491,6 +499,8 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
     }
 
     fun clearLeetCodeSearchResults() {
+        searchDebounceJob?.cancel()
+        activeSearchJob?.cancel()
         _leetCodeSearchResults.value = emptyList()
         _isSearchingLeetCode.value = false
     }
@@ -533,16 +543,31 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
         }
     }
 
-    fun deleteProblemOffline(folderName: String) {
+    fun deleteProblemOffline(folderName: String, silent: Boolean = false) {
         viewModelScope.launch {
             val success = problemRepo.deleteProblemOffline(folderName)
             if (success) {
-                _syncMessage.value = "Removed $folderName from offline storage"
+                if (!silent) {
+                    _syncMessage.value = "Removed $folderName from offline storage"
+                }
                 loadProblems()
                 if (_selectedProblemDetail.value?.folderName == folderName) {
                     _selectedProblemDetail.value = null
                 }
             }
+        }
+    }
+
+    fun deleteMultipleProblemsOffline(folderNames: List<String>) {
+        if (folderNames.isEmpty()) return
+        viewModelScope.launch {
+            folderNames.forEach { folderName ->
+                problemRepo.deleteProblemOffline(folderName)
+                if (_selectedProblemDetail.value?.folderName == folderName) {
+                    _selectedProblemDetail.value = null
+                }
+            }
+            loadProblems()
         }
     }
 
@@ -624,10 +649,12 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
         }
     }
 
-    fun syncSingleProblemFromGitHub(folderName: String) {
+    fun syncSingleProblemFromGitHub(folderName: String, silent: Boolean = false) {
         viewModelScope.launch {
             _isSyncingBackupRepo.value = true
-            _syncMessage.value = "Syncing code and notes for $folderName from GitHub..."
+            if (!silent) {
+                _syncMessage.value = "Syncing code and notes for $folderName from GitHub..."
+            }
             val result = problemRepo.syncSingleProblemFromGitHub(folderName)
             _isSyncingBackupRepo.value = false
             if (result.isSuccess) {
@@ -636,8 +663,10 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
                     _selectedProblemDetail.value = updated
                 }
                 loadProblems()
-                _syncMessage.value = "Synced code and notes from GitHub!"
-            } else {
+                if (!silent) {
+                    _syncMessage.value = "Synced code and notes from GitHub!"
+                }
+            } else if (!silent) {
                 _syncMessage.value = "Sync failed: ${result.exceptionOrNull()?.message ?: "Check repository or network"}"
             }
         }
@@ -652,7 +681,7 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
             val saved = problemRepo.saveGeneralNote(note)
             loadGeneralNotes()
             _selectedGeneralNote.value = saved
-            _syncMessage.value = "Saved note '${saved.title}'"
+            _syncMessage.value = "Successfully saved"
         }
     }
 
@@ -676,12 +705,24 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
         }
     }
 
+    fun deleteMultipleGeneralNotes(ids: List<String>) {
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            ids.forEach { id ->
+                problemRepo.deleteGeneralNote(id)
+                if (_selectedGeneralNote.value?.id == id) {
+                    _selectedGeneralNote.value = null
+                }
+            }
+            loadGeneralNotes()
+        }
+    }
+
     // --- Wallpaper Actions ---
 
     fun setAppWallpaperDefault() {
         repository.setAppWallpaperType("NONE")
         _appWallpaperType.value = "NONE"
-        _syncMessage.value = "App wallpaper reset to Obsidian theme"
     }
 
     fun setAppWallpaperPreset(presetId: String) {
@@ -689,7 +730,6 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
         repository.setAppWallpaperPreset(presetId)
         _appWallpaperType.value = "PRESET"
         _appWallpaperPreset.value = presetId
-        _syncMessage.value = "Wallpaper updated!"
     }
 
     fun setAppWallpaperCustomFromUri(uri: android.net.Uri) {
@@ -717,7 +757,6 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
         repository.setWidgetWallpaperType(type)
         _widgetWallpaperType.value = type
         applyWidgetWallpaperToAllWidgets()
-        _syncMessage.value = "Widget background style updated!"
     }
 
     fun getWidgetWallpaperTypeFor(widgetKey: String): String {
@@ -730,7 +769,6 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
         repository.setWidgetWallpaperTypeFor(widgetKey, type)
         _widgetSpecificWallpapers.value = _widgetSpecificWallpapers.value + (norm to type)
         applyWidgetWallpaperToAllWidgets()
-        _syncMessage.value = "Updated $widgetKey wallpaper"
     }
 
     fun getWidgetElementOffsetX(widgetKey: String): Float = repository.getWidgetElementOffsetX(widgetKey)

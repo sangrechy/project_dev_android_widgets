@@ -154,6 +154,8 @@ fun ProblemsScreenContent(
     },
     onUploadProblemDocument: (folderName: String, filename: String, bytes: ByteArray) -> Unit = { _, _, _ -> },
     onUploadGeneralDocument: (filename: String, bytes: ByteArray) -> Unit = { _, _ -> },
+    onBulkDeleteProblems: (List<String>) -> Unit = { list -> list.forEach(onDeleteProblemOffline) },
+    onBulkDeleteGeneralNotes: (List<String>) -> Unit = { list -> list.forEach(onDeleteGeneralNote) },
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -195,6 +197,7 @@ fun ProblemsScreenContent(
                     onSelectProblem = onSelectProblem,
                     onDownloadProblemOffline = onDownloadProblemOffline,
                     onDeleteProblemOffline = onDeleteProblemOffline,
+                    onBulkDeleteProblems = onBulkDeleteProblems,
                     onSearchLeetCode = onSearchLeetCode,
                     onClearLeetCodeSearch = onClearLeetCodeSearch,
                     onAddProblemFromLeetCode = onAddProblemFromLeetCode,
@@ -208,6 +211,7 @@ fun ProblemsScreenContent(
                     notes = generalNotes,
                     onSelectNote = onSelectGeneralNote,
                     onDeleteNote = onDeleteGeneralNote,
+                    onBulkDeleteNotes = onBulkDeleteGeneralNotes,
                     onUploadDocument = onUploadGeneralDocument,
                     onCreateNewNote = {
                         onSelectGeneralNote(
@@ -407,6 +411,7 @@ private fun LeetCodeProblemsSection(
     onSelectProblem: (OfflineProblem) -> Unit,
     onDownloadProblemOffline: (folderName: String, titleSlug: String) -> Unit,
     onDeleteProblemOffline: (folderName: String) -> Unit,
+    onBulkDeleteProblems: (List<String>) -> Unit = { list -> list.forEach(onDeleteProblemOffline) },
     onSearchLeetCode: (String) -> Unit,
     onClearLeetCodeSearch: () -> Unit,
     onAddProblemFromLeetCode: (String, (Boolean) -> Unit) -> Unit,
@@ -608,6 +613,7 @@ private fun LeetCodeProblemsSection(
         list
     }
 
+    var visibleLimit by remember(searchQuery, difficultyFilter) { mutableIntStateOf(30) }
     var isProblemMultiSelectMode by remember { mutableStateOf(false) }
     var selectedProblemFolders by remember { mutableStateOf(setOf<String>()) }
     var showProblemBulkDeleteConfirm by remember { mutableStateOf(false) }
@@ -737,7 +743,7 @@ private fun LeetCodeProblemsSection(
         }
     } else {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            filteredProblems.forEach { problem ->
+            filteredProblems.take(visibleLimit).forEach { problem ->
                 key(problem.folderName) {
                     val isSelected = selectedProblemFolders.contains(problem.folderName)
                     ProblemItemCard(
@@ -766,6 +772,28 @@ private fun LeetCodeProblemsSection(
                     )
                 }
             }
+
+            if (filteredProblems.size > visibleLimit) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    OutlinedButton(
+                        onClick = { visibleLimit += 30 },
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, ThemeCardBorder),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = ThemeAccentBlue)
+                    ) {
+                        Text(
+                            "Show More Problems (${filteredProblems.size - visibleLimit} remaining)",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -790,7 +818,7 @@ private fun LeetCodeProblemsSection(
                         showProblemBulkDeleteConfirm = false
                         isProblemMultiSelectMode = false
                         selectedProblemFolders = emptySet()
-                        foldersToDelete.forEach { onDeleteProblemOffline(it) }
+                        onBulkDeleteProblems(foldersToDelete)
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = ThemeAccentRed, contentColor = Color.White),
                     shape = RoundedCornerShape(8.dp)
@@ -930,7 +958,8 @@ private fun ProblemItemCard(
                             fontSize = 14.5.sp,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
                     }
 
@@ -2287,6 +2316,7 @@ private fun GeneralNotesSection(
     notes: List<CustomNote>,
     onSelectNote: (CustomNote) -> Unit,
     onDeleteNote: (String) -> Unit,
+    onBulkDeleteNotes: (List<String>) -> Unit = { list -> list.forEach(onDeleteNote) },
     onUploadDocument: (filename: String, bytes: ByteArray) -> Unit,
     onCreateNewNote: () -> Unit
 ) {
@@ -2504,7 +2534,7 @@ private fun GeneralNotesSection(
                         showBulkDeleteConfirmation = false
                         isMultiSelectMode = false
                         selectedNoteIds = emptySet()
-                        idsToDelete.forEach { onDeleteNote(it) }
+                        onBulkDeleteNotes(idsToDelete)
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = ThemeAccentRed, contentColor = Color.White),
                     shape = RoundedCornerShape(8.dp)

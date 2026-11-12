@@ -1358,15 +1358,19 @@ class OfflineProblemRepository(
         val targetDir = File(baseProblemsDir, folderName).apply { mkdirs() }
         val pNotesDir = getProblemNotesDir(folderName).apply { mkdirs() }
 
-        // Candidate folder names (e.g. "1411-number-of-ways-to-paint-n-3-grid", "0001-two-sum", "1-two-sum")
-        val dashIdx = folderName.indexOf('-')
-        val numPart = if (dashIdx != -1) folderName.substring(0, dashIdx) else ""
-        val slugPart = if (dashIdx != -1) folderName.substring(dashIdx + 1) else folderName
+        // Candidate folder names (e.g. "1411.number-of-ways...", "1411-number-of-ways...", "0001-two-sum")
+        val sepIdx = folderName.indexOfFirst { it == '-' || it == '.' || it == '_' }
+        val numPart = if (sepIdx != -1) folderName.substring(0, sepIdx).trim() else ""
+        val slugPart = if (sepIdx != -1) folderName.substring(sepIdx + 1).trim() else folderName
         val candidateNames = mutableListOf(folderName)
         val num = numPart.toIntOrNull()
         if (num != null) {
             candidateNames.add("%04d-%s".format(num, slugPart))
             candidateNames.add("$num-$slugPart")
+            candidateNames.add("%04d.%s".format(num, slugPart))
+            candidateNames.add("$num.$slugPart")
+            candidateNames.add("%04d_%s".format(num, slugPart))
+            candidateNames.add("${num}_$slugPart")
             candidateNames.add(num.toString())
         }
         if (slugPart.isNotBlank()) {
@@ -1458,6 +1462,29 @@ class OfflineProblemRepository(
             } catch (_: Exception) {}
         }
 
+        fun fetchAndSaveSingleFile(remoteFilePath: String, targetFile: File): Boolean {
+            val encodedPath = encodeGitHubPath(remoteFilePath)
+            val url = "https://api.github.com/repos/$owner/$repo/contents/$encodedPath"
+            val req = Request.Builder()
+                .url(url)
+                .header("Accept", "application/vnd.github.v3.raw")
+                .header("User-Agent", "DevLife-Android")
+                .apply { if (token.isNotBlank()) header("Authorization", "Bearer $token") }
+                .build()
+            try {
+                okHttpClient.newCall(req).execute().use { resp ->
+                    if (resp.isSuccessful && resp.body != null) {
+                        targetFile.parentFile?.mkdirs()
+                        targetFile.writeBytes(resp.body!!.bytes())
+                        targetFile.setLastModified(System.currentTimeMillis())
+                        downloadedFiles++
+                        return true
+                    }
+                }
+            } catch (_: Exception) {}
+            return false
+        }
+
         // 1. Fetch problem files from leetcode_problem/<cand> or root <cand>
         for (cand in distinctCandidates) {
             fetchAndSaveDir("leetcode_problem/$cand", targetDir)
@@ -1471,6 +1498,21 @@ class OfflineProblemRepository(
             fetchAndSaveDir("notes/$cand", pNotesDir)
             fetchAndSaveDir("leetcode_problem/$cand/notes", pNotesDir)
             fetchAndSaveDir("$cand/notes", pNotesDir)
+            fetchAndSaveSingleFile("notes/$cand.md", File(pNotesDir, "notes.md"))
+            fetchAndSaveSingleFile("notes/$cand.txt", File(pNotesDir, "notes.txt"))
+        }
+
+        // 2.5 Fallback: if problem dir has README.md and pNotesDir has no user notes, copy README.md as notes.md
+        val readmeFile = File(targetDir, "README.md")
+        if (readmeFile.exists() && readmeFile.length() > 0) {
+            val userNotes = pNotesDir.listFiles { f -> f.isFile && !f.name.startsWith(".") }
+            if (userNotes.isNullOrEmpty()) {
+                val targetNote = File(pNotesDir, "notes.md")
+                try {
+                    readmeFile.copyTo(targetNote, overwrite = true)
+                    targetNote.setLastModified(System.currentTimeMillis())
+                } catch (_: Exception) {}
+            }
         }
 
         // 3. Purge stub file if a real submitted solution was downloaded
@@ -1617,23 +1659,26 @@ class OfflineProblemRepository(
         if (text.contains("hash") || text.contains("map") || text.contains("two sum") || text.contains("two-sum")) tags.add("Hash Table")
         if (text.contains("array") || text.contains("sorted") || text.contains("sum") ||
             text.contains("subarrays") || text.contains("duplicate") || text.contains("stock") ||
-            text.contains("element") || text.contains("rotate")
+            text.contains("element") || text.contains("rotate") || text.contains("nums")
         ) {
             tags.add("Array")
         }
-        if (text.contains("linked list") || text.contains("linked-list") || text.contains("node")) tags.add("Linked List")
+        if (text.contains("linked list") || text.contains("linked-list") || text.contains("node") || text.contains("listnode")) tags.add("Linked List")
         if (text.contains("search") || text.contains("binary search") || text.contains("binary-search")) tags.add("Binary Search")
-        if (text.contains("two pointer") || text.contains("two-pointer") || text.contains("pointers") || text.contains("container")) tags.add("Two Pointers")
-        if (text.contains("stack")) tags.add("Stack")
-        if (text.contains("queue")) tags.add("Queue")
-        if (text.contains("heap") || text.contains("priority")) tags.add("Heap")
-        if (text.contains("greedy") || text.contains("interval") || text.contains("meeting")) tags.add("Greedy")
-        if (text.contains("math") || text.contains("digit") || text.contains("integer") || text.contains("prime") || text.contains("pow") || text.contains("divide")) tags.add("Math")
-        if (text.contains("bit") || text.contains("xor") || text.contains("and") || text.contains("hamming")) tags.add("Bit Manipulation")
-        if (text.contains("backtrack") || text.contains("permutation") || text.contains("combination") || text.contains("subset")) tags.add("Backtracking")
+        if (text.contains("two pointer") || text.contains("two-pointer") || text.contains("pointers") || text.contains("container") || text.contains("water") || text.contains("trap")) tags.add("Two Pointers")
+        if (text.contains("stack") || text.contains("monotonic")) tags.add("Stack")
+        if (text.contains("queue") || text.contains("deque")) tags.add("Queue")
+        if (text.contains("heap") || text.contains("priority") || text.contains("kth")) tags.add("Heap")
+        if (text.contains("greedy") || text.contains("interval") || text.contains("meeting") || text.contains("gas") || text.contains("assign")) tags.add("Greedy")
+        if (text.contains("math") || text.contains("digit") || text.contains("integer") || text.contains("prime") || text.contains("pow") || text.contains("divide") || text.contains("number") || text.contains("factorial")) tags.add("Math")
+        if (text.contains("bit") || text.contains("xor") || text.contains("and") || text.contains("hamming") || text.contains("binary")) tags.add("Bit Manipulation")
+        if (text.contains("backtrack") || text.contains("permutation") || text.contains("combination") || text.contains("subset") || text.contains("n-queens")) tags.add("Backtracking")
         if (text.contains("sort")) tags.add("Sorting")
-        if (text.contains("trie") || text.contains("prefix")) tags.add("Trie")
+        if (text.contains("trie") || text.contains("prefix") || text.contains("autocomplete")) tags.add("Trie")
         if (text.contains("sliding") || text.contains("window")) tags.add("Sliding Window")
+        if (text.contains("dfs") || text.contains("depth")) tags.add("Depth-First Search")
+        if (text.contains("bfs") || text.contains("breadth")) tags.add("Breadth-First Search")
+        if (text.contains("union") || text.contains("disjoint")) tags.add("Union Find")
         return if (tags.isNotEmpty()) tags.distinct() else listOf("Algorithms")
     }
 
@@ -1644,19 +1689,23 @@ class OfflineProblemRepository(
             try { JSONObject(metaFile.readText()) } catch (_: Exception) { JSONObject() }
         } else JSONObject()
 
-        val dashIdx = folderName.indexOf('-')
-        val firstPrefix = if (dashIdx != -1) folderName.substring(0, dashIdx).trimStart('0') else ""
+        val sepIdx = folderName.indexOfFirst { it == '-' || it == '.' || it == '_' }
+        val firstPrefix = if (sepIdx != -1) folderName.substring(0, sepIdx).trimStart('0').trim() else ""
         val parsedId = if (firstPrefix.isNotEmpty() && firstPrefix.all { it.isDigit() }) firstPrefix else "0"
-        val parsedSlug = if (dashIdx != -1 && firstPrefix.all { it.isDigit() }) folderName.substring(dashIdx + 1) else folderName
-        val parsedTitle = parsedSlug.split('-').joinToString(" ") { word ->
+        val parsedSlug = if (sepIdx != -1 && firstPrefix.all { it.isDigit() }) {
+            folderName.substring(sepIdx + 1).trim()
+        } else {
+            folderName
+        }
+        val parsedTitle = parsedSlug.split('-', '.', '_', ' ').filter { it.isNotBlank() }.joinToString(" ") { word ->
             word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
         }
 
         val metaFid = meta.optString("frontend_id").ifBlank { meta.optString("problem_id") }
-        val frontendId = if (metaFid.isNotBlank()) metaFid else parsedId
-        val title = meta.optString("problem_title").ifBlank { parsedTitle }
+        var frontendId = if (metaFid.isNotBlank()) metaFid else parsedId
+        var title = meta.optString("problem_title").ifBlank { parsedTitle }
         val titleSlug = meta.optString("problem_slug").ifBlank { parsedSlug }
-        val difficulty = meta.optString("difficulty", "Medium")
+        var difficulty = meta.optString("difficulty", "")
         val language = meta.optString("language", "").trim()
         val runtime = meta.optString("runtime", "")
         val rawRuntimePct = if (meta.isNull("runtime_percentile")) "" else meta.optString("runtime_percentile", "")
@@ -1689,14 +1738,31 @@ class OfflineProblemRepository(
                 topicTags.addAll(commaTags.split(",").map { it.trim() }.filter { it.isNotEmpty() })
             }
         }
-        if (topicTags.isEmpty()) {
-            ensureCatalogLoaded()
-            val catItem = inMemoryCatalog[titleSlug]
-                ?: inMemoryCatalog.values.firstOrNull { it.frontendId == frontendId || it.title.equals(title, ignoreCase = true) }
-            if (catItem != null && catItem.topicTags.isNotEmpty()) {
+        ensureCatalogLoaded()
+        val catItem = inMemoryCatalog[titleSlug.lowercase()]
+            ?: inMemoryCatalog[parsedSlug.lowercase()]
+            ?: inMemoryCatalog.values.firstOrNull { 
+                (frontendId != "0" && it.frontendId == frontendId) || 
+                it.title.equals(title, ignoreCase = true) ||
+                it.titleSlug.equals(titleSlug, ignoreCase = true)
+            }
+        if (catItem != null) {
+            if (frontendId == "0" && catItem.frontendId.isNotBlank()) {
+                frontendId = catItem.frontendId
+            }
+            if ((title == parsedTitle || title.isBlank()) && catItem.title.isNotBlank()) {
+                title = catItem.title
+            }
+            if (difficulty.isBlank() || difficulty == "Medium") {
+                if (catItem.difficulty.isNotBlank()) {
+                    difficulty = catItem.difficulty
+                }
+            }
+            if (topicTags.isEmpty() && catItem.topicTags.isNotEmpty()) {
                 topicTags.addAll(catItem.topicTags)
             }
         }
+        if (difficulty.isBlank()) difficulty = "Medium"
         if (topicTags.isEmpty()) {
             topicTags.addAll(inferTopicTags(title, titleSlug))
         }
@@ -1819,6 +1885,8 @@ class OfflineProblemRepository(
                 )
             )
         }
+
+        notes.sortByDescending { it.lastModifiedMillis }
 
         return OfflineProblem(
             folderName = folderName,

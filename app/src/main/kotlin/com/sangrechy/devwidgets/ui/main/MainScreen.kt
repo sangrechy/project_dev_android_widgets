@@ -586,6 +586,8 @@ fun MainScreen(
                             onSelectGeneralNote = viewModel::selectGeneralNote,
                             onSaveGeneralNote = viewModel::saveGeneralNote,
                             onDeleteGeneralNote = viewModel::deleteGeneralNote,
+                            onBulkDeleteProblems = viewModel::deleteMultipleProblemsOffline,
+                            onBulkDeleteGeneralNotes = viewModel::deleteMultipleGeneralNotes,
                             onUploadProblemDocument = viewModel::uploadProblemDocument,
                             onUploadGeneralDocument = viewModel::uploadGeneralDocument
                         )
@@ -652,7 +654,49 @@ fun MainScreen(
             }
         }
 
-        // Centered Modal Dialog for Alerts, Confirmations, and Save Notifications
+        // Problem Detail In-Hierarchy View (Wallpaper completely visible behind outer margins)
+        selectedProblemDetail?.let { problem ->
+            BackHandler(onBack = { viewModel.selectProblem(null) })
+            LeetCodeProblemDetailView(
+                problem = problem,
+                activeNoteIndex = activeProblemNoteIndex,
+                onDismiss = { viewModel.selectProblem(null) },
+                onActiveNoteIndexChanged = viewModel::setActiveProblemNoteIndex,
+                onDownloadOffline = { viewModel.downloadProblemOffline(problem.folderName, problem.titleSlug) },
+                onDeleteOffline = { viewModel.deleteProblemOffline(problem.folderName) },
+                onSaveNote = { filename, content -> viewModel.saveProblemNote(problem.folderName, filename, content) },
+                onDeleteNote = { filename -> viewModel.deleteProblemNote(problem.folderName, filename) },
+                onUploadNoteDocument = { filename, bytes -> viewModel.uploadProblemDocument(problem.folderName, filename, bytes) },
+                onSyncFromGit = { viewModel.syncSingleProblemFromGitHub(problem.folderName, silent = true) },
+                isSyncingFromGit = isSyncingBackupRepo,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = 28.dp, bottom = 12.dp, start = 12.dp, end = 12.dp)
+            )
+        }
+
+        // General Note Editor In-Hierarchy View (Wallpaper completely visible behind outer margins)
+        selectedGeneralNote?.let { note ->
+            BackHandler(onBack = { viewModel.selectGeneralNote(null) })
+            GeneralNoteEditorView(
+                note = note,
+                isNew = note.id.isBlank(),
+                onDismiss = { viewModel.selectGeneralNote(null) },
+                onSave = { updated ->
+                    viewModel.saveGeneralNote(updated)
+                    viewModel.selectGeneralNote(null)
+                },
+                onDelete = { id ->
+                    viewModel.deleteGeneralNote(id)
+                    viewModel.selectGeneralNote(null)
+                },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = 28.dp, bottom = 12.dp, start = 12.dp, end = 12.dp)
+            )
+        }
+
+        // Centered Modal Dialog for Alerts, Confirmations, and Save Notifications (Rendered ON TOP of detail views)
         syncMessage?.let { msg ->
             val isError = msg.contains("fail", ignoreCase = true) || msg.contains("error", ignoreCase = true)
             AlertDialog(
@@ -708,48 +752,6 @@ fun MainScreen(
                 }
             )
         }
-
-        // Problem Detail In-Hierarchy View (Wallpaper completely visible behind outer margins)
-                selectedProblemDetail?.let { problem ->
-                    BackHandler(onBack = { viewModel.selectProblem(null) })
-                    LeetCodeProblemDetailView(
-                        problem = problem,
-                        activeNoteIndex = activeProblemNoteIndex,
-                        onDismiss = { viewModel.selectProblem(null) },
-                        onActiveNoteIndexChanged = viewModel::setActiveProblemNoteIndex,
-                        onDownloadOffline = { viewModel.downloadProblemOffline(problem.folderName, problem.titleSlug) },
-                        onDeleteOffline = { viewModel.deleteProblemOffline(problem.folderName) },
-                        onSaveNote = { filename, content -> viewModel.saveProblemNote(problem.folderName, filename, content) },
-                        onDeleteNote = { filename -> viewModel.deleteProblemNote(problem.folderName, filename) },
-                        onUploadNoteDocument = { filename, bytes -> viewModel.uploadProblemDocument(problem.folderName, filename, bytes) },
-                        onSyncFromGit = { viewModel.syncSingleProblemFromGitHub(problem.folderName) },
-                        isSyncingFromGit = isSyncingBackupRepo,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(top = 28.dp, bottom = 12.dp, start = 12.dp, end = 12.dp)
-                    )
-                }
-
-                // General Note Editor In-Hierarchy View (Wallpaper completely visible behind outer margins)
-                selectedGeneralNote?.let { note ->
-                    BackHandler(onBack = { viewModel.selectGeneralNote(null) })
-                    GeneralNoteEditorView(
-                        note = note,
-                        isNew = note.id.isBlank(),
-                        onDismiss = { viewModel.selectGeneralNote(null) },
-                        onSave = { updated ->
-                            viewModel.saveGeneralNote(updated)
-                            viewModel.selectGeneralNote(null)
-                        },
-                        onDelete = { id ->
-                            viewModel.deleteGeneralNote(id)
-                            viewModel.selectGeneralNote(null)
-                        },
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(top = 28.dp, bottom = 12.dp, start = 12.dp, end = 12.dp)
-                    )
-                }
             }
         }
     }
@@ -2541,7 +2543,7 @@ private fun WidgetsScreenContent(
         var lcOffsetY by remember { mutableStateOf(lcInitialOffset.second.coerceIn(-20f, 20f)) }
 
         WidgetGalleryCard(
-            title = "LeetCode Solved Circle ($lcOuterSize)",
+            title = "LeetCode Solved Circle",
             subtitle = "Circle gauge with responsive sizing ($lcOuterSize) & element positioning",
             tag = "Customizable",
             widgetKey = "leetcode_circle",
@@ -2654,8 +2656,8 @@ private fun WidgetsScreenContent(
         var ghOffsetY by remember { mutableStateOf(ghInitialOffset.second.coerceIn(-20f, 20f)) }
 
         WidgetGalleryCard(
-            title = "GitHub Contribution Circle ()",
-            subtitle = "Circle gauge with responsive sizing () & positioning",
+            title = "GitHub Contribution Circle",
+            subtitle = "Circle gauge with responsive sizing ($ghOuterSize) & element positioning",
             tag = "Customizable",
             widgetKey = "github_circle",
             currentWidgetWallpaper = ghWidgetWallpaper,
@@ -3016,10 +3018,10 @@ private fun WidgetGalleryCard(
                             fontWeight = FontWeight.Medium
                         )
                         listOf(
+                            "MATCH_APP" to "App",
+                            "TRANSLUCENT" to "Glassy",
                             "DEFAULT" to "Obsidian",
-                            "TRANSLUCENT" to "Frost",
-                            "TRANSPARENT" to "Clear",
-                            "MATCH_APP" to "App"
+                            "TRANSPARENT" to "Clear"
                         ).forEach { (styleKey, label) ->
                             val isSelected = currentWidgetWallpaper == styleKey
                             Box(
@@ -3134,7 +3136,7 @@ private fun WidgetGalleryCard(
                     }
                 }
 
-                // Position / Move Controls (if movable)
+                // Position Controls (Horizontal shift for circle pods)
                 if (hasOffsetControls) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -3148,65 +3150,41 @@ private fun WidgetGalleryCard(
                             fontWeight = FontWeight.Medium
                         )
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            if (offsetX != 0f || offsetY != 0f) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(ThemeAccentRed.copy(alpha = 0.2f))
-                                        .border(1.dp, ThemeAccentRed.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
-                                        .clickable { onResetOffset?.invoke() }
-                                        .padding(horizontal = 6.dp, vertical = 4.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("↺ Reset", color = ThemeTextPrimary, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
-                                }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(ThemeCardBg)
+                                    .border(1.dp, ThemeCardBorder, RoundedCornerShape(8.dp))
+                                    .clickable { onNudge?.invoke(-12f, 0f) }
+                                    .padding(horizontal = 8.dp, vertical = 5.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("← Left", color = ThemeTextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
                             Box(
                                 modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(ThemeCardBg)
-                                    .border(1.dp, ThemeCardBorder, RoundedCornerShape(6.dp))
-                                    .clickable { onNudge?.invoke(-10f, 0f) },
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (offsetX != 0f) ThemeAccentRed.copy(alpha = 0.2f) else ThemeCardBg)
+                                    .border(1.dp, if (offsetX != 0f) ThemeAccentRed.copy(alpha = 0.4f) else ThemeCardBorder, RoundedCornerShape(8.dp))
+                                    .clickable { onResetOffset?.invoke() }
+                                    .padding(horizontal = 8.dp, vertical = 5.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("←", color = ThemeTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("↺ Center", color = ThemeTextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
                             Box(
                                 modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(RoundedCornerShape(6.dp))
+                                    .clip(RoundedCornerShape(8.dp))
                                     .background(ThemeCardBg)
-                                    .border(1.dp, ThemeCardBorder, RoundedCornerShape(6.dp))
-                                    .clickable { onNudge?.invoke(10f, 0f) },
+                                    .border(1.dp, ThemeCardBorder, RoundedCornerShape(8.dp))
+                                    .clickable { onNudge?.invoke(12f, 0f) }
+                                    .padding(horizontal = 8.dp, vertical = 5.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("→", color = ThemeTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(ThemeCardBg)
-                                    .border(1.dp, ThemeCardBorder, RoundedCornerShape(6.dp))
-                                    .clickable { onNudge?.invoke(0f, -5f) },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("↑", color = ThemeTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(ThemeCardBg)
-                                    .border(1.dp, ThemeCardBorder, RoundedCornerShape(6.dp))
-                                    .clickable { onNudge?.invoke(0f, 5f) },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("↓", color = ThemeTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("Right →", color = ThemeTextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }

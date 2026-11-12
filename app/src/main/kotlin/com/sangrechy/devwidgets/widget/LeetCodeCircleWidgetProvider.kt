@@ -51,7 +51,7 @@ class LeetCodeCircleWidgetProvider : AppWidgetProvider() {
             val selectedOuterSize = prefs.getWidgetOuterDivSize("LEETCODE_CIRCLE")
             val defaultHeightDp = if (selectedOuterSize == "x*3") 210f else 140f
             val actualWidthDp = if (minWidthDp > 120f) minWidthDp else 160f
-            val actualHeightDp = if (minHeightDp > 100f) minHeightDp else defaultHeightDp
+            val actualHeightDp = defaultHeightDp
 
             val showHeading = prefs.getWidgetShowHeading("LEETCODE_CIRCLE")
             views.setViewVisibility(R.id.header_bar, if (showHeading) android.view.View.VISIBLE else android.view.View.GONE)
@@ -64,21 +64,16 @@ class LeetCodeCircleWidgetProvider : AppWidgetProvider() {
             )
 
             val offsetX = prefs.getWidgetElementOffsetX("LEETCODE_CIRCLE")
-            val offsetY = prefs.getWidgetElementOffsetY("LEETCODE_CIRCLE")
             val density = context.resources.displayMetrics.density
 
             val innerDivWidthDp = 86f
             val actualMaxOffsetX = ((actualWidthDp - innerDivWidthDp) / 2f).coerceAtLeast(0f)
             val effectiveDxDp = if (actualMaxOffsetX > 0f) offsetX.coerceIn(-actualMaxOffsetX, actualMaxOffsetX) else 0f
-            val effectiveDyDp = offsetY.coerceIn(-24f, 24f)
 
-            val maxShiftPx = (actualMaxOffsetX * 2f * density).toInt()
-            val padLeft = if (effectiveDxDp > 0) (effectiveDxDp * 2f * density).toInt().coerceIn(0, maxShiftPx) else 0
-            val padRight = if (effectiveDxDp < 0) ((-effectiveDxDp) * 2f * density).toInt().coerceIn(0, maxShiftPx) else 0
-            val padTop = if (effectiveDyDp > 0) (effectiveDyDp * 2f * density).toInt().coerceAtLeast(0) else 0
-            val padBottom = if (effectiveDyDp < 0) ((-effectiveDyDp) * 2f * density).toInt().coerceAtLeast(0) else 0
+            val padLeft = if (effectiveDxDp > 0) (effectiveDxDp * density).toInt() else 0
+            val padRight = if (effectiveDxDp < 0) ((-effectiveDxDp) * density).toInt() else 0
 
-            views.setViewPadding(R.id.section_circle_container, padLeft, padTop, padRight, padBottom)
+            views.setViewPadding(R.id.section_circle_container, padLeft, 0, padRight, 0)
 
             val podColor = WallpaperManager.getEffectivePodColor(context, "LEETCODE_CIRCLE")
             val podDrawable = if (podColor == "BLACK") R.drawable.widget_glass_circle_black else R.drawable.widget_glass_circle_white
