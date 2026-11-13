@@ -69,10 +69,10 @@ val ThemeTextPrimary = Color(0xFFFFFFFF)
 val ThemeTextSecondary = Color(0xFFAAAAAA)
 val ThemeTextMuted = Color(0xFF707070)
 
-val ThemeAccentBlue = Color(0xFFFFFFFF)  // Pure White
-val ThemeAccentGreen = Color(0xFFD4D4D4) // Crisp Silver
-val ThemeAccentAmber = Color(0xFFA3A3A3) // Medium Silver
-val ThemeAccentRed = Color(0xFF737373)   // Charcoal Gray
+val ThemeAccentBlue = Color(0xFF38BDF8)
+val ThemeAccentGreen = Color(0xFF00B8A3) // Vibrant Emerald Green (Submitted / LeetCode Easy)
+val ThemeAccentAmber = Color(0xFFFFA116) // Vibrant Amber (Not Solved / LeetCode Medium)
+val ThemeAccentRed = Color(0xFFEF4743)   // Vibrant Red (TLE / WA / LeetCode Hard)
 
 
 /*

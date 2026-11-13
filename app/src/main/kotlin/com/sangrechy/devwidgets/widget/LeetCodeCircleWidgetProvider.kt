@@ -64,16 +64,23 @@ class LeetCodeCircleWidgetProvider : AppWidgetProvider() {
             )
 
             val offsetX = prefs.getWidgetElementOffsetX("LEETCODE_CIRCLE")
+            val offsetY = prefs.getWidgetElementOffsetY("LEETCODE_CIRCLE")
             val density = context.resources.displayMetrics.density
 
             val innerDivWidthDp = 86f
             val actualMaxOffsetX = ((actualWidthDp - innerDivWidthDp) / 2f).coerceAtLeast(0f)
             val effectiveDxDp = if (actualMaxOffsetX > 0f) offsetX.coerceIn(-actualMaxOffsetX, actualMaxOffsetX) else 0f
 
+            val innerDivHeightDp = 86f
+            val actualMaxOffsetY = ((actualHeightDp - innerDivHeightDp) / 2f).coerceAtLeast(0f)
+            val effectiveDyDp = if (actualMaxOffsetY > 0f) offsetY.coerceIn(-actualMaxOffsetY, actualMaxOffsetY) else 0f
+
             val padLeft = if (effectiveDxDp > 0) (effectiveDxDp * density).toInt() else 0
             val padRight = if (effectiveDxDp < 0) ((-effectiveDxDp) * density).toInt() else 0
+            val padTop = if (effectiveDyDp > 0) (effectiveDyDp * density).toInt() else 0
+            val padBottom = if (effectiveDyDp < 0) ((-effectiveDyDp) * density).toInt() else 0
 
-            views.setViewPadding(R.id.section_circle_container, padLeft, 0, padRight, 0)
+            views.setViewPadding(R.id.section_circle_container, padLeft, padTop, padRight, padBottom)
 
             val podColor = WallpaperManager.getEffectivePodColor(context, "LEETCODE_CIRCLE")
             val podDrawable = if (podColor == "BLACK") R.drawable.widget_glass_circle_black else R.drawable.widget_glass_circle_white

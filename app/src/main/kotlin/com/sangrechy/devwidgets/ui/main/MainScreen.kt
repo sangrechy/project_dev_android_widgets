@@ -2551,8 +2551,8 @@ private fun WidgetsScreenContent(
         var lcShowHeading by remember { mutableStateOf(getWidgetShowHeading("leetcode_circle")) }
         var lcWidgetWallpaper by remember { mutableStateOf(getWidgetSpecificWallpaper("leetcode_circle")) }
         val lcInitialOffset = remember { getWidgetElementOffset("leetcode_circle") }
-        var lcOffsetX by remember { mutableStateOf(lcInitialOffset.first.coerceIn(-60f, 60f)) }
-        var lcOffsetY by remember { mutableStateOf(lcInitialOffset.second.coerceIn(-20f, 20f)) }
+        var lcOffsetX by remember { mutableStateOf(lcInitialOffset.first.coerceIn(-80f, 80f)) }
+        var lcOffsetY by remember { mutableStateOf(lcInitialOffset.second.coerceIn(-35f, 35f)) }
 
         WidgetGalleryCard(
             title = "LeetCode Solved Circle",
@@ -2576,12 +2576,13 @@ private fun WidgetsScreenContent(
             },
             hasOffsetControls = true,
             offsetX = lcOffsetX,
-            offsetY = 0f,
-            onNudge = { dx, _ ->
-                val nx = (lcOffsetX + dx).coerceIn(-60f, 60f)
+            offsetY = lcOffsetY,
+            onNudge = { dx, dy ->
+                val nx = (lcOffsetX + dx).coerceIn(-80f, 80f)
+                val ny = (lcOffsetY + dy).coerceIn(-35f, 35f)
                 lcOffsetX = nx
-                lcOffsetY = 0f
-                onSetWidgetElementOffset("leetcode_circle", nx, 0f)
+                lcOffsetY = ny
+                onSetWidgetElementOffset("leetcode_circle", nx, ny)
             },
             onResetOffset = {
                 lcOffsetX = 0f
@@ -2649,10 +2650,20 @@ private fun WidgetsScreenContent(
                                 .offset {
                                     IntOffset(
                                         (lcOffsetX * density.density).roundToInt(),
-                                        0
+                                        (lcOffsetY * density.density).roundToInt()
                                     )
                                 }
                                 .size(86.dp)
+                                .pointerInput(Unit) {
+                                    detectDragGestures { change, dragAmount ->
+                                        change.consume()
+                                        val nx = (lcOffsetX + dragAmount.x / density.density).coerceIn(-80f, 80f)
+                                        val ny = (lcOffsetY + dragAmount.y / density.density).coerceIn(-35f, 35f)
+                                        lcOffsetX = nx
+                                        lcOffsetY = ny
+                                        onSetWidgetElementOffset("leetcode_circle", nx, ny)
+                                    }
+                                }
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(if (isLcPodBlack) Color(0xD90B0B0D) else Color(0x26FFFFFF))
                                 .border(1.dp, if (isLcPodBlack) Color(0x33FFFFFF) else Color(0x38FFFFFF), RoundedCornerShape(12.dp)),
@@ -2674,8 +2685,8 @@ private fun WidgetsScreenContent(
         var ghShowHeading by remember { mutableStateOf(getWidgetShowHeading("github_circle")) }
         var ghWidgetWallpaper by remember { mutableStateOf(getWidgetSpecificWallpaper("github_circle")) }
         val ghInitialOffset = remember { getWidgetElementOffset("github_circle") }
-        var ghOffsetX by remember { mutableStateOf(ghInitialOffset.first.coerceIn(-60f, 60f)) }
-        var ghOffsetY by remember { mutableStateOf(ghInitialOffset.second.coerceIn(-20f, 20f)) }
+        var ghOffsetX by remember { mutableStateOf(ghInitialOffset.first.coerceIn(-80f, 80f)) }
+        var ghOffsetY by remember { mutableStateOf(ghInitialOffset.second.coerceIn(-35f, 35f)) }
 
         WidgetGalleryCard(
             title = "GitHub Contribution Circle",
@@ -2699,12 +2710,13 @@ private fun WidgetsScreenContent(
             },
             hasOffsetControls = true,
             offsetX = ghOffsetX,
-            offsetY = 0f,
-            onNudge = { dx, _ ->
-                val nx = (ghOffsetX + dx).coerceIn(-60f, 60f)
+            offsetY = ghOffsetY,
+            onNudge = { dx, dy ->
+                val nx = (ghOffsetX + dx).coerceIn(-80f, 80f)
+                val ny = (ghOffsetY + dy).coerceIn(-35f, 35f)
                 ghOffsetX = nx
-                ghOffsetY = 0f
-                onSetWidgetElementOffset("github_circle", nx, 0f)
+                ghOffsetY = ny
+                onSetWidgetElementOffset("github_circle", nx, ny)
             },
             onResetOffset = {
                 ghOffsetX = 0f
@@ -2772,10 +2784,20 @@ private fun WidgetsScreenContent(
                                 .offset {
                                     IntOffset(
                                         (ghOffsetX * density.density).roundToInt(),
-                                        0
+                                        (ghOffsetY * density.density).roundToInt()
                                     )
                                 }
                                 .size(86.dp)
+                                .pointerInput(Unit) {
+                                    detectDragGestures { change, dragAmount ->
+                                        change.consume()
+                                        val nx = (ghOffsetX + dragAmount.x / density.density).coerceIn(-80f, 80f)
+                                        val ny = (ghOffsetY + dragAmount.y / density.density).coerceIn(-35f, 35f)
+                                        ghOffsetX = nx
+                                        ghOffsetY = ny
+                                        onSetWidgetElementOffset("github_circle", nx, ny)
+                                    }
+                                }
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(if (isGhPodBlack) Color(0xD90B0B0D) else Color(0x26FFFFFF))
                                 .border(1.dp, if (isGhPodBlack) Color(0x33FFFFFF) else Color(0x38FFFFFF), RoundedCornerShape(12.dp)),
@@ -3107,10 +3129,9 @@ private fun WidgetGalleryCard(
             ) {
                 // Wallpaper Row
                 if (widgetKey != null) {
-                    Row(
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
                             text = "Wallpaper:",
@@ -3118,34 +3139,42 @@ private fun WidgetGalleryCard(
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium
                         )
-                        listOf(
-                            "CUSTOM" to "Custom",
-                            "MATCH_APP" to "App",
-                            "TRANSLUCENT" to "Glassy",
-                            "DEFAULT" to "Obsidian",
-                            "TRANSPARENT" to "Clear"
-                        ).forEach { (styleKey, label) ->
-                            val isSelected = currentWidgetWallpaper == styleKey
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (isSelected) ThemeTextPrimary else ThemeCardBg)
-                                    .border(
-                                        1.dp,
-                                        if (isSelected) ThemeTextPrimary else ThemeCardBorder,
-                                        RoundedCornerShape(8.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            listOf(
+                                "CUSTOM" to "Custom",
+                                "MATCH_APP" to "App",
+                                "TRANSLUCENT" to "Glassy",
+                                "DEFAULT" to "Obsidian",
+                                "TRANSPARENT" to "Clear"
+                            ).forEach { (styleKey, label) ->
+                                val isSelected = currentWidgetWallpaper == styleKey
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isSelected) ThemeTextPrimary else ThemeCardBg)
+                                        .border(
+                                            1.dp,
+                                            if (isSelected) ThemeTextPrimary else ThemeCardBorder,
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .clickable { onSelectWidgetWallpaper(styleKey) }
+                                        .padding(vertical = 5.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = label,
+                                        color = if (isSelected) ThemeBgDark else ThemeTextSecondary,
+                                        fontSize = 10.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        maxLines = 1,
+                                        softWrap = false
                                     )
-                                    .clickable { onSelectWidgetWallpaper(styleKey) }
-                                    .padding(vertical = 5.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = label,
-                                    color = if (isSelected) ThemeBgDark else ThemeTextSecondary,
-                                    fontSize = 10.5.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                )
+                                }
                             }
                         }
                     }
@@ -3161,14 +3190,16 @@ private fun WidgetGalleryCard(
                         if (onToggleShowHeading != null) {
                             Row(
                                 modifier = Modifier.weight(1f),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
                                     text = "Heading:",
                                     color = ThemeTextSecondary,
                                     fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                                 listOf(true to "Show", false to "Hide").forEach { (show, label) ->
                                     val isSelected = (showHeading == show)
@@ -3190,7 +3221,9 @@ private fun WidgetGalleryCard(
                                             text = label,
                                             color = if (isSelected) ThemeBgDark else ThemeTextSecondary,
                                             fontSize = 10.5.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            maxLines = 1,
+                                            softWrap = false
                                         )
                                     }
                                 }
@@ -3200,14 +3233,16 @@ private fun WidgetGalleryCard(
                         if (outerSize != null && onSelectOuterSize != null) {
                             Row(
                                 modifier = Modifier.weight(1f),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
                                     text = "Size:",
                                     color = ThemeTextSecondary,
                                     fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                                 listOf("x*2", "x*3").forEach { size ->
                                     val isSelected = (outerSize == size)
@@ -3229,7 +3264,9 @@ private fun WidgetGalleryCard(
                                             text = size,
                                             color = if (isSelected) ThemeBgDark else ThemeTextSecondary,
                                             fontSize = 10.5.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            maxLines = 1,
+                                            softWrap = false
                                         )
                                     }
                                 }
@@ -3249,10 +3286,12 @@ private fun WidgetGalleryCard(
                             text = "Position:",
                             color = ThemeTextSecondary,
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            softWrap = false
                         )
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
@@ -3261,21 +3300,21 @@ private fun WidgetGalleryCard(
                                     .background(ThemeCardBg)
                                     .border(1.dp, ThemeCardBorder, RoundedCornerShape(8.dp))
                                     .clickable { onNudge?.invoke(-12f, 0f) }
-                                    .padding(horizontal = 8.dp, vertical = 5.dp),
+                                    .padding(horizontal = 7.dp, vertical = 5.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("← Left", color = ThemeTextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("← Left", color = ThemeTextPrimary, fontSize = 10.5.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                             }
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(if (offsetX != 0f) ThemeAccentRed.copy(alpha = 0.2f) else ThemeCardBg)
-                                    .border(1.dp, if (offsetX != 0f) ThemeAccentRed.copy(alpha = 0.4f) else ThemeCardBorder, RoundedCornerShape(8.dp))
+                                    .background(if (offsetX != 0f || offsetY != 0f) ThemeAccentRed.copy(alpha = 0.2f) else ThemeCardBg)
+                                    .border(1.dp, if (offsetX != 0f || offsetY != 0f) ThemeAccentRed.copy(alpha = 0.4f) else ThemeCardBorder, RoundedCornerShape(8.dp))
                                     .clickable { onResetOffset?.invoke() }
-                                    .padding(horizontal = 8.dp, vertical = 5.dp),
+                                    .padding(horizontal = 7.dp, vertical = 5.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("↺ Center", color = ThemeTextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("↺ Center", color = ThemeTextPrimary, fontSize = 10.5.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                             }
                             Box(
                                 modifier = Modifier
@@ -3283,10 +3322,10 @@ private fun WidgetGalleryCard(
                                     .background(ThemeCardBg)
                                     .border(1.dp, ThemeCardBorder, RoundedCornerShape(8.dp))
                                     .clickable { onNudge?.invoke(12f, 0f) }
-                                    .padding(horizontal = 8.dp, vertical = 5.dp),
+                                    .padding(horizontal = 7.dp, vertical = 5.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("Right →", color = ThemeTextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("Right →", color = ThemeTextPrimary, fontSize = 10.5.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                             }
                         }
                     }
