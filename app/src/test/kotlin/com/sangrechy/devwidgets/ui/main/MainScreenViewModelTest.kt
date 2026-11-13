@@ -4,6 +4,7 @@ import com.sangrechy.devwidgets.data.DataRepository
 import com.sangrechy.devwidgets.data.model.AppUpdateInfo
 import com.sangrechy.devwidgets.data.model.GitHubStats
 import com.sangrechy.devwidgets.data.model.LeetCodeStats
+import com.sangrechy.devwidgets.data.model.OfflineProblem
 import com.sangrechy.devwidgets.data.model.WidgetDashboardData
 import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertFalse
@@ -340,6 +341,8 @@ class MainScreenViewModelTest {
     fun testSyncSingleProblemFromGitHub() = runTest {
         val fakeRepo = FakeDataRepository()
         val viewModel = MainScreenViewModel(fakeRepo)
+        viewModel.setScreen(AppScreen.PROBLEMS)
+        viewModel.selectProblem(OfflineProblem(folderName = "0001-two-sum", frontendId = "1", title = "Two Sum", titleSlug = "two-sum", difficulty = "Easy"))
 
         viewModel.syncSingleProblemFromGitHub("0001-two-sum")
         testDispatcher.scheduler.advanceUntilIdle()
@@ -352,6 +355,8 @@ class MainScreenViewModelTest {
     fun testSyncSingleProblemFromGitHub_silentDoesNotTriggerModal() = runTest {
         val fakeRepo = FakeDataRepository()
         val viewModel = MainScreenViewModel(fakeRepo)
+        viewModel.setScreen(AppScreen.PROBLEMS)
+        viewModel.selectProblem(OfflineProblem(folderName = "0001-two-sum", frontendId = "1", title = "Two Sum", titleSlug = "two-sum", difficulty = "Easy"))
 
         viewModel.syncSingleProblemFromGitHub("0001-two-sum", silent = true)
         testDispatcher.scheduler.advanceUntilIdle()

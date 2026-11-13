@@ -520,21 +520,21 @@ private fun LeetCodeProblemsSection(
             val isSelected = filter == difficultyFilter
             val chipColor = when (filter) {
                 ProblemDifficultyFilter.ALL -> Color(0xFFFFFFFF)
-                ProblemDifficultyFilter.EASY -> Color(0xFFFFFFFF)
-                ProblemDifficultyFilter.MEDIUM -> Color(0xFFD4D4D4)
-                ProblemDifficultyFilter.HARD -> Color(0xFFA3A3A3)
-                ProblemDifficultyFilter.DOWNLOADED -> Color(0xFFFFFFFF)
+                ProblemDifficultyFilter.EASY -> ThemeAccentGreen
+                ProblemDifficultyFilter.MEDIUM -> ThemeAccentAmber
+                ProblemDifficultyFilter.HARD -> ThemeAccentRed
+                ProblemDifficultyFilter.DOWNLOADED -> ThemeAccentBlue
             }
 
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(10.dp))
                     .background(
-                        if (isSelected) chipColor.copy(alpha = 0.2f) else ThemeInnerBoxBg
+                        if (isSelected) chipColor.copy(alpha = 0.22f) else ThemeInnerBoxBg
                     )
                     .border(
                         1.dp,
-                        if (isSelected) chipColor else ThemeInnerBoxBorder,
+                        if (isSelected) chipColor else chipColor.copy(alpha = 0.35f),
                         RoundedCornerShape(10.dp)
                     )
                     .clickable { onDifficultyFilterSelected(filter) }
@@ -542,9 +542,9 @@ private fun LeetCodeProblemsSection(
             ) {
                 Text(
                     text = filter.label,
-                    color = if (isSelected) chipColor else ThemeTextSecondary,
+                    color = if (isSelected) chipColor else chipColor.copy(alpha = 0.8f),
                     fontSize = 12.sp,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                 )
             }
         }
@@ -1217,20 +1217,6 @@ fun LeetCodeProblemDetailView(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(diffColor.copy(alpha = 0.2f))
-                            .border(1.dp, diffColor.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = problem.difficulty,
-                            color = diffColor,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
                 }
 
                 Row(
@@ -1560,6 +1546,12 @@ private fun LeetCodeDescriptionTab(problem: OfflineProblem) {
     val scrollState = rememberScrollState()
     var expandedHintIndex by remember { mutableIntStateOf(-1) }
 
+    val diffColor = when (problem.difficulty.lowercase()) {
+        "easy" -> ThemeAccentGreen
+        "hard" -> ThemeAccentRed
+        else -> ThemeAccentAmber
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1567,27 +1559,43 @@ private fun LeetCodeDescriptionTab(problem: OfflineProblem) {
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Topics Pills
-        if (problem.topicTags.isNotEmpty()) {
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+        // Difficulty Level Badge & Topics Pills
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            // Problem Level / Difficulty Badge
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(diffColor.copy(alpha = 0.2f))
+                    .border(1.dp, diffColor.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                    .padding(horizontal = 9.dp, vertical = 4.dp)
             ) {
-                problem.topicTags.forEach { tag ->
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(ThemeInnerBoxBg)
-                            .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(6.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = tag,
-                            color = ThemeTextSecondary,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
+                Text(
+                    text = problem.difficulty.ifBlank { "Medium" },
+                    color = diffColor,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // Topics Pills
+            problem.topicTags.forEach { tag ->
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(ThemeInnerBoxBg)
+                        .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(6.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = tag,
+                        color = ThemeTextSecondary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
         }

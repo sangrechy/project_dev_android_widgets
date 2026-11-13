@@ -655,45 +655,47 @@ fun MainScreen(
         }
 
         // Problem Detail In-Hierarchy View (Wallpaper completely visible behind outer margins)
-        selectedProblemDetail?.let { problem ->
-            BackHandler(onBack = { viewModel.selectProblem(null) })
-            LeetCodeProblemDetailView(
-                problem = problem,
-                activeNoteIndex = activeProblemNoteIndex,
-                onDismiss = { viewModel.selectProblem(null) },
-                onActiveNoteIndexChanged = viewModel::setActiveProblemNoteIndex,
-                onDownloadOffline = { viewModel.downloadProblemOffline(problem.folderName, problem.titleSlug) },
-                onDeleteOffline = { viewModel.deleteProblemOffline(problem.folderName) },
-                onSaveNote = { filename, content -> viewModel.saveProblemNote(problem.folderName, filename, content) },
-                onDeleteNote = { filename -> viewModel.deleteProblemNote(problem.folderName, filename) },
-                onUploadNoteDocument = { filename, bytes -> viewModel.uploadProblemDocument(problem.folderName, filename, bytes) },
-                onSyncFromGit = { viewModel.syncSingleProblemFromGitHub(problem.folderName, silent = true) },
-                isSyncingFromGit = isSyncingBackupRepo,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = 28.dp, bottom = 12.dp, start = 12.dp, end = 12.dp)
-            )
-        }
+        if (currentScreen == AppScreen.PROBLEMS) {
+            selectedProblemDetail?.let { problem ->
+                BackHandler(onBack = { viewModel.selectProblem(null) })
+                LeetCodeProblemDetailView(
+                    problem = problem,
+                    activeNoteIndex = activeProblemNoteIndex,
+                    onDismiss = { viewModel.selectProblem(null) },
+                    onActiveNoteIndexChanged = viewModel::setActiveProblemNoteIndex,
+                    onDownloadOffline = { viewModel.downloadProblemOffline(problem.folderName, problem.titleSlug) },
+                    onDeleteOffline = { viewModel.deleteProblemOffline(problem.folderName) },
+                    onSaveNote = { filename, content -> viewModel.saveProblemNote(problem.folderName, filename, content) },
+                    onDeleteNote = { filename -> viewModel.deleteProblemNote(problem.folderName, filename) },
+                    onUploadNoteDocument = { filename, bytes -> viewModel.uploadProblemDocument(problem.folderName, filename, bytes) },
+                    onSyncFromGit = { viewModel.syncSingleProblemFromGitHub(problem.folderName, silent = true) },
+                    isSyncingFromGit = isSyncingBackupRepo,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 28.dp, bottom = 12.dp, start = 12.dp, end = 12.dp)
+                )
+            }
 
-        // General Note Editor In-Hierarchy View (Wallpaper completely visible behind outer margins)
-        selectedGeneralNote?.let { note ->
-            BackHandler(onBack = { viewModel.selectGeneralNote(null) })
-            GeneralNoteEditorView(
-                note = note,
-                isNew = note.id.isBlank(),
-                onDismiss = { viewModel.selectGeneralNote(null) },
-                onSave = { updated ->
-                    viewModel.saveGeneralNote(updated)
-                    viewModel.selectGeneralNote(null)
-                },
-                onDelete = { id ->
-                    viewModel.deleteGeneralNote(id)
-                    viewModel.selectGeneralNote(null)
-                },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = 28.dp, bottom = 12.dp, start = 12.dp, end = 12.dp)
-            )
+            // General Note Editor In-Hierarchy View (Wallpaper completely visible behind outer margins)
+            selectedGeneralNote?.let { note ->
+                BackHandler(onBack = { viewModel.selectGeneralNote(null) })
+                GeneralNoteEditorView(
+                    note = note,
+                    isNew = note.id.isBlank(),
+                    onDismiss = { viewModel.selectGeneralNote(null) },
+                    onSave = { updated ->
+                        viewModel.saveGeneralNote(updated)
+                        viewModel.selectGeneralNote(null)
+                    },
+                    onDelete = { id ->
+                        viewModel.deleteGeneralNote(id)
+                        viewModel.selectGeneralNote(null)
+                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 28.dp, bottom = 12.dp, start = 12.dp, end = 12.dp)
+                )
+            }
         }
 
         // Centered Modal Dialog for Alerts, Confirmations, and Save Notifications (Rendered ON TOP of detail views)
@@ -2416,6 +2418,11 @@ private fun WidgetsScreenContent(
                 lcHmShowHeading = it
                 onSetWidgetShowHeading("leetcode_heatmap", it)
             },
+            onReset = {
+                lcHmShowHeading = true
+                onSetWidgetShowHeading("leetcode_heatmap", true)
+                onSetWidgetSpecificWallpaper("leetcode_heatmap", "DEFAULT")
+            },
             onClick = { onPinWidget(LeetCodeHeatmapWidgetProvider::class.java) },
             content = {
                 val lcHeatmap = remember(dashboardData.leetCode.submissionCalendar, heatmapOrientation) {
@@ -2481,6 +2488,11 @@ private fun WidgetsScreenContent(
             onToggleShowHeading = {
                 ghHmShowHeading = it
                 onSetWidgetShowHeading("github_heatmap", it)
+            },
+            onReset = {
+                ghHmShowHeading = true
+                onSetWidgetShowHeading("github_heatmap", true)
+                onSetWidgetSpecificWallpaper("github_heatmap", "DEFAULT")
             },
             onClick = { onPinWidget(GitHubHeatmapWidgetProvider::class.java) },
             content = {
@@ -2572,6 +2584,17 @@ private fun WidgetsScreenContent(
                 onSetWidgetElementOffset("leetcode_circle", nx, 0f)
             },
             onResetOffset = {
+                lcOffsetX = 0f
+                lcOffsetY = 0f
+                onSetWidgetElementOffset("leetcode_circle", 0f, 0f)
+            },
+            onReset = {
+                lcShowHeading = true
+                onSetWidgetShowHeading("leetcode_circle", true)
+                lcWidgetWallpaper = "DEFAULT"
+                onSetWidgetSpecificWallpaper("leetcode_circle", "DEFAULT")
+                lcOuterSize = "x*2"
+                onSetWidgetOuterDivSize("leetcode_circle", "x*2")
                 lcOffsetX = 0f
                 lcOffsetY = 0f
                 onSetWidgetElementOffset("leetcode_circle", 0f, 0f)
@@ -2688,6 +2711,17 @@ private fun WidgetsScreenContent(
                 ghOffsetY = 0f
                 onSetWidgetElementOffset("github_circle", 0f, 0f)
             },
+            onReset = {
+                ghShowHeading = true
+                onSetWidgetShowHeading("github_circle", true)
+                ghWidgetWallpaper = "DEFAULT"
+                onSetWidgetSpecificWallpaper("github_circle", "DEFAULT")
+                ghOuterSize = "x*2"
+                onSetWidgetOuterDivSize("github_circle", "x*2")
+                ghOffsetX = 0f
+                ghOffsetY = 0f
+                onSetWidgetElementOffset("github_circle", 0f, 0f)
+            },
             onClick = { onPinWidget(GitHubCircleWidgetProvider::class.java) },
             content = {
                 val context = LocalContext.current
@@ -2772,6 +2806,11 @@ private fun WidgetsScreenContent(
                 lcFullShowHeading = it
                 onSetWidgetShowHeading("leetcode", it)
             },
+            onReset = {
+                lcFullShowHeading = true
+                onSetWidgetShowHeading("leetcode", true)
+                onSetWidgetSpecificWallpaper("leetcode", "DEFAULT")
+            },
             onClick = { onPinWidget(LeetCodeWidgetProvider::class.java) },
             content = {
                 val lcCircle = remember(dashboardData.leetCode) {
@@ -2845,6 +2884,11 @@ private fun WidgetsScreenContent(
                 ghFullShowHeading = it
                 onSetWidgetShowHeading("github", it)
             },
+            onReset = {
+                ghFullShowHeading = true
+                onSetWidgetShowHeading("github", true)
+                onSetWidgetSpecificWallpaper("github", "DEFAULT")
+            },
             onClick = { onPinWidget(GitHubWidgetProvider::class.java) },
             content = {
                 val ghRadar = remember(dashboardData.gitHub) {
@@ -2906,20 +2950,77 @@ private fun WidgetsScreenContent(
 
         // 7. Combined All: Master Dev Life (4x4)
         var devActShowHeading by remember { mutableStateOf(getWidgetShowHeading("dev_activity")) }
+        var devActIsReversed by remember { mutableStateOf(false) }
+        var devActWallpaper by remember { mutableStateOf(getWidgetSpecificWallpaper("dev_activity")) }
         WidgetGalleryCard(
             title = "Combined All: Master Dev Life (4x4)",
             subtitle = "Master dashboard with LeetCode & GitHub gauges and dual uniform heatmaps",
             tag = "Fixed 4x4",
             widgetKey = "dev_activity",
-            currentWidgetWallpaper = getWidgetSpecificWallpaper("dev_activity"),
-            onSelectWidgetWallpaper = { onSetWidgetSpecificWallpaper("dev_activity", it) },
+            currentWidgetWallpaper = devActWallpaper,
+            onSelectWidgetWallpaper = {
+                devActWallpaper = it
+                onSetWidgetSpecificWallpaper("dev_activity", it)
+            },
             showHeading = devActShowHeading,
             onToggleShowHeading = {
                 devActShowHeading = it
                 onSetWidgetShowHeading("dev_activity", it)
             },
+            orderOption = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Order:",
+                        color = ThemeTextSecondary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    listOf(false to "LC on Top", true to "GH on Top").forEach { (reversed, label) ->
+                        val isSelected = (devActIsReversed == reversed)
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) ThemeTextPrimary else ThemeCardBg)
+                                .border(
+                                    1.dp,
+                                    if (isSelected) ThemeTextPrimary else ThemeCardBorder,
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .clickable { devActIsReversed = reversed }
+                                .padding(vertical = 5.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = label,
+                                color = if (isSelected) ThemeBgDark else ThemeTextSecondary,
+                                fontSize = 10.5.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+            },
+            onReset = {
+                devActShowHeading = true
+                onSetWidgetShowHeading("dev_activity", true)
+                devActWallpaper = "DEFAULT"
+                onSetWidgetSpecificWallpaper("dev_activity", "DEFAULT")
+                devActIsReversed = false
+            },
             onClick = { onPinWidget(DevActivityWidgetProvider::class.java) },
-            content = { WidgetVisualPreview(data = dashboardData, orientation = heatmapOrientation, showHeading = devActShowHeading) }
+            content = {
+                WidgetVisualPreview(
+                    data = dashboardData,
+                    orientation = heatmapOrientation,
+                    showHeading = devActShowHeading,
+                    isReversed = devActIsReversed
+                )
+            }
         )
     }
 }
@@ -2941,6 +3042,8 @@ private fun WidgetGalleryCard(
     offsetY: Float = 0f,
     onNudge: ((dx: Float, dy: Float) -> Unit)? = null,
     onResetOffset: (() -> Unit)? = null,
+    orderOption: (@Composable () -> Unit)? = null,
+    onReset: (() -> Unit)? = null,
     onClick: () -> Unit,
     content: @Composable () -> Unit
 ) {
@@ -3016,6 +3119,7 @@ private fun WidgetGalleryCard(
                             fontWeight = FontWeight.Medium
                         )
                         listOf(
+                            "CUSTOM" to "Custom",
                             "MATCH_APP" to "App",
                             "TRANSLUCENT" to "Glassy",
                             "DEFAULT" to "Obsidian",
@@ -3183,6 +3287,38 @@ private fun WidgetGalleryCard(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text("Right →", color = ThemeTextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+
+                // Custom Order Row (e.g. Combined All)
+                if (orderOption != null) {
+                    orderOption()
+                }
+
+                // Dedicated Reset Row in Options Block
+                if (onReset != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(ThemeCardBg)
+                                .border(1.dp, ThemeCardBorder, RoundedCornerShape(8.dp))
+                                .clickable { onReset() }
+                                .padding(horizontal = 10.dp, vertical = 5.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text("↺", color = ThemeTextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("Reset", color = ThemeTextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -3817,13 +3953,16 @@ private fun AccountStatusBadge(
 private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 
 @Composable
-fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizontal", showHeading: Boolean = true) {
-    var isReversed by remember { mutableStateOf(false) }
-    var lcOffsetX by remember { mutableStateOf(0f) }
-    var lcOffsetY by remember { mutableStateOf(0f) }
-    var ghOffsetX by remember { mutableStateOf(0f) }
-    var ghOffsetY by remember { mutableStateOf(0f) }
-
+fun WidgetVisualPreview(
+    data: WidgetDashboardData,
+    orientation: String = "horizontal",
+    showHeading: Boolean = true,
+    isReversed: Boolean = false,
+    lcOffsetX: Float = 0f,
+    lcOffsetY: Float = 0f,
+    ghOffsetX: Float = 0f,
+    ghOffsetY: Float = 0f
+) {
     val lcCircle = remember(data.leetCode) {
         WidgetBitmapRenderer.renderLeetCodeCircle(data.leetCode, sizePx = 360).asImageBitmap()
     }
@@ -3864,16 +4003,14 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
             .padding(12.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            // Header with Dev Life brand and Interactive Div Controls (Swap & Reset)
+            // Header with Dev Life brand
             if (showHeading) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(
                         painter = painterResource(R.drawable.ic_skill_jane),
                         contentDescription = "Dev Life",
@@ -3882,61 +4019,13 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
                             .padding(end = 6.dp)
                     )
                     Text(
-                        text = "Dev Life (Movable Divs)",
+                        text = "Dev Life",
                         color = Color.White,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.5.sp
                     )
                 }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    // ⇄ Swap Top / Bottom Div Positions
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0x26FFFFFF))
-                            .border(1.dp, Color(0x40FFFFFF), RoundedCornerShape(8.dp))
-                            .clickable { isReversed = !isReversed }
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = if (isReversed) "⇅ GH on Top" else "⇅ LC on Top",
-                            color = Color.White,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    // Reset button
-                    if (lcOffsetX != 0f || lcOffsetY != 0f || ghOffsetX != 0f || ghOffsetY != 0f || isReversed) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0x26FFFFFF))
-                                .border(1.dp, Color(0x40FFFFFF), RoundedCornerShape(8.dp))
-                                .clickable {
-                                    lcOffsetX = 0f
-                                    lcOffsetY = 0f
-                                    ghOffsetX = 0f
-                                    ghOffsetY = 0f
-                                    isReversed = false
-                                }
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = "Reset",
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-            }
             }
 
             // Composables for each Div
@@ -3945,94 +4034,34 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
                     modifier = Modifier
                         .fillMaxWidth()
                         .offset { IntOffset(lcOffsetX.roundToInt(), lcOffsetY.roundToInt()) }
-                        .pointerInput(Unit) {
-                            detectDragGestures { change, dragAmount ->
-                                change.consume()
-                                lcOffsetX = (lcOffsetX + dragAmount.x).coerceIn(-240f, 240f)
-                                lcOffsetY = (lcOffsetY + dragAmount.y).coerceIn(-80f, 80f)
-                            }
-                        }
                         .background(Color.Transparent)
                         .padding(horizontal = 4.dp, vertical = 6.dp)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Image(
-                                    painter = painterResource(R.drawable.ic_leetcode_logo),
-                                    contentDescription = "LeetCode",
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Text(
-                                    text = "LeetCode",
-                                    color = Color.White,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = if (data.leetCode.status == AccountStatus.FAILED)
-                                        "@${data.leetCode.username.ifBlank { "dev" }} (Offline)"
-                                    else
-                                        "@${data.leetCode.username.ifBlank { "dev" }}",
-                                    color = Color(0xFFAAAAAA),
-                                    fontSize = 9.5.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-
-                            // Directional Nudge Arrows
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(3.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0x26FFFFFF))
-                                        .clickable { lcOffsetX = (lcOffsetX - 15f).coerceIn(-240f, 240f) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("←", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0x26FFFFFF))
-                                        .clickable { lcOffsetX = (lcOffsetX + 15f).coerceIn(-240f, 240f) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("→", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0x26FFFFFF))
-                                        .clickable { lcOffsetY = (lcOffsetY - 10f).coerceIn(-80f, 80f) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("↑", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0x26FFFFFF))
-                                        .clickable { lcOffsetY = (lcOffsetY + 10f).coerceIn(-80f, 80f) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("↓", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
+                            Image(
+                                painter = painterResource(R.drawable.ic_leetcode_logo),
+                                contentDescription = "LeetCode",
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Text(
+                                text = "LeetCode",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = if (data.leetCode.status == AccountStatus.FAILED)
+                                    "@${data.leetCode.username.ifBlank { "dev" }} (Offline)"
+                                else
+                                    "@${data.leetCode.username.ifBlank { "dev" }}",
+                                color = Color(0xFFAAAAAA),
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
 
                         // Side-by-side: 3/4 Circular Gauge (Left 42%) + Divider + Month-Aware Heatmap (Right 58%)
@@ -4073,94 +4102,34 @@ fun WidgetVisualPreview(data: WidgetDashboardData, orientation: String = "horizo
                     modifier = Modifier
                         .fillMaxWidth()
                         .offset { IntOffset(ghOffsetX.roundToInt(), ghOffsetY.roundToInt()) }
-                        .pointerInput(Unit) {
-                            detectDragGestures { change, dragAmount ->
-                                change.consume()
-                                ghOffsetX = (ghOffsetX + dragAmount.x).coerceIn(-240f, 240f)
-                                ghOffsetY = (ghOffsetY + dragAmount.y).coerceIn(-80f, 80f)
-                            }
-                        }
                         .background(Color.Transparent)
                         .padding(horizontal = 4.dp, vertical = 6.dp)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Image(
-                                    painter = painterResource(R.drawable.ic_github_logo),
-                                    contentDescription = "GitHub",
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Text(
-                                    text = "GitHub",
-                                    color = Color.White,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = if (data.gitHub.status == AccountStatus.FAILED)
-                                        "@${data.gitHub.username.ifBlank { "dev" }} (Offline)"
-                                    else
-                                        "@${data.gitHub.username.ifBlank { "dev" }}",
-                                    color = Color(0xFFAAAAAA),
-                                    fontSize = 9.5.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-
-                            // Directional Nudge Arrows
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(3.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0x26FFFFFF))
-                                        .clickable { ghOffsetX = (ghOffsetX - 15f).coerceIn(-240f, 240f) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("←", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0x26FFFFFF))
-                                        .clickable { ghOffsetX = (ghOffsetX + 15f).coerceIn(-240f, 240f) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("→", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0x26FFFFFF))
-                                        .clickable { ghOffsetY = (ghOffsetY - 10f).coerceIn(-80f, 80f) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("↑", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0x26FFFFFF))
-                                        .clickable { ghOffsetY = (ghOffsetY + 10f).coerceIn(-80f, 80f) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("↓", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
+                            Image(
+                                painter = painterResource(R.drawable.ic_github_logo),
+                                contentDescription = "GitHub",
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Text(
+                                text = "GitHub",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = if (data.gitHub.status == AccountStatus.FAILED)
+                                    "@${data.gitHub.username.ifBlank { "dev" }} (Offline)"
+                                else
+                                    "@${data.gitHub.username.ifBlank { "dev" }}",
+                                color = Color(0xFFAAAAAA),
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
 
                         // Side-by-side: Spider Radar Activity (Left 42%) + Divider + Month-Aware Heatmap (Right 58%)

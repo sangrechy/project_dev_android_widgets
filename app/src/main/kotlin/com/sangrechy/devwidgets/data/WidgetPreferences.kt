@@ -173,7 +173,7 @@ class WidgetPreferences(context: Context) {
     fun getWidgetOuterDivSize(widgetKey: String): String {
         val norm = widgetKey.trim().uppercase()
         val raw = prefs.getString("KEY_WIDGET_OUTER_SIZE_$norm", prefs.getString("KEY_WIDGET_OUTER_SIZE_$widgetKey", "x*2")) ?: "x*2"
-        return if (raw == "x*3" || raw.endsWith("x3") || raw.endsWith("*3")) "x*3" else "x*2"
+        return if (raw == "x*3") "x*3" else "x*2"
     }
 
     fun setWidgetOuterDivSize(widgetKey: String, size: String) {

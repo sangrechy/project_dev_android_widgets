@@ -916,7 +916,17 @@ class OfflineProblemRepository(
         val noteFile = File(notesDir, safeName)
         noteFile.writeText(content)
 
-        launchGitHubPush("notes/$folderName/$safeName", content.toByteArray(Charsets.UTF_8))
+        val repoConfig = prefs.gitHubBackupRepo.trim().ifBlank { "leetcode" }
+        val token = DevApiService.normalizeToken(prefs.gitHubToken)
+        val owner = if (repoConfig.contains('/')) repoConfig.substringBefore('/').trim() else prefs.gitHubUsername.trim().removePrefix("@")
+        val repo = if (repoConfig.contains('/')) repoConfig.substringAfter('/').trim() else repoConfig
+
+        val syncStatus = if (token.isNotBlank() && owner.isNotBlank() && repo.isNotBlank()) {
+            val pushed = pushFileToGitHubDirect("notes/$folderName/$safeName", content.toByteArray(Charsets.UTF_8), owner, repo, token)
+            if (pushed) "SYNCED" else "FAILED"
+        } else {
+            "LOCAL_ONLY"
+        }
 
         val title = safeName.substringBeforeLast('.').replace('_', ' ').replace('-', ' ')
             .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
@@ -927,7 +937,8 @@ class OfflineProblemRepository(
             content = content,
             lastModifiedMillis = noteFile.lastModified(),
             isBinaryDoc = false,
-            localFilePath = noteFile.absolutePath
+            localFilePath = noteFile.absolutePath,
+            syncStatus = syncStatus
         )
     }
 
@@ -937,7 +948,17 @@ class OfflineProblemRepository(
         val docFile = File(notesDir, safeName)
         docFile.writeBytes(bytes)
 
-        launchGitHubPush("notes/$folderName/$safeName", bytes)
+        val repoConfig = prefs.gitHubBackupRepo.trim().ifBlank { "leetcode" }
+        val token = DevApiService.normalizeToken(prefs.gitHubToken)
+        val owner = if (repoConfig.contains('/')) repoConfig.substringBefore('/').trim() else prefs.gitHubUsername.trim().removePrefix("@")
+        val repo = if (repoConfig.contains('/')) repoConfig.substringAfter('/').trim() else repoConfig
+
+        val syncStatus = if (token.isNotBlank() && owner.isNotBlank() && repo.isNotBlank()) {
+            val pushed = pushFileToGitHubDirect("notes/$folderName/$safeName", bytes, owner, repo, token)
+            if (pushed) "SYNCED" else "FAILED"
+        } else {
+            "LOCAL_ONLY"
+        }
 
         val isBinary = isBinaryFileName(safeName)
         val title = safeName.substringBeforeLast('.').replace('_', ' ').replace('-', ' ')
@@ -954,7 +975,8 @@ class OfflineProblemRepository(
             content = content,
             lastModifiedMillis = docFile.lastModified(),
             isBinaryDoc = isBinary,
-            localFilePath = docFile.absolutePath
+            localFilePath = docFile.absolutePath,
+            syncStatus = syncStatus
         )
     }
 
@@ -1409,7 +1431,7 @@ class OfflineProblemRepository(
         val targetDir = File(baseProblemsDir, folderName).apply { mkdirs() }
         val pNotesDir = getProblemNotesDir(folderName).apply { mkdirs() }
 
-        // Candidate folder names (e.g. "1411.number-of-ways...", "1411-number-of-ways...", "0001-two-sum")
+        // Candidate folder names (e.g. "1411-number-of-ways...", "0001-two-sum", "1411.number-of-ways...")
         val sepIdx = folderName.indexOfFirst { it == '-' || it == '.' || it == '_' }
         val numPart = if (sepIdx != -1) folderName.substring(0, sepIdx).trim() else ""
         val slugPart = if (sepIdx != -1) folderName.substring(sepIdx + 1).trim() else folderName
@@ -1418,13 +1440,8 @@ class OfflineProblemRepository(
         if (num != null) {
             candidateNames.add("%04d-%s".format(num, slugPart))
             candidateNames.add("$num-$slugPart")
-            candidateNames.add("%04d.%s".format(num, slugPart))
-            candidateNames.add("$num.$slugPart")
-            candidateNames.add("%04d_%s".format(num, slugPart))
-            candidateNames.add("${num}_$slugPart")
-            candidateNames.add(num.toString())
         }
-        if (slugPart.isNotBlank()) {
+        if (slugPart.isNotBlank() && slugPart != folderName) {
             candidateNames.add(slugPart)
         }
         val distinctCandidates = candidateNames.distinct()
@@ -1546,15 +1563,17 @@ class OfflineProblemRepository(
 
         // 2. Fetch notes from notes/<cand>, leetcode_problem/<cand>/notes, or <cand>/notes
         for (cand in distinctCandidates) {
+            val initialNotes = downloadedFiles
             fetchAndSaveDir("notes/$cand", pNotesDir)
+            if (downloadedFiles > initialNotes) break
+            if (fetchAndSaveSingleFile("notes/$cand.md", File(pNotesDir, "notes.md"))) break
+            if (fetchAndSaveSingleFile("notes/$cand.txt", File(pNotesDir, "notes.txt"))) break
             fetchAndSaveDir("leetcode_problem/$cand/notes", pNotesDir)
+            if (downloadedFiles > initialNotes) break
             fetchAndSaveDir("$cand/notes", pNotesDir)
-            fetchAndSaveSingleFile("notes/$cand.md", File(pNotesDir, "notes.md"))
-            fetchAndSaveSingleFile("notes/$cand.txt", File(pNotesDir, "notes.txt"))
-            fetchAndSaveSingleFile("leetcode_problem/$cand/notes.md", File(pNotesDir, "notes.md"))
-            fetchAndSaveSingleFile("$cand/notes.md", File(pNotesDir, "notes.md"))
-            fetchAndSaveSingleFile("leetcode_problem/$cand/notes.txt", File(pNotesDir, "notes.txt"))
-            fetchAndSaveSingleFile("$cand/notes.txt", File(pNotesDir, "notes.txt"))
+            if (downloadedFiles > initialNotes) break
+            if (fetchAndSaveSingleFile("leetcode_problem/$cand/notes.md", File(pNotesDir, "notes.md"))) break
+            if (fetchAndSaveSingleFile("$cand/notes.md", File(pNotesDir, "notes.md"))) break
         }
 
         // 2.5 Fallback: if problem dir has README.md and pNotesDir has no user notes, copy README.md as notes.md
@@ -1650,9 +1669,24 @@ class OfflineProblemRepository(
         val file = File(generalNotesDir, fileName)
         file.writeText(note.content)
 
-        launchGitHubPush("notes/general/$fileName", note.content.toByteArray(Charsets.UTF_8))
+        val repoConfig = prefs.gitHubBackupRepo.trim().ifBlank { "leetcode" }
+        val token = DevApiService.normalizeToken(prefs.gitHubToken)
+        val owner = if (repoConfig.contains('/')) repoConfig.substringBefore('/').trim() else prefs.gitHubUsername.trim().removePrefix("@")
+        val repo = if (repoConfig.contains('/')) repoConfig.substringAfter('/').trim() else repoConfig
 
-        note.copy(id = fileName, lastModifiedMillis = file.lastModified(), localFilePath = file.absolutePath)
+        val syncStatus = if (token.isNotBlank() && owner.isNotBlank() && repo.isNotBlank()) {
+            val pushed = pushFileToGitHubDirect("notes/general/$fileName", note.content.toByteArray(Charsets.UTF_8), owner, repo, token)
+            if (pushed) "SYNCED" else "FAILED"
+        } else {
+            "LOCAL_ONLY"
+        }
+
+        note.copy(
+            id = fileName,
+            lastModifiedMillis = file.lastModified(),
+            localFilePath = file.absolutePath,
+            syncStatus = syncStatus
+        )
     }
 
     override suspend fun saveGeneralDocument(filename: String, bytes: ByteArray): CustomNote = withContext(Dispatchers.IO) {
@@ -1660,7 +1694,17 @@ class OfflineProblemRepository(
         val file = File(generalNotesDir, safeName)
         file.writeBytes(bytes)
 
-        launchGitHubPush("notes/general/$safeName", bytes)
+        val repoConfig = prefs.gitHubBackupRepo.trim().ifBlank { "leetcode" }
+        val token = DevApiService.normalizeToken(prefs.gitHubToken)
+        val owner = if (repoConfig.contains('/')) repoConfig.substringBefore('/').trim() else prefs.gitHubUsername.trim().removePrefix("@")
+        val repo = if (repoConfig.contains('/')) repoConfig.substringAfter('/').trim() else repoConfig
+
+        val syncStatus = if (token.isNotBlank() && owner.isNotBlank() && repo.isNotBlank()) {
+            val pushed = pushFileToGitHubDirect("notes/general/$safeName", bytes, owner, repo, token)
+            if (pushed) "SYNCED" else "FAILED"
+        } else {
+            "LOCAL_ONLY"
+        }
 
         val isBinary = isBinaryFileName(safeName)
         val title = safeName.substringBeforeLast('.').replace('_', ' ').replace('-', ' ')
@@ -1678,7 +1722,8 @@ class OfflineProblemRepository(
             category = "General",
             lastModifiedMillis = file.lastModified(),
             isBinaryDoc = isBinary,
-            localFilePath = file.absolutePath
+            localFilePath = file.absolutePath,
+            syncStatus = syncStatus
         )
     }
 

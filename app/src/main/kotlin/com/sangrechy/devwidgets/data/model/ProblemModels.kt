@@ -6,7 +6,8 @@ data class ProblemNote(
     val content: String,
     val lastModifiedMillis: Long = System.currentTimeMillis(),
     val isBinaryDoc: Boolean = false,
-    val localFilePath: String = ""
+    val localFilePath: String = "",
+    val syncStatus: String = ""
 )
 
 data class OfflineProblem(
@@ -46,7 +47,8 @@ data class CustomNote(
     val category: String = "General", // General, Algorithms, Math, Templates
     val lastModifiedMillis: Long = System.currentTimeMillis(),
     val isBinaryDoc: Boolean = false,
-    val localFilePath: String = ""
+    val localFilePath: String = "",
+    val syncStatus: String = ""
 )
 
 enum class ProblemsPlatform(val label: String) {

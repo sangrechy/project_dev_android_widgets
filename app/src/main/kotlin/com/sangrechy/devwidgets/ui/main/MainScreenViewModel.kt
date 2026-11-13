@@ -330,6 +330,10 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
 
     fun setScreen(screen: AppScreen) {
         _currentScreen.value = screen
+        if (screen != AppScreen.PROBLEMS) {
+            _selectedProblemDetail.value = null
+            _selectedGeneralNote.value = null
+        }
     }
 
     fun setHomeTab(tab: HomeTab) {
@@ -458,16 +462,6 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
                 if (full != null && _selectedProblemDetail.value?.folderName == problem.folderName) {
                     _selectedProblemDetail.value = full
                 }
-                // Silently pull remote notes from GitHub in the background
-                try {
-                    val synced = problemRepo.syncSingleProblemFromGitHub(problem.folderName)
-                    if (synced.isSuccess) {
-                        val updated = synced.getOrNull()
-                        if (updated != null && _selectedProblemDetail.value?.folderName == problem.folderName) {
-                            _selectedProblemDetail.value = updated
-                        }
-                    }
-                } catch (_: Exception) {}
             }
         }
     }
@@ -591,7 +585,12 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
                 if (idx != -1) _activeProblemNoteIndex.value = idx
             }
             loadProblems()
-            _syncMessage.value = "Successfully saved"
+            _syncMessage.value = when (savedNote.syncStatus) {
+                "SYNCED" -> "Successfully saved to GitHub & device"
+                "LOCAL_ONLY" -> "Saved locally (GitHub backup not configured)"
+                "FAILED" -> "Saved locally, but failed to push to GitHub"
+                else -> "Successfully saved"
+            }
         }
     }
 
@@ -605,7 +604,12 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
                 if (idx != -1) _activeProblemNoteIndex.value = idx
             }
             loadProblems()
-            _syncMessage.value = "Uploaded document '${savedNote.filename}'"
+            _syncMessage.value = when (savedNote.syncStatus) {
+                "SYNCED" -> "Uploaded & backed up to GitHub"
+                "LOCAL_ONLY" -> "Uploaded locally (GitHub backup not configured)"
+                "FAILED" -> "Uploaded locally, but failed to push to GitHub"
+                else -> "Uploaded document '${savedNote.filename}'"
+            }
         }
     }
 
@@ -669,7 +673,7 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
             _isSyncingBackupRepo.value = false
             if (result.isSuccess) {
                 val updated = result.getOrNull()
-                if (updated != null) {
+                if (updated != null && _currentScreen.value == AppScreen.PROBLEMS && _selectedProblemDetail.value?.folderName == folderName) {
                     _selectedProblemDetail.value = updated
                 }
                 loadProblems()
@@ -691,7 +695,12 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
             val saved = problemRepo.saveGeneralNote(note)
             loadGeneralNotes()
             _selectedGeneralNote.value = saved
-            _syncMessage.value = "Successfully saved"
+            _syncMessage.value = when (saved.syncStatus) {
+                "SYNCED" -> "Successfully saved to GitHub & device"
+                "LOCAL_ONLY" -> "Saved locally (GitHub backup not configured)"
+                "FAILED" -> "Saved locally, but failed to push to GitHub"
+                else -> "Successfully saved"
+            }
         }
     }
 
@@ -700,7 +709,12 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
             val saved = problemRepo.saveGeneralDocument(filename, bytes)
             loadGeneralNotes()
             _selectedGeneralNote.value = saved
-            _syncMessage.value = "Uploaded document '${saved.title}'"
+            _syncMessage.value = when (saved.syncStatus) {
+                "SYNCED" -> "Uploaded & backed up to GitHub"
+                "LOCAL_ONLY" -> "Uploaded locally (GitHub backup not configured)"
+                "FAILED" -> "Uploaded locally, but failed to push to GitHub"
+                else -> "Uploaded document '$filename'"
+            }
         }
     }
 

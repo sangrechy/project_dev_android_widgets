@@ -7,9 +7,9 @@
     android:minResizeWidth="100dp"
     android:minResizeHeight="100dp"
     android:maxResizeWidth="512dp"
-    android:maxResizeHeight="512dp"
+    android:maxResizeHeight="150dp"
     android:updatePeriodMillis="3600000"
     android:initialLayout="@layout/widget_github_circle"
-    android:resizeMode="horizontal|vertical"
+    android:resizeMode="horizontal"
     android:widgetCategory="home_screen"
     android:previewLayout="@layout/widget_github_circle" />
