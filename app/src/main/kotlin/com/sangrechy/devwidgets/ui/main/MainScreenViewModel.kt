@@ -478,7 +478,7 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
                 val updated = result.getOrNull()
                 _syncMessage.value = "Downloaded #${updated?.frontendId ?: ""} ${updated?.title ?: folderName} for offline access!"
                 loadProblems()
-                if (updated != null) {
+                if (updated != null && _currentScreen.value == AppScreen.PROBLEMS && _selectedProblemDetail.value?.folderName == folderName) {
                     _selectedProblemDetail.value = updated
                 }
             } else {
@@ -533,7 +533,9 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
             }
             _isAddingProblem.value = false
             loadProblems()
-            if (lastProblem != null) {
+            if (inputs.size == 1 && lastProblem != null) {
+                _selectedProblemDetail.value = lastProblem
+            } else if (lastProblem != null && _currentScreen.value == AppScreen.PROBLEMS && _selectedProblemDetail.value?.folderName == lastProblem.folderName) {
                 _selectedProblemDetail.value = lastProblem
             }
             if (successCount > 0) {
@@ -814,6 +816,11 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
     fun getWidgetShowHeading(widgetKey: String): Boolean = repository.getWidgetShowHeading(widgetKey)
     fun setWidgetShowHeading(widgetKey: String, show: Boolean) {
         repository.setWidgetShowHeading(widgetKey, show)
+        applyWidgetWallpaperToAllWidgets()
+    }
+    fun getWidgetOrderReversed(widgetKey: String): Boolean = repository.getWidgetOrderReversed(widgetKey)
+    fun setWidgetOrderReversed(widgetKey: String, reversed: Boolean) {
+        repository.setWidgetOrderReversed(widgetKey, reversed)
         applyWidgetWallpaperToAllWidgets()
     }
 

@@ -1,4 +1,29 @@
 <resources>
     <string name="app_name">Dev Life</string>
     <string name="widget_description">LeetCode &amp; GitHub Developer Activity Dashboard with Heatmaps</string>
+
+    <!-- Widget Labels for Launcher Picker -->
+    <string name="widget_leetcode_circle_label">LeetCode Solved Circle (2x2)</string>
+    <string name="widget_leetcode_circle_desc">Compact LeetCode circular solved speedometer gauge</string>
+
+    <string name="widget_github_circle_label">GitHub Contribution Circle (2x2)</string>
+    <string name="widget_github_circle_desc">Compact GitHub contribution spider radar circle</string>
+
+    <string name="widget_leetcode_label">LeetCode Full Stats (4x2)</string>
+    <string name="widget_leetcode_desc">LeetCode circular solved gauge and 52-week submission calendar side-by-side</string>
+
+    <string name="widget_github_label">GitHub Full Activity (4x2)</string>
+    <string name="widget_github_desc">GitHub contribution radar and 52-week emerald activity calendar side-by-side</string>
+
+    <string name="widget_leetcode_heatmap_label">LeetCode Heatmap (4x2)</string>
+    <string name="widget_leetcode_heatmap_desc">Full-width dedicated LeetCode 52-week submission activity calendar</string>
+
+    <string name="widget_github_heatmap_label">GitHub Heatmap (4x2)</string>
+    <string name="widget_github_heatmap_desc">Full-width dedicated GitHub 52-week contribution activity calendar</string>
+
+    <string name="widget_combined_heatmap_label">Combined Heatmaps (4x4)</string>
+    <string name="widget_combined_heatmap_desc">Dual synchronized LeetCode and GitHub 52-week activity calendars</string>
+
+    <string name="widget_dev_activity_label">Dev Life (Master 4x4)</string>
+    <string name="widget_dev_activity_desc">Master developer dashboard with dual gauges and dual synchronized heatmaps</string>
 </resources>

@@ -112,6 +112,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="fitCenter"
+            android:src="@drawable/preview_element_lc_heatmap"
             android:contentDescription="LeetCode Heatmap" />
     </LinearLayout>
 </LinearLayout>

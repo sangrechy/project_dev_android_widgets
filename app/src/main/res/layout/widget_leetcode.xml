@@ -113,6 +113,7 @@
             android:layout_height="match_parent"
             android:layout_weight="0.45"
             android:scaleType="fitCenter"
+            android:src="@drawable/preview_element_lc_circle"
             android:contentDescription="LeetCode Gauge" />
 
         <ImageView
@@ -121,6 +122,7 @@
             android:layout_height="match_parent"
             android:layout_weight="0.55"
             android:scaleType="fitCenter"
+            android:src="@drawable/preview_element_lc_heatmap"
             android:layout_marginStart="8dp"
             android:contentDescription="LeetCode Heatmap" />
     </LinearLayout>

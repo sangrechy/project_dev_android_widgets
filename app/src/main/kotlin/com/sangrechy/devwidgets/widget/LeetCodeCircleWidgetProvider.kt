@@ -67,18 +67,14 @@ class LeetCodeCircleWidgetProvider : AppWidgetProvider() {
             val offsetY = prefs.getWidgetElementOffsetY("LEETCODE_CIRCLE")
             val density = context.resources.displayMetrics.density
 
-            val innerDivWidthDp = 86f
-            val actualMaxOffsetX = ((actualWidthDp - innerDivWidthDp) / 2f).coerceAtLeast(0f)
-            val effectiveDxDp = if (actualMaxOffsetX > 0f) offsetX.coerceIn(-actualMaxOffsetX, actualMaxOffsetX) else 0f
+            // Generous free offset range safely bounded within card chassis bounds
+            val effectiveDxDp = offsetX.coerceIn(-36f, 36f)
+            val effectiveDyDp = offsetY.coerceIn(-28f, 28f)
 
-            val innerDivHeightDp = 86f
-            val actualMaxOffsetY = ((actualHeightDp - innerDivHeightDp) / 2f).coerceAtLeast(0f)
-            val effectiveDyDp = if (actualMaxOffsetY > 0f) offsetY.coerceIn(-actualMaxOffsetY, actualMaxOffsetY) else 0f
-
-            val padLeft = if (effectiveDxDp > 0) (effectiveDxDp * density).toInt() else 0
-            val padRight = if (effectiveDxDp < 0) ((-effectiveDxDp) * density).toInt() else 0
-            val padTop = if (effectiveDyDp > 0) (effectiveDyDp * density).toInt() else 0
-            val padBottom = if (effectiveDyDp < 0) ((-effectiveDyDp) * density).toInt() else 0
+            val padLeft = if (effectiveDxDp > 0) (effectiveDxDp * 2f * density).toInt() else 0
+            val padRight = if (effectiveDxDp < 0) ((-effectiveDxDp) * 2f * density).toInt() else 0
+            val padTop = if (effectiveDyDp > 0) (effectiveDyDp * 2f * density).toInt() else 0
+            val padBottom = if (effectiveDyDp < 0) ((-effectiveDyDp) * 2f * density).toInt() else 0
 
             views.setViewPadding(R.id.section_circle_container, padLeft, padTop, padRight, padBottom)
 

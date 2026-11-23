@@ -70,6 +70,8 @@ interface DataRepository {
     fun setWidgetInsideDivColor(widgetKey: String, color: String)
     fun getWidgetShowHeading(widgetKey: String): Boolean
     fun setWidgetShowHeading(widgetKey: String, show: Boolean)
+    fun getWidgetOrderReversed(widgetKey: String): Boolean
+    fun setWidgetOrderReversed(widgetKey: String, reversed: Boolean)
 
     suspend fun saveCustomWallpaperFromUri(uri: Uri, forWidget: Boolean): String?
     fun updateAllWidgets()
@@ -264,6 +266,10 @@ class DefaultDataRepository(private val context: Context) : DataRepository {
     override fun getWidgetShowHeading(widgetKey: String): Boolean = prefs.getWidgetShowHeading(widgetKey)
     override fun setWidgetShowHeading(widgetKey: String, show: Boolean) {
         prefs.setWidgetShowHeading(widgetKey, show)
+    }
+    override fun getWidgetOrderReversed(widgetKey: String): Boolean = prefs.getWidgetOrderReversed(widgetKey)
+    override fun setWidgetOrderReversed(widgetKey: String, reversed: Boolean) {
+        prefs.setWidgetOrderReversed(widgetKey, reversed)
     }
 
     override suspend fun saveCustomWallpaperFromUri(uri: Uri, forWidget: Boolean): String? = withContext(Dispatchers.IO) {

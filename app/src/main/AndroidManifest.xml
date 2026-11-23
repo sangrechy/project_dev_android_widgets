@@ -24,6 +24,8 @@
 
         <receiver
             android:name=".widget.DevActivityWidgetProvider"
+            android:label="@string/widget_dev_activity_label"
+            android:description="@string/widget_dev_activity_desc"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -36,6 +38,8 @@
 
         <receiver
             android:name=".widget.LeetCodeWidgetProvider"
+            android:label="@string/widget_leetcode_label"
+            android:description="@string/widget_leetcode_desc"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -48,6 +52,8 @@
 
         <receiver
             android:name=".widget.GitHubWidgetProvider"
+            android:label="@string/widget_github_label"
+            android:description="@string/widget_github_desc"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -60,6 +66,8 @@
 
         <receiver
             android:name=".widget.LeetCodeHeatmapWidgetProvider"
+            android:label="@string/widget_leetcode_heatmap_label"
+            android:description="@string/widget_leetcode_heatmap_desc"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -72,6 +80,8 @@
 
         <receiver
             android:name=".widget.GitHubHeatmapWidgetProvider"
+            android:label="@string/widget_github_heatmap_label"
+            android:description="@string/widget_github_heatmap_desc"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -84,6 +94,8 @@
 
         <receiver
             android:name=".widget.LeetCodeCircleWidgetProvider"
+            android:label="@string/widget_leetcode_circle_label"
+            android:description="@string/widget_leetcode_circle_desc"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -96,6 +108,8 @@
 
         <receiver
             android:name=".widget.GitHubCircleWidgetProvider"
+            android:label="@string/widget_github_circle_label"
+            android:description="@string/widget_github_circle_desc"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -108,6 +122,8 @@
 
         <receiver
             android:name=".widget.CombinedHeatmapWidgetProvider"
+            android:label="@string/widget_combined_heatmap_label"
+            android:description="@string/widget_combined_heatmap_desc"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />

@@ -615,6 +615,8 @@ fun MainScreen(
                             getWidgetInsideDivColor = viewModel::getWidgetInsideDivColor,
                             onSetWidgetShowHeading = viewModel::setWidgetShowHeading,
                             getWidgetShowHeading = viewModel::getWidgetShowHeading,
+                            onSetWidgetOrderReversed = viewModel::setWidgetOrderReversed,
+                            getWidgetOrderReversed = viewModel::getWidgetOrderReversed,
                             onPinWidget = { providerClass -> pinWidgetToHomeScreen(context, providerClass) }
                         )
 
@@ -2102,6 +2104,8 @@ private fun WidgetsScreenContent(
     getWidgetInsideDivColor: (widgetKey: String) -> String = { "AUTO" },
     onSetWidgetShowHeading: (widgetKey: String, show: Boolean) -> Unit = { _, _ -> },
     getWidgetShowHeading: (widgetKey: String) -> Boolean = { true },
+    onSetWidgetOrderReversed: (widgetKey: String, reversed: Boolean) -> Unit = { _, _ -> },
+    getWidgetOrderReversed: (widgetKey: String) -> Boolean = { false },
     onPinWidget: (Class<out AppWidgetProvider>) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -2398,7 +2402,7 @@ private fun WidgetsScreenContent(
 
         // 3. Widget Gallery Header
         Text(
-            text = "Official Widget Styles (7 Styles • Click to Pin)",
+            text = "Official Widget Styles (8 Styles • Click to Pin)",
             color = ThemeTextPrimary,
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold
@@ -2578,8 +2582,8 @@ private fun WidgetsScreenContent(
             offsetX = lcOffsetX,
             offsetY = lcOffsetY,
             onNudge = { dx, dy ->
-                val nx = (lcOffsetX + dx).coerceIn(-80f, 80f)
-                val ny = (lcOffsetY + dy).coerceIn(-35f, 35f)
+                val nx = (lcOffsetX + dx).coerceIn(-36f, 36f)
+                val ny = (lcOffsetY + dy).coerceIn(-28f, 28f)
                 lcOffsetX = nx
                 lcOffsetY = ny
                 onSetWidgetElementOffset("leetcode_circle", nx, ny)
@@ -2655,14 +2659,16 @@ private fun WidgetsScreenContent(
                                 }
                                 .size(86.dp)
                                 .pointerInput(Unit) {
-                                    detectDragGestures { change, dragAmount ->
-                                        change.consume()
-                                        val nx = (lcOffsetX + dragAmount.x / density.density).coerceIn(-80f, 80f)
-                                        val ny = (lcOffsetY + dragAmount.y / density.density).coerceIn(-35f, 35f)
-                                        lcOffsetX = nx
-                                        lcOffsetY = ny
-                                        onSetWidgetElementOffset("leetcode_circle", nx, ny)
-                                    }
+                                    detectDragGestures(
+                                        onDrag = { change, dragAmount ->
+                                            change.consume()
+                                            lcOffsetX = (lcOffsetX + dragAmount.x / density.density).coerceIn(-36f, 36f)
+                                            lcOffsetY = (lcOffsetY + dragAmount.y / density.density).coerceIn(-28f, 28f)
+                                        },
+                                        onDragEnd = {
+                                            onSetWidgetElementOffset("leetcode_circle", lcOffsetX, lcOffsetY)
+                                        }
+                                    )
                                 }
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(if (isLcPodBlack) Color(0xD90B0B0D) else Color(0x26FFFFFF))
@@ -2712,8 +2718,8 @@ private fun WidgetsScreenContent(
             offsetX = ghOffsetX,
             offsetY = ghOffsetY,
             onNudge = { dx, dy ->
-                val nx = (ghOffsetX + dx).coerceIn(-80f, 80f)
-                val ny = (ghOffsetY + dy).coerceIn(-35f, 35f)
+                val nx = (ghOffsetX + dx).coerceIn(-36f, 36f)
+                val ny = (ghOffsetY + dy).coerceIn(-28f, 28f)
                 ghOffsetX = nx
                 ghOffsetY = ny
                 onSetWidgetElementOffset("github_circle", nx, ny)
@@ -2789,14 +2795,16 @@ private fun WidgetsScreenContent(
                                 }
                                 .size(86.dp)
                                 .pointerInput(Unit) {
-                                    detectDragGestures { change, dragAmount ->
-                                        change.consume()
-                                        val nx = (ghOffsetX + dragAmount.x / density.density).coerceIn(-80f, 80f)
-                                        val ny = (ghOffsetY + dragAmount.y / density.density).coerceIn(-35f, 35f)
-                                        ghOffsetX = nx
-                                        ghOffsetY = ny
-                                        onSetWidgetElementOffset("github_circle", nx, ny)
-                                    }
+                                    detectDragGestures(
+                                        onDrag = { change, dragAmount ->
+                                            change.consume()
+                                            ghOffsetX = (ghOffsetX + dragAmount.x / density.density).coerceIn(-36f, 36f)
+                                            ghOffsetY = (ghOffsetY + dragAmount.y / density.density).coerceIn(-28f, 28f)
+                                        },
+                                        onDragEnd = {
+                                            onSetWidgetElementOffset("github_circle", ghOffsetX, ghOffsetY)
+                                        }
+                                    )
                                 }
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(if (isGhPodBlack) Color(0xD90B0B0D) else Color(0x26FFFFFF))
@@ -2972,7 +2980,7 @@ private fun WidgetsScreenContent(
 
         // 7. Combined All: Master Dev Life (4x4)
         var devActShowHeading by remember { mutableStateOf(getWidgetShowHeading("dev_activity")) }
-        var devActIsReversed by remember { mutableStateOf(false) }
+        var devActIsReversed by remember { mutableStateOf(getWidgetOrderReversed("dev_activity")) }
         var devActWallpaper by remember { mutableStateOf(getWidgetSpecificWallpaper("dev_activity")) }
         WidgetGalleryCard(
             title = "Combined All: Master Dev Life (4x4)",
@@ -2992,37 +3000,48 @@ private fun WidgetsScreenContent(
             orderOption = {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = "Order:",
                         color = ThemeTextSecondary,
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        softWrap = false
                     )
-                    listOf(false to "LC on Top", true to "GH on Top").forEach { (reversed, label) ->
-                        val isSelected = (devActIsReversed == reversed)
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSelected) ThemeTextPrimary else ThemeCardBg)
-                                .border(
-                                    1.dp,
-                                    if (isSelected) ThemeTextPrimary else ThemeCardBorder,
-                                    RoundedCornerShape(8.dp)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        listOf(false to "LC on Top", true to "GH on Top").forEach { (reversed, label) ->
+                            val isSelected = (devActIsReversed == reversed)
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) ThemeTextPrimary else ThemeCardBg)
+                                    .border(
+                                        1.dp,
+                                        if (isSelected) ThemeTextPrimary else ThemeCardBorder,
+                                        RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable {
+                                        devActIsReversed = reversed
+                                        onSetWidgetOrderReversed("dev_activity", reversed)
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 5.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSelected) ThemeBgDark else ThemeTextSecondary,
+                                    fontSize = 10.5.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
-                                .clickable { devActIsReversed = reversed }
-                                .padding(vertical = 5.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = label,
-                                color = if (isSelected) ThemeBgDark else ThemeTextSecondary,
-                                fontSize = 10.5.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                            )
+                            }
                         }
                     }
                 }
@@ -3033,6 +3052,7 @@ private fun WidgetsScreenContent(
                 devActWallpaper = "DEFAULT"
                 onSetWidgetSpecificWallpaper("dev_activity", "DEFAULT")
                 devActIsReversed = false
+                onSetWidgetOrderReversed("dev_activity", false)
             },
             onClick = { onPinWidget(DevActivityWidgetProvider::class.java) },
             content = {
@@ -3042,6 +3062,96 @@ private fun WidgetsScreenContent(
                     showHeading = devActShowHeading,
                     isReversed = devActIsReversed
                 )
+            }
+        )
+
+        // 8. Dual Combined Heatmaps (4x4)
+        var combHmShowHeading by remember { mutableStateOf(getWidgetShowHeading("combined_heatmap")) }
+        var combHmWallpaper by remember { mutableStateOf(getWidgetSpecificWallpaper("combined_heatmap")) }
+        WidgetGalleryCard(
+            title = "Combined Heatmaps (4x4)",
+            subtitle = "Dual synchronized LeetCode and GitHub 52-week activity calendars",
+            tag = "Fixed 4x4",
+            widgetKey = "combined_heatmap",
+            currentWidgetWallpaper = combHmWallpaper,
+            onSelectWidgetWallpaper = {
+                combHmWallpaper = it
+                onSetWidgetSpecificWallpaper("combined_heatmap", it)
+            },
+            showHeading = combHmShowHeading,
+            onToggleShowHeading = {
+                combHmShowHeading = it
+                onSetWidgetShowHeading("combined_heatmap", it)
+            },
+            onReset = {
+                combHmShowHeading = true
+                onSetWidgetShowHeading("combined_heatmap", true)
+                combHmWallpaper = "DEFAULT"
+                onSetWidgetSpecificWallpaper("combined_heatmap", "DEFAULT")
+            },
+            onClick = { onPinWidget(CombinedHeatmapWidgetProvider::class.java) },
+            content = {
+                val lcHeatmap = remember(dashboardData.leetCode.submissionCalendar, heatmapOrientation) {
+                    WidgetBitmapRenderer.renderHeatmap(
+                        dashboardData.leetCode.submissionCalendar,
+                        isLeetCode = true,
+                        widthPx = 680,
+                        heightPx = 280,
+                        weeksCount = 52,
+                        orientation = heatmapOrientation
+                    ).asImageBitmap()
+                }
+                val ghHeatmap = remember(dashboardData.gitHub.contributionDays, heatmapOrientation) {
+                    WidgetBitmapRenderer.renderHeatmap(
+                        dashboardData.gitHub.contributionDays,
+                        isLeetCode = false,
+                        widthPx = 680,
+                        heightPx = 280,
+                        weeksCount = 52,
+                        orientation = heatmapOrientation
+                    ).asImageBitmap()
+                }
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (combHmShowHeading) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 2.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Heatmap Activity", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("Sync: Just now", color = Color(0xFFCBD5E1), fontSize = 9.sp)
+                        }
+                    }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(ThemeInnerBoxBg)
+                            .padding(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = if (dashboardData.leetCode.username.isNotBlank()) "LeetCode (@${dashboardData.leetCode.username})" else "LeetCode",
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Image(bitmap = lcHeatmap, contentDescription = null, modifier = Modifier.fillMaxWidth().height(80.dp))
+                        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(ThemeCardBorder))
+                        Text(
+                            text = if (dashboardData.gitHub.username.isNotBlank()) "GitHub (@${dashboardData.gitHub.username})" else "GitHub",
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Image(bitmap = ghHeatmap, contentDescription = null, modifier = Modifier.fillMaxWidth().height(80.dp))
+                    }
+                }
             }
         )
     }
@@ -3180,102 +3290,103 @@ private fun WidgetGalleryCard(
                     }
                 }
 
-                // Heading Toggle & Size Row
-                if (onToggleShowHeading != null || (outerSize != null && onSelectOuterSize != null)) {
+                // Heading Toggle Row (Dedicated Row)
+                if (onToggleShowHeading != null) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (onToggleShowHeading != null) {
-                            Row(
-                                modifier = Modifier.weight(1f),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Heading:",
-                                    color = ThemeTextSecondary,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    maxLines = 1,
-                                    softWrap = false
-                                )
-                                listOf(true to "Show", false to "Hide").forEach { (show, label) ->
-                                    val isSelected = (showHeading == show)
-                                    Box(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(if (isSelected) ThemeTextPrimary else ThemeCardBg)
-                                            .border(
-                                                1.dp,
-                                                if (isSelected) ThemeTextPrimary else ThemeCardBorder,
-                                                RoundedCornerShape(8.dp)
-                                            )
-                                            .clickable { onToggleShowHeading(show) }
-                                            .padding(vertical = 5.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = label,
-                                            color = if (isSelected) ThemeBgDark else ThemeTextSecondary,
-                                            fontSize = 10.5.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            maxLines = 1,
-                                            softWrap = false
+                        Text(
+                            text = "Heading:",
+                            color = ThemeTextSecondary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            listOf(true to "Show", false to "Hide").forEach { (show, label) ->
+                                val isSelected = (showHeading == show)
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isSelected) ThemeTextPrimary else ThemeCardBg)
+                                        .border(
+                                            1.dp,
+                                            if (isSelected) ThemeTextPrimary else ThemeCardBorder,
+                                            RoundedCornerShape(8.dp)
                                         )
-                                    }
-                                }
-                            }
-                        }
-
-                        if (outerSize != null && onSelectOuterSize != null) {
-                            Row(
-                                modifier = Modifier.weight(1f),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Size:",
-                                    color = ThemeTextSecondary,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    maxLines = 1,
-                                    softWrap = false
-                                )
-                                listOf("x*2", "x*3").forEach { size ->
-                                    val isSelected = (outerSize == size)
-                                    Box(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(if (isSelected) ThemeTextPrimary else ThemeCardBg)
-                                            .border(
-                                                1.dp,
-                                                if (isSelected) ThemeTextPrimary else ThemeCardBorder,
-                                                RoundedCornerShape(8.dp)
-                                            )
-                                            .clickable { onSelectOuterSize(size) }
-                                            .padding(vertical = 5.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = size,
-                                            color = if (isSelected) ThemeBgDark else ThemeTextSecondary,
-                                            fontSize = 10.5.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            maxLines = 1,
-                                            softWrap = false
-                                        )
-                                    }
+                                        .clickable { onToggleShowHeading(show) }
+                                        .padding(horizontal = 12.dp, vertical = 5.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = label,
+                                        color = if (isSelected) ThemeBgDark else ThemeTextSecondary,
+                                        fontSize = 10.5.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
                                 }
                             }
                         }
                     }
                 }
 
-                // Position Controls (Horizontal shift for circle pods)
+                // Size Row (Dedicated Row)
+                if (outerSize != null && onSelectOuterSize != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Size:",
+                            color = ThemeTextSecondary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            listOf("x*2", "x*3").forEach { size ->
+                                val isSelected = (outerSize == size)
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isSelected) ThemeTextPrimary else ThemeCardBg)
+                                        .border(
+                                            1.dp,
+                                            if (isSelected) ThemeTextPrimary else ThemeCardBorder,
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .clickable { onSelectOuterSize(size) }
+                                        .padding(horizontal = 14.dp, vertical = 5.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = size,
+                                        color = if (isSelected) ThemeBgDark else ThemeTextSecondary,
+                                        fontSize = 10.5.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Position Controls (4-Way D-Pad Shift for circle pods)
                 if (hasOffsetControls) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -3299,11 +3410,44 @@ private fun WidgetGalleryCard(
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(ThemeCardBg)
                                     .border(1.dp, ThemeCardBorder, RoundedCornerShape(8.dp))
-                                    .clickable { onNudge?.invoke(-12f, 0f) }
-                                    .padding(horizontal = 7.dp, vertical = 5.dp),
+                                    .clickable { onNudge?.invoke(-6f, 0f) }
+                                    .padding(horizontal = 6.dp, vertical = 5.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("← Left", color = ThemeTextPrimary, fontSize = 10.5.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+                                Text("←", color = ThemeTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(ThemeCardBg)
+                                    .border(1.dp, ThemeCardBorder, RoundedCornerShape(8.dp))
+                                    .clickable { onNudge?.invoke(0f, -6f) }
+                                    .padding(horizontal = 6.dp, vertical = 5.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("↑", color = ThemeTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(ThemeCardBg)
+                                    .border(1.dp, ThemeCardBorder, RoundedCornerShape(8.dp))
+                                    .clickable { onNudge?.invoke(0f, 6f) }
+                                    .padding(horizontal = 6.dp, vertical = 5.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("↓", color = ThemeTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(ThemeCardBg)
+                                    .border(1.dp, ThemeCardBorder, RoundedCornerShape(8.dp))
+                                    .clickable { onNudge?.invoke(6f, 0f) }
+                                    .padding(horizontal = 6.dp, vertical = 5.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("→", color = ThemeTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                             }
                             Box(
                                 modifier = Modifier
@@ -3311,21 +3455,10 @@ private fun WidgetGalleryCard(
                                     .background(if (offsetX != 0f || offsetY != 0f) ThemeAccentRed.copy(alpha = 0.2f) else ThemeCardBg)
                                     .border(1.dp, if (offsetX != 0f || offsetY != 0f) ThemeAccentRed.copy(alpha = 0.4f) else ThemeCardBorder, RoundedCornerShape(8.dp))
                                     .clickable { onResetOffset?.invoke() }
-                                    .padding(horizontal = 7.dp, vertical = 5.dp),
+                                    .padding(horizontal = 6.dp, vertical = 5.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("↺ Center", color = ThemeTextPrimary, fontSize = 10.5.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(ThemeCardBg)
-                                    .border(1.dp, ThemeCardBorder, RoundedCornerShape(8.dp))
-                                    .clickable { onNudge?.invoke(12f, 0f) }
-                                    .padding(horizontal = 7.dp, vertical = 5.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("Right →", color = ThemeTextPrimary, fontSize = 10.5.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+                                Text("↺", color = ThemeTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                             }
                         }
                     }

@@ -168,6 +168,7 @@
                 android:layout_height="match_parent"
                 android:layout_weight="40"
                 android:scaleType="fitCenter"
+                android:src="@drawable/preview_element_lc_circle"
                 android:contentDescription="LeetCode Solved Count" />
 
             <FrameLayout
@@ -182,6 +183,7 @@
                 android:layout_height="match_parent"
                 android:layout_weight="60"
                 android:scaleType="fitCenter"
+                android:src="@drawable/preview_element_lc_heatmap"
                 android:contentDescription="LeetCode Submission Heatmap" />
         </LinearLayout>
     </LinearLayout>
@@ -258,6 +260,7 @@
                 android:layout_height="match_parent"
                 android:layout_weight="40"
                 android:scaleType="fitCenter"
+                android:src="@drawable/preview_element_gh_circle"
                 android:contentDescription="GitHub Contribution Type Map" />
 
             <FrameLayout
@@ -272,6 +275,7 @@
                 android:layout_height="match_parent"
                 android:layout_weight="60"
                 android:scaleType="fitCenter"
+                android:src="@drawable/preview_element_gh_heatmap"
                 android:contentDescription="GitHub Contribution Heatmap" />
         </LinearLayout>
     </LinearLayout>

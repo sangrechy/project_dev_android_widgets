@@ -910,13 +910,13 @@ private fun ProblemItemCard(
                 }
             }
 
-            // Left Status Accent Indicator Bar (Green = Submitted, Red = Unsolved Attempted/TLE, Yellow = Not Solved)
+            // Left Difficulty Accent Indicator Bar (Easy = Green, Medium = Amber, Hard = Red)
             Box(
                 modifier = Modifier
                     .width(4.dp)
                     .height(48.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(statusColor)
+                    .background(diffColor)
             )
 
             Column(
@@ -1338,7 +1338,7 @@ fun LeetCodeProblemDetailView(
                     }
                 }
 
-                HorizontalDivider(color = ThemeCardBorder)
+                HorizontalDivider(color = diffColor.copy(alpha = 0.35f))
 
                 // Tab Content
                 Box(

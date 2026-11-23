@@ -693,6 +693,12 @@ private class FakeDataRepository : DataRepository {
         widgetShowHeadings[widgetKey.trim().uppercase()] = show
     }
 
+    private val widgetOrderReversals = mutableMapOf<String, Boolean>()
+    override fun getWidgetOrderReversed(widgetKey: String): Boolean = widgetOrderReversals[widgetKey.trim().uppercase()] ?: false
+    override fun setWidgetOrderReversed(widgetKey: String, reversed: Boolean) {
+        widgetOrderReversals[widgetKey.trim().uppercase()] = reversed
+    }
+
     override suspend fun saveCustomWallpaperFromUri(uri: android.net.Uri, forWidget: Boolean): String? = "/mock/path.jpg"
     override fun updateAllWidgets() {
         updateWidgetsCallCount++

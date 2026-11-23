@@ -124,10 +124,16 @@ class DevActivityWidgetProvider : AppWidgetProvider() {
             widthDp: Int,
             heightDp: Int
         ): RemoteViews {
-            val layoutId = if (heightDp < 220) R.layout.widget_dev_activity_compact else R.layout.widget_dev_activity
+            val prefs = WidgetPreferences(context)
+            val isReversed = prefs.getWidgetOrderReversed("DEV_ACTIVITY")
+            val layoutId = when {
+                isReversed && heightDp < 220 -> R.layout.widget_dev_activity_compact_reversed
+                isReversed -> R.layout.widget_dev_activity_reversed
+                heightDp < 220 -> R.layout.widget_dev_activity_compact
+                else -> R.layout.widget_dev_activity
+            }
             val views = RemoteViews(context.packageName, layoutId)
             WidgetWallpaperHelper.applyWallpaper(context, views, widthDp, heightDp, widgetKey = "DEV_ACTIVITY")
-            val prefs = WidgetPreferences(context)
             val showHeading = prefs.getWidgetShowHeading("DEV_ACTIVITY")
             views.setViewVisibility(R.id.header_bar, if (showHeading) android.view.View.VISIBLE else android.view.View.GONE)
 

@@ -121,6 +121,7 @@
                 android:layout_height="0dp"
                 android:layout_weight="1"
                 android:scaleType="fitCenter"
+                android:src="@drawable/preview_element_lc_heatmap"
                 android:contentDescription="LeetCode Heatmap" />
         </LinearLayout>
 
@@ -156,6 +157,7 @@
                 android:layout_height="0dp"
                 android:layout_weight="1"
                 android:scaleType="fitCenter"
+                android:src="@drawable/preview_element_gh_heatmap"
                 android:contentDescription="GitHub Heatmap" />
         </LinearLayout>
     </LinearLayout>

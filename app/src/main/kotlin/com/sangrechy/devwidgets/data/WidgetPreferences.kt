@@ -198,6 +198,19 @@ class WidgetPreferences(context: Context) {
             .apply()
     }
 
+    fun getWidgetOrderReversed(widgetKey: String): Boolean {
+        val norm = widgetKey.trim().uppercase()
+        return prefs.getBoolean("KEY_WIDGET_ORDER_REVERSED_$norm", prefs.getBoolean("KEY_WIDGET_ORDER_REVERSED_$widgetKey", false))
+    }
+
+    fun setWidgetOrderReversed(widgetKey: String, reversed: Boolean) {
+        val norm = widgetKey.trim().uppercase()
+        prefs.edit()
+            .putBoolean("KEY_WIDGET_ORDER_REVERSED_$norm", reversed)
+            .putBoolean("KEY_WIDGET_ORDER_REVERSED_$widgetKey", reversed)
+            .apply()
+    }
+
     fun clearAll() {
         memoryCachedData = null
         memoryCachedRawJson = null
