@@ -799,8 +799,10 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
 
     fun getWidgetElementOffsetX(widgetKey: String): Float = repository.getWidgetElementOffsetX(widgetKey)
     fun getWidgetElementOffsetY(widgetKey: String): Float = repository.getWidgetElementOffsetY(widgetKey)
-    fun setWidgetElementOffset(widgetKey: String, dx: Float, dy: Float) {
-        repository.setWidgetElementOffset(widgetKey, dx, dy)
+    fun getWidgetElementRatioX(widgetKey: String): Float = repository.getWidgetElementRatioX(widgetKey)
+    fun getWidgetElementRatioY(widgetKey: String): Float = repository.getWidgetElementRatioY(widgetKey)
+    fun setWidgetElementOffset(widgetKey: String, dx: Float, dy: Float, ratioX: Float? = null, ratioY: Float? = null) {
+        repository.setWidgetElementOffset(widgetKey, dx, dy, ratioX, ratioY)
         applyWidgetWallpaperToAllWidgets()
     }
     fun getWidgetOuterDivSize(widgetKey: String): String = repository.getWidgetOuterDivSize(widgetKey)

@@ -157,6 +157,43 @@ class WidgetPreferences(context: Context) {
             .apply()
     }
 
+    fun getWidgetElementRatioX(widgetKey: String, fallback: Float = 0f): Float {
+        val norm = widgetKey.trim().uppercase()
+        val v = prefs.getFloat("KEY_WIDGET_ELEMENT_RATIO_X_$norm", prefs.getFloat("KEY_WIDGET_ELEMENT_RATIO_X_$widgetKey", Float.NaN))
+        return if (!v.isNaN()) v.coerceIn(-1f, 1f) else fallback.coerceIn(-1f, 1f)
+    }
+
+    fun setWidgetElementRatioX(widgetKey: String, ratio: Float) {
+        val norm = widgetKey.trim().uppercase()
+        val clamped = ratio.coerceIn(-1f, 1f)
+        prefs.edit()
+            .putFloat("KEY_WIDGET_ELEMENT_RATIO_X_$norm", clamped)
+            .putFloat("KEY_WIDGET_ELEMENT_RATIO_X_$widgetKey", clamped)
+            .apply()
+    }
+
+    fun getWidgetElementRatioY(widgetKey: String, fallback: Float = 0f): Float {
+        val norm = widgetKey.trim().uppercase()
+        val v = prefs.getFloat("KEY_WIDGET_ELEMENT_RATIO_Y_$norm", prefs.getFloat("KEY_WIDGET_ELEMENT_RATIO_Y_$widgetKey", Float.NaN))
+        return if (!v.isNaN()) v.coerceIn(-1f, 1f) else fallback.coerceIn(-1f, 1f)
+    }
+
+    fun setWidgetElementRatioY(widgetKey: String, ratio: Float) {
+        val norm = widgetKey.trim().uppercase()
+        val clamped = ratio.coerceIn(-1f, 1f)
+        prefs.edit()
+            .putFloat("KEY_WIDGET_ELEMENT_RATIO_Y_$norm", clamped)
+            .putFloat("KEY_WIDGET_ELEMENT_RATIO_Y_$widgetKey", clamped)
+            .apply()
+    }
+
+    fun setWidgetElementOffset(widgetKey: String, dx: Float, dy: Float, ratioX: Float? = null, ratioY: Float? = null) {
+        setWidgetElementOffsetX(widgetKey, dx)
+        setWidgetElementOffsetY(widgetKey, dy)
+        if (ratioX != null) setWidgetElementRatioX(widgetKey, ratioX)
+        if (ratioY != null) setWidgetElementRatioY(widgetKey, ratioY)
+    }
+
     fun getWidgetShowHeading(widgetKey: String): Boolean {
         val norm = widgetKey.trim().uppercase()
         return prefs.getBoolean("KEY_WIDGET_SHOW_HEADING_$norm", prefs.getBoolean("KEY_WIDGET_SHOW_HEADING_$widgetKey", true))

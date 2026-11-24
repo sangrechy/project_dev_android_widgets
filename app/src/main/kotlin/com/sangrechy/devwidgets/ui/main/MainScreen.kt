@@ -2097,7 +2097,7 @@ private fun WidgetsScreenContent(
     onWidgetWallpaperTypeSelected: (String) -> Unit,
     onSetWidgetSpecificWallpaper: (widgetKey: String, type: String) -> Unit = { _, _ -> },
     getWidgetSpecificWallpaper: (widgetKey: String) -> String = { "DEFAULT" },
-    onSetWidgetElementOffset: (widgetKey: String, dx: Float, dy: Float) -> Unit = { _, _, _ -> },
+    onSetWidgetElementOffset: (widgetKey: String, dx: Float, dy: Float, ratioX: Float?, ratioY: Float?) -> Unit = { _, _, _, _, _ -> },
     getWidgetElementOffset: (widgetKey: String) -> Pair<Float, Float> = { 0f to 0f },
     onSetWidgetOuterDivSize: (widgetKey: String, size: String) -> Unit = { _, _ -> },
     getWidgetOuterDivSize: (widgetKey: String) -> String = { "x*2" },
@@ -2551,8 +2551,7 @@ private fun WidgetsScreenContent(
             }
         )
 
-        // 3. LeetCode Solved Circle (Customizable x*2 or x*3)
-        var lcOuterSize by remember { mutableStateOf(getWidgetOuterDivSize("leetcode_circle")) }
+        // 3. LeetCode Solved Circle (Locked 2x2 with Free Edge-to-Edge Drag)
         var lcShowHeading by remember { mutableStateOf(getWidgetShowHeading("leetcode_circle")) }
         var lcWidgetWallpaper by remember { mutableStateOf(getWidgetSpecificWallpaper("leetcode_circle")) }
         val lcInitialOffset = remember { getWidgetElementOffset("leetcode_circle") }
@@ -2563,8 +2562,8 @@ private fun WidgetsScreenContent(
 
         WidgetGalleryCard(
             title = "LeetCode Solved Circle",
-            subtitle = "Circle gauge with responsive sizing ($lcOuterSize) & element positioning",
-            tag = "Customizable",
+            subtitle = "Circle gauge (x*2) with edge-to-edge element positioning",
+            tag = "2x2 Circle",
             widgetKey = "leetcode_circle",
             currentWidgetWallpaper = lcWidgetWallpaper,
             onSelectWidgetWallpaper = {
@@ -2576,11 +2575,6 @@ private fun WidgetsScreenContent(
                 lcShowHeading = it
                 onSetWidgetShowHeading("leetcode_circle", it)
             },
-            outerSize = lcOuterSize,
-            onSelectOuterSize = {
-                lcOuterSize = it
-                onSetWidgetOuterDivSize("leetcode_circle", it)
-            },
             hasOffsetControls = true,
             offsetX = lcOffsetX,
             offsetY = lcOffsetY,
@@ -2589,23 +2583,23 @@ private fun WidgetsScreenContent(
                 val ny = (lcOffsetY + dy).coerceIn(-lcMaxDy, lcMaxDy)
                 lcOffsetX = nx
                 lcOffsetY = ny
-                onSetWidgetElementOffset("leetcode_circle", nx, ny)
+                val rx = if (lcMaxDx > 0f) (nx / lcMaxDx).coerceIn(-1f, 1f) else 0f
+                val ry = if (lcMaxDy > 0f) (ny / lcMaxDy).coerceIn(-1f, 1f) else 0f
+                onSetWidgetElementOffset("leetcode_circle", nx, ny, rx, ry)
             },
             onResetOffset = {
                 lcOffsetX = 0f
                 lcOffsetY = 0f
-                onSetWidgetElementOffset("leetcode_circle", 0f, 0f)
+                onSetWidgetElementOffset("leetcode_circle", 0f, 0f, 0f, 0f)
             },
             onReset = {
                 lcShowHeading = true
                 onSetWidgetShowHeading("leetcode_circle", true)
                 lcWidgetWallpaper = "DEFAULT"
                 onSetWidgetSpecificWallpaper("leetcode_circle", "DEFAULT")
-                lcOuterSize = "x*2"
-                onSetWidgetOuterDivSize("leetcode_circle", "x*2")
                 lcOffsetX = 0f
                 lcOffsetY = 0f
-                onSetWidgetElementOffset("leetcode_circle", 0f, 0f)
+                onSetWidgetElementOffset("leetcode_circle", 0f, 0f, 0f, 0f)
             },
             onClick = { onPinWidget(LeetCodeCircleWidgetProvider::class.java) },
             content = {
@@ -2627,7 +2621,7 @@ private fun WidgetsScreenContent(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(bottom = 4.dp),
+                                .padding(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 2.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
@@ -2649,7 +2643,7 @@ private fun WidgetsScreenContent(
                     BoxWithConstraints(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(if (lcOuterSize == "x*3") 170.dp else 115.dp),
+                            .height(115.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         val currentMaxDx = ((maxWidth - 86.dp) / 2).coerceAtLeast(0.dp).value
@@ -2668,7 +2662,7 @@ private fun WidgetsScreenContent(
                                     )
                                 }
                                 .size(86.dp)
-                                .pointerInput(Unit) {
+                                .pointerInput(currentMaxDx, currentMaxDy) {
                                     detectDragGestures(
                                         onDrag = { change, dragAmount ->
                                             change.consume()
@@ -2676,7 +2670,9 @@ private fun WidgetsScreenContent(
                                             lcOffsetY = (lcOffsetY + dragAmount.y / density.density).coerceIn(-currentMaxDy, currentMaxDy)
                                         },
                                         onDragEnd = {
-                                            onSetWidgetElementOffset("leetcode_circle", lcOffsetX, lcOffsetY)
+                                            val rx = if (currentMaxDx > 0f) (lcOffsetX / currentMaxDx).coerceIn(-1f, 1f) else 0f
+                                            val ry = if (currentMaxDy > 0f) (lcOffsetY / currentMaxDy).coerceIn(-1f, 1f) else 0f
+                                            onSetWidgetElementOffset("leetcode_circle", lcOffsetX, lcOffsetY, rx, ry)
                                         }
                                     )
                                 }
@@ -2696,8 +2692,7 @@ private fun WidgetsScreenContent(
             }
         )
 
-        // 4. GitHub Contribution Circle (Customizable x*2 or x*3)
-        var ghOuterSize by remember { mutableStateOf(getWidgetOuterDivSize("github_circle")) }
+        // 4. GitHub Contribution Circle (Locked 2x2 with Free Edge-to-Edge Drag)
         var ghShowHeading by remember { mutableStateOf(getWidgetShowHeading("github_circle")) }
         var ghWidgetWallpaper by remember { mutableStateOf(getWidgetSpecificWallpaper("github_circle")) }
         val ghInitialOffset = remember { getWidgetElementOffset("github_circle") }
@@ -2708,8 +2703,8 @@ private fun WidgetsScreenContent(
 
         WidgetGalleryCard(
             title = "GitHub Contribution Circle",
-            subtitle = "Circle gauge with responsive sizing ($ghOuterSize) & element positioning",
-            tag = "Customizable",
+            subtitle = "Circle gauge (x*2) with edge-to-edge element positioning",
+            tag = "2x2 Circle",
             widgetKey = "github_circle",
             currentWidgetWallpaper = ghWidgetWallpaper,
             onSelectWidgetWallpaper = {
@@ -2721,11 +2716,6 @@ private fun WidgetsScreenContent(
                 ghShowHeading = it
                 onSetWidgetShowHeading("github_circle", it)
             },
-            outerSize = ghOuterSize,
-            onSelectOuterSize = {
-                ghOuterSize = it
-                onSetWidgetOuterDivSize("github_circle", it)
-            },
             hasOffsetControls = true,
             offsetX = ghOffsetX,
             offsetY = ghOffsetY,
@@ -2734,23 +2724,23 @@ private fun WidgetsScreenContent(
                 val ny = (ghOffsetY + dy).coerceIn(-ghMaxDy, ghMaxDy)
                 ghOffsetX = nx
                 ghOffsetY = ny
-                onSetWidgetElementOffset("github_circle", nx, ny)
+                val rx = if (ghMaxDx > 0f) (nx / ghMaxDx).coerceIn(-1f, 1f) else 0f
+                val ry = if (ghMaxDy > 0f) (ny / ghMaxDy).coerceIn(-1f, 1f) else 0f
+                onSetWidgetElementOffset("github_circle", nx, ny, rx, ry)
             },
             onResetOffset = {
                 ghOffsetX = 0f
                 ghOffsetY = 0f
-                onSetWidgetElementOffset("github_circle", 0f, 0f)
+                onSetWidgetElementOffset("github_circle", 0f, 0f, 0f, 0f)
             },
             onReset = {
                 ghShowHeading = true
                 onSetWidgetShowHeading("github_circle", true)
                 ghWidgetWallpaper = "DEFAULT"
                 onSetWidgetSpecificWallpaper("github_circle", "DEFAULT")
-                ghOuterSize = "x*2"
-                onSetWidgetOuterDivSize("github_circle", "x*2")
                 ghOffsetX = 0f
                 ghOffsetY = 0f
-                onSetWidgetElementOffset("github_circle", 0f, 0f)
+                onSetWidgetElementOffset("github_circle", 0f, 0f, 0f, 0f)
             },
             onClick = { onPinWidget(GitHubCircleWidgetProvider::class.java) },
             content = {
@@ -2772,7 +2762,7 @@ private fun WidgetsScreenContent(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(bottom = 4.dp),
+                                .padding(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 2.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
@@ -2794,7 +2784,7 @@ private fun WidgetsScreenContent(
                     BoxWithConstraints(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(if (ghOuterSize == "x*3") 170.dp else 115.dp),
+                            .height(115.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         val currentMaxDx = ((maxWidth - 86.dp) / 2).coerceAtLeast(0.dp).value
@@ -2813,7 +2803,7 @@ private fun WidgetsScreenContent(
                                     )
                                 }
                                 .size(86.dp)
-                                .pointerInput(Unit) {
+                                .pointerInput(currentMaxDx, currentMaxDy) {
                                     detectDragGestures(
                                         onDrag = { change, dragAmount ->
                                             change.consume()
@@ -2821,7 +2811,9 @@ private fun WidgetsScreenContent(
                                             ghOffsetY = (ghOffsetY + dragAmount.y / density.density).coerceIn(-currentMaxDy, currentMaxDy)
                                         },
                                         onDragEnd = {
-                                            onSetWidgetElementOffset("github_circle", ghOffsetX, ghOffsetY)
+                                            val rx = if (currentMaxDx > 0f) (ghOffsetX / currentMaxDx).coerceIn(-1f, 1f) else 0f
+                                            val ry = if (currentMaxDy > 0f) (ghOffsetY / currentMaxDy).coerceIn(-1f, 1f) else 0f
+                                            onSetWidgetElementOffset("github_circle", ghOffsetX, ghOffsetY, rx, ry)
                                         }
                                     )
                                 }
@@ -3429,7 +3421,7 @@ private fun WidgetGalleryCard(
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(ThemeCardBg)
                                     .border(1.dp, ThemeCardBorder, RoundedCornerShape(8.dp))
-                                    .clickable { onNudge?.invoke(-6f, 0f) }
+                                    .clickable { onNudge?.invoke(-8f, 0f) }
                                     .padding(horizontal = 6.dp, vertical = 5.dp),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -3440,7 +3432,7 @@ private fun WidgetGalleryCard(
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(ThemeCardBg)
                                     .border(1.dp, ThemeCardBorder, RoundedCornerShape(8.dp))
-                                    .clickable { onNudge?.invoke(0f, -6f) }
+                                    .clickable { onNudge?.invoke(0f, -8f) }
                                     .padding(horizontal = 6.dp, vertical = 5.dp),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -3451,7 +3443,7 @@ private fun WidgetGalleryCard(
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(ThemeCardBg)
                                     .border(1.dp, ThemeCardBorder, RoundedCornerShape(8.dp))
-                                    .clickable { onNudge?.invoke(0f, 6f) }
+                                    .clickable { onNudge?.invoke(0f, 8f) }
                                     .padding(horizontal = 6.dp, vertical = 5.dp),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -3462,7 +3454,7 @@ private fun WidgetGalleryCard(
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(ThemeCardBg)
                                     .border(1.dp, ThemeCardBorder, RoundedCornerShape(8.dp))
-                                    .clickable { onNudge?.invoke(6f, 0f) }
+                                    .clickable { onNudge?.invoke(8f, 0f) }
                                     .padding(horizontal = 6.dp, vertical = 5.dp),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -3564,7 +3556,7 @@ private fun WidgetGalleryCard(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(8.dp)
+                        .padding(if (hasOffsetControls) 0.dp else 8.dp)
                 ) {
                     content()
                 }

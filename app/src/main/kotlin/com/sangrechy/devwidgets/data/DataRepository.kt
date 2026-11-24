@@ -62,8 +62,10 @@ interface DataRepository {
     fun getWidgetWallpaperCustomPath(): String
     fun setWidgetWallpaperCustomPath(path: String)
     fun getWidgetElementOffsetX(widgetKey: String): Float
-    fun setWidgetElementOffset(widgetKey: String, dx: Float, dy: Float)
     fun getWidgetElementOffsetY(widgetKey: String): Float
+    fun getWidgetElementRatioX(widgetKey: String): Float
+    fun getWidgetElementRatioY(widgetKey: String): Float
+    fun setWidgetElementOffset(widgetKey: String, dx: Float, dy: Float, ratioX: Float? = null, ratioY: Float? = null)
     fun getWidgetOuterDivSize(widgetKey: String): String
     fun setWidgetOuterDivSize(widgetKey: String, size: String)
     fun getWidgetInsideDivColor(widgetKey: String): String
@@ -250,11 +252,12 @@ class DefaultDataRepository(private val context: Context) : DataRepository {
     override fun getWidgetWallpaperCustomPath(): String = prefs.widgetWallpaperCustomPath
     override fun setWidgetWallpaperCustomPath(path: String) { prefs.widgetWallpaperCustomPath = path }
     override fun getWidgetElementOffsetX(widgetKey: String): Float = prefs.getWidgetElementOffsetX(widgetKey)
-    override fun setWidgetElementOffset(widgetKey: String, dx: Float, dy: Float) {
-        prefs.setWidgetElementOffsetX(widgetKey, dx)
-        prefs.setWidgetElementOffsetY(widgetKey, dy)
-    }
     override fun getWidgetElementOffsetY(widgetKey: String): Float = prefs.getWidgetElementOffsetY(widgetKey)
+    override fun getWidgetElementRatioX(widgetKey: String): Float = prefs.getWidgetElementRatioX(widgetKey)
+    override fun getWidgetElementRatioY(widgetKey: String): Float = prefs.getWidgetElementRatioY(widgetKey)
+    override fun setWidgetElementOffset(widgetKey: String, dx: Float, dy: Float, ratioX: Float?, ratioY: Float?) {
+        prefs.setWidgetElementOffset(widgetKey, dx, dy, ratioX, ratioY)
+    }
     override fun getWidgetOuterDivSize(widgetKey: String): String = prefs.getWidgetOuterDivSize(widgetKey)
     override fun setWidgetOuterDivSize(widgetKey: String, size: String) {
         prefs.setWidgetOuterDivSize(widgetKey, size)

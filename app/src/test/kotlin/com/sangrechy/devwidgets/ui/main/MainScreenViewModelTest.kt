@@ -667,13 +667,19 @@ private class FakeDataRepository : DataRepository {
 
     private val elementOffsetsX = mutableMapOf<String, Float>()
     private val elementOffsetsY = mutableMapOf<String, Float>()
+    private val elementRatiosX = mutableMapOf<String, Float>()
+    private val elementRatiosY = mutableMapOf<String, Float>()
     override fun getWidgetElementOffsetX(widgetKey: String): Float = elementOffsetsX[widgetKey.trim().uppercase()] ?: 0f
-    override fun setWidgetElementOffset(widgetKey: String, dx: Float, dy: Float) {
+    override fun getWidgetElementOffsetY(widgetKey: String): Float = elementOffsetsY[widgetKey.trim().uppercase()] ?: 0f
+    override fun getWidgetElementRatioX(widgetKey: String): Float = elementRatiosX[widgetKey.trim().uppercase()] ?: 0f
+    override fun getWidgetElementRatioY(widgetKey: String): Float = elementRatiosY[widgetKey.trim().uppercase()] ?: 0f
+    override fun setWidgetElementOffset(widgetKey: String, dx: Float, dy: Float, ratioX: Float?, ratioY: Float?) {
         val norm = widgetKey.trim().uppercase()
         elementOffsetsX[norm] = dx
         elementOffsetsY[norm] = dy
+        if (ratioX != null) elementRatiosX[norm] = ratioX
+        if (ratioY != null) elementRatiosY[norm] = ratioY
     }
-    override fun getWidgetElementOffsetY(widgetKey: String): Float = elementOffsetsY[widgetKey.trim().uppercase()] ?: 0f
 
     private val outerDivSizes = mutableMapOf<String, String>()
     override fun getWidgetOuterDivSize(widgetKey: String): String = outerDivSizes[widgetKey.trim().uppercase()] ?: "2x2"
