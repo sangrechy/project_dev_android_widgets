@@ -67,9 +67,15 @@ class GitHubCircleWidgetProvider : AppWidgetProvider() {
             val offsetY = prefs.getWidgetElementOffsetY("GITHUB_CIRCLE")
             val density = context.resources.displayMetrics.density
 
-            // Generous free offset range safely bounded within card chassis bounds
-            val effectiveDxDp = offsetX.coerceIn(-36f, 36f)
-            val effectiveDyDp = offsetY.coerceIn(-28f, 28f)
+            // Dynamic free offset range allowing element to travel to leftmost and rightmost edges
+            val availableWidthDp = (actualWidthDp - 16f).coerceAtLeast(86f)
+            val availableHeightDp = (actualHeightDp - 16f - (if (showHeading) 22f else 0f)).coerceAtLeast(86f)
+
+            val maxOffsetX = ((availableWidthDp - 86f) / 2f).coerceAtLeast(0f)
+            val maxOffsetY = ((availableHeightDp - 86f) / 2f).coerceAtLeast(0f)
+
+            val effectiveDxDp = if (maxOffsetX > 0f) offsetX.coerceIn(-maxOffsetX, maxOffsetX) else 0f
+            val effectiveDyDp = if (maxOffsetY > 0f) offsetY.coerceIn(-maxOffsetY, maxOffsetY) else 0f
 
             val padLeft = if (effectiveDxDp > 0) (effectiveDxDp * 2f * density).toInt() else 0
             val padRight = if (effectiveDxDp < 0) ((-effectiveDxDp) * 2f * density).toInt() else 0

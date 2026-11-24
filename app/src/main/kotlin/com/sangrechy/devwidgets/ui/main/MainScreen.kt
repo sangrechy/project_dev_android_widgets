@@ -103,6 +103,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.unit.IntOffset
 import kotlin.math.roundToInt
@@ -2555,8 +2556,10 @@ private fun WidgetsScreenContent(
         var lcShowHeading by remember { mutableStateOf(getWidgetShowHeading("leetcode_circle")) }
         var lcWidgetWallpaper by remember { mutableStateOf(getWidgetSpecificWallpaper("leetcode_circle")) }
         val lcInitialOffset = remember { getWidgetElementOffset("leetcode_circle") }
-        var lcOffsetX by remember { mutableStateOf(lcInitialOffset.first.coerceIn(-80f, 80f)) }
-        var lcOffsetY by remember { mutableStateOf(lcInitialOffset.second.coerceIn(-35f, 35f)) }
+        var lcMaxDx by remember { mutableStateOf(120f) }
+        var lcMaxDy by remember { mutableStateOf(28f) }
+        var lcOffsetX by remember { mutableStateOf(lcInitialOffset.first) }
+        var lcOffsetY by remember { mutableStateOf(lcInitialOffset.second) }
 
         WidgetGalleryCard(
             title = "LeetCode Solved Circle",
@@ -2582,8 +2585,8 @@ private fun WidgetsScreenContent(
             offsetX = lcOffsetX,
             offsetY = lcOffsetY,
             onNudge = { dx, dy ->
-                val nx = (lcOffsetX + dx).coerceIn(-36f, 36f)
-                val ny = (lcOffsetY + dy).coerceIn(-28f, 28f)
+                val nx = (lcOffsetX + dx).coerceIn(-lcMaxDx, lcMaxDx)
+                val ny = (lcOffsetY + dy).coerceIn(-lcMaxDy, lcMaxDy)
                 lcOffsetX = nx
                 lcOffsetY = ny
                 onSetWidgetElementOffset("leetcode_circle", nx, ny)
@@ -2643,18 +2646,25 @@ private fun WidgetsScreenContent(
                         }
                     }
 
-                    Box(
+                    BoxWithConstraints(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(if (lcOuterSize == "x*3") 170.dp else 115.dp),
                         contentAlignment = Alignment.Center
                     ) {
+                        val currentMaxDx = ((maxWidth - 86.dp) / 2).coerceAtLeast(0.dp).value
+                        val currentMaxDy = ((maxHeight - 86.dp) / 2).coerceAtLeast(0.dp).value
+                        LaunchedEffect(currentMaxDx, currentMaxDy) {
+                            lcMaxDx = currentMaxDx
+                            lcMaxDy = currentMaxDy
+                        }
+
                         Box(
                             modifier = Modifier
                                 .offset {
                                     IntOffset(
-                                        (lcOffsetX * density.density).roundToInt(),
-                                        (lcOffsetY * density.density).roundToInt()
+                                        (lcOffsetX.coerceIn(-currentMaxDx, currentMaxDx) * density.density).roundToInt(),
+                                        (lcOffsetY.coerceIn(-currentMaxDy, currentMaxDy) * density.density).roundToInt()
                                     )
                                 }
                                 .size(86.dp)
@@ -2662,8 +2672,8 @@ private fun WidgetsScreenContent(
                                     detectDragGestures(
                                         onDrag = { change, dragAmount ->
                                             change.consume()
-                                            lcOffsetX = (lcOffsetX + dragAmount.x / density.density).coerceIn(-36f, 36f)
-                                            lcOffsetY = (lcOffsetY + dragAmount.y / density.density).coerceIn(-28f, 28f)
+                                            lcOffsetX = (lcOffsetX + dragAmount.x / density.density).coerceIn(-currentMaxDx, currentMaxDx)
+                                            lcOffsetY = (lcOffsetY + dragAmount.y / density.density).coerceIn(-currentMaxDy, currentMaxDy)
                                         },
                                         onDragEnd = {
                                             onSetWidgetElementOffset("leetcode_circle", lcOffsetX, lcOffsetY)
@@ -2691,8 +2701,10 @@ private fun WidgetsScreenContent(
         var ghShowHeading by remember { mutableStateOf(getWidgetShowHeading("github_circle")) }
         var ghWidgetWallpaper by remember { mutableStateOf(getWidgetSpecificWallpaper("github_circle")) }
         val ghInitialOffset = remember { getWidgetElementOffset("github_circle") }
-        var ghOffsetX by remember { mutableStateOf(ghInitialOffset.first.coerceIn(-80f, 80f)) }
-        var ghOffsetY by remember { mutableStateOf(ghInitialOffset.second.coerceIn(-35f, 35f)) }
+        var ghMaxDx by remember { mutableStateOf(120f) }
+        var ghMaxDy by remember { mutableStateOf(28f) }
+        var ghOffsetX by remember { mutableStateOf(ghInitialOffset.first) }
+        var ghOffsetY by remember { mutableStateOf(ghInitialOffset.second) }
 
         WidgetGalleryCard(
             title = "GitHub Contribution Circle",
@@ -2718,8 +2730,8 @@ private fun WidgetsScreenContent(
             offsetX = ghOffsetX,
             offsetY = ghOffsetY,
             onNudge = { dx, dy ->
-                val nx = (ghOffsetX + dx).coerceIn(-36f, 36f)
-                val ny = (ghOffsetY + dy).coerceIn(-28f, 28f)
+                val nx = (ghOffsetX + dx).coerceIn(-ghMaxDx, ghMaxDx)
+                val ny = (ghOffsetY + dy).coerceIn(-ghMaxDy, ghMaxDy)
                 ghOffsetX = nx
                 ghOffsetY = ny
                 onSetWidgetElementOffset("github_circle", nx, ny)
@@ -2779,18 +2791,25 @@ private fun WidgetsScreenContent(
                         }
                     }
 
-                    Box(
+                    BoxWithConstraints(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(if (ghOuterSize == "x*3") 170.dp else 115.dp),
                         contentAlignment = Alignment.Center
                     ) {
+                        val currentMaxDx = ((maxWidth - 86.dp) / 2).coerceAtLeast(0.dp).value
+                        val currentMaxDy = ((maxHeight - 86.dp) / 2).coerceAtLeast(0.dp).value
+                        LaunchedEffect(currentMaxDx, currentMaxDy) {
+                            ghMaxDx = currentMaxDx
+                            ghMaxDy = currentMaxDy
+                        }
+
                         Box(
                             modifier = Modifier
                                 .offset {
                                     IntOffset(
-                                        (ghOffsetX * density.density).roundToInt(),
-                                        (ghOffsetY * density.density).roundToInt()
+                                        (ghOffsetX.coerceIn(-currentMaxDx, currentMaxDx) * density.density).roundToInt(),
+                                        (ghOffsetY.coerceIn(-currentMaxDy, currentMaxDy) * density.density).roundToInt()
                                     )
                                 }
                                 .size(86.dp)
@@ -2798,8 +2817,8 @@ private fun WidgetsScreenContent(
                                     detectDragGestures(
                                         onDrag = { change, dragAmount ->
                                             change.consume()
-                                            ghOffsetX = (ghOffsetX + dragAmount.x / density.density).coerceIn(-36f, 36f)
-                                            ghOffsetY = (ghOffsetY + dragAmount.y / density.density).coerceIn(-28f, 28f)
+                                            ghOffsetX = (ghOffsetX + dragAmount.x / density.density).coerceIn(-currentMaxDx, currentMaxDx)
+                                            ghOffsetY = (ghOffsetY + dragAmount.y / density.density).coerceIn(-currentMaxDy, currentMaxDy)
                                         },
                                         onDragEnd = {
                                             onSetWidgetElementOffset("github_circle", ghOffsetX, ghOffsetY)
