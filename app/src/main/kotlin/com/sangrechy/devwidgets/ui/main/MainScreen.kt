@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -533,6 +534,38 @@ fun MainScreen(
                         contentScrollState.scrollTo(0)
                     }
 
+                    if (currentScreen == AppScreen.WIDGETS) {
+                        WidgetsScreenContent(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            dashboardData = dashboardData,
+                            selectedInterval = selectedInterval,
+                            heatmapOrientation = heatmapOrientation,
+                            widgetWallpaperType = widgetWallpaperType,
+                            widgetSpecificWallpapers = widgetSpecificWallpapers,
+                            onIntervalSelected = viewModel::setRefreshInterval,
+                            onOrientationSelected = viewModel::setHeatmapOrientation,
+                            onWidgetWallpaperTypeSelected = viewModel::setWidgetWallpaperType,
+                            onSetWidgetSpecificWallpaper = viewModel::setWidgetWallpaperTypeFor,
+                            getWidgetSpecificWallpaper = { key ->
+                                widgetSpecificWallpapers[key.trim().uppercase()] ?: viewModel.getWidgetWallpaperTypeFor(key)
+                            },
+                            onSetWidgetElementOffset = viewModel::setWidgetElementOffset,
+                            getWidgetElementOffset = { key ->
+                                viewModel.getWidgetElementOffsetX(key) to viewModel.getWidgetElementOffsetY(key)
+                            },
+                            onSetWidgetOuterDivSize = viewModel::setWidgetOuterDivSize,
+                            getWidgetOuterDivSize = viewModel::getWidgetOuterDivSize,
+                            onSetWidgetInsideDivColor = viewModel::setWidgetInsideDivColor,
+                            getWidgetInsideDivColor = viewModel::getWidgetInsideDivColor,
+                            onSetWidgetShowHeading = viewModel::setWidgetShowHeading,
+                            getWidgetShowHeading = viewModel::getWidgetShowHeading,
+                            onSetWidgetOrderReversed = viewModel::setWidgetOrderReversed,
+                            getWidgetOrderReversed = viewModel::getWidgetOrderReversed,
+                            onPinWidget = { providerClass -> pinWidgetToHomeScreen(context, providerClass) }
+                        )
+                    } else {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -593,33 +626,7 @@ fun MainScreen(
                             onUploadGeneralDocument = viewModel::uploadGeneralDocument
                         )
 
-                        AppScreen.WIDGETS -> WidgetsScreenContent(
-                            dashboardData = dashboardData,
-                            selectedInterval = selectedInterval,
-                            heatmapOrientation = heatmapOrientation,
-                            widgetWallpaperType = widgetWallpaperType,
-                            widgetSpecificWallpapers = widgetSpecificWallpapers,
-                            onIntervalSelected = viewModel::setRefreshInterval,
-                            onOrientationSelected = viewModel::setHeatmapOrientation,
-                            onWidgetWallpaperTypeSelected = viewModel::setWidgetWallpaperType,
-                            onSetWidgetSpecificWallpaper = viewModel::setWidgetWallpaperTypeFor,
-                            getWidgetSpecificWallpaper = { key ->
-                                widgetSpecificWallpapers[key.trim().uppercase()] ?: viewModel.getWidgetWallpaperTypeFor(key)
-                            },
-                            onSetWidgetElementOffset = viewModel::setWidgetElementOffset,
-                            getWidgetElementOffset = { key ->
-                                viewModel.getWidgetElementOffsetX(key) to viewModel.getWidgetElementOffsetY(key)
-                            },
-                            onSetWidgetOuterDivSize = viewModel::setWidgetOuterDivSize,
-                            getWidgetOuterDivSize = viewModel::getWidgetOuterDivSize,
-                            onSetWidgetInsideDivColor = viewModel::setWidgetInsideDivColor,
-                            getWidgetInsideDivColor = viewModel::getWidgetInsideDivColor,
-                            onSetWidgetShowHeading = viewModel::setWidgetShowHeading,
-                            getWidgetShowHeading = viewModel::getWidgetShowHeading,
-                            onSetWidgetOrderReversed = viewModel::setWidgetOrderReversed,
-                            getWidgetOrderReversed = viewModel::getWidgetOrderReversed,
-                            onPinWidget = { providerClass -> pinWidgetToHomeScreen(context, providerClass) }
-                        )
+                        AppScreen.WIDGETS -> {}
 
                         AppScreen.WALLPAPER -> WallpaperScreenContent(
                             viewModel = viewModel,
@@ -653,6 +660,7 @@ fun MainScreen(
                             onLogoutAll = viewModel::showLogoutConfirmation
                         )
                     }
+                }
                 }
             }
         }
@@ -2087,6 +2095,7 @@ private fun RecentGitHubEventsCard(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun WidgetsScreenContent(
+    modifier: Modifier = Modifier,
     dashboardData: WidgetDashboardData,
     selectedInterval: String,
     heatmapOrientation: String,
@@ -2109,7 +2118,71 @@ private fun WidgetsScreenContent(
     getWidgetOrderReversed: (widgetKey: String) -> Boolean = { false },
     onPinWidget: (Class<out AppWidgetProvider>) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    val sharedLcCircle by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, dashboardData.leetCode) {
+        value = withContext(Dispatchers.Default) {
+            WidgetBitmapRenderer.renderLeetCodeCircle(dashboardData.leetCode, sizePx = 360).asImageBitmap()
+        }
+    }
+    val sharedGhCircle by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, dashboardData.gitHub) {
+        value = withContext(Dispatchers.Default) {
+            WidgetBitmapRenderer.renderGitHubTypeMap(dashboardData.gitHub, sizePx = 360).asImageBitmap()
+        }
+    }
+    val sharedLcHeatmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, dashboardData.leetCode.submissionCalendar, heatmapOrientation) {
+        value = withContext(Dispatchers.Default) {
+            WidgetBitmapRenderer.renderHeatmap(
+                dashboardData.leetCode.submissionCalendar,
+                isLeetCode = true,
+                widthPx = 680,
+                heightPx = 340,
+                weeksCount = 52,
+                orientation = heatmapOrientation
+            ).asImageBitmap()
+        }
+    }
+    val sharedGhHeatmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, dashboardData.gitHub.contributionDays, heatmapOrientation) {
+        value = withContext(Dispatchers.Default) {
+            WidgetBitmapRenderer.renderHeatmap(
+                dashboardData.gitHub.contributionDays,
+                isLeetCode = false,
+                widthPx = 680,
+                heightPx = 340,
+                weeksCount = 52,
+                orientation = heatmapOrientation
+            ).asImageBitmap()
+        }
+    }
+    val sharedLcHeatmapCompact by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, dashboardData.leetCode.submissionCalendar, heatmapOrientation) {
+        value = withContext(Dispatchers.Default) {
+            WidgetBitmapRenderer.renderHeatmap(
+                dashboardData.leetCode.submissionCalendar,
+                isLeetCode = true,
+                widthPx = 450,
+                heightPx = 420,
+                weeksCount = 52,
+                orientation = heatmapOrientation
+            ).asImageBitmap()
+        }
+    }
+    val sharedGhHeatmapCompact by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, dashboardData.gitHub.contributionDays, heatmapOrientation) {
+        value = withContext(Dispatchers.Default) {
+            WidgetBitmapRenderer.renderHeatmap(
+                dashboardData.gitHub.contributionDays,
+                isLeetCode = false,
+                widthPx = 450,
+                heightPx = 420,
+                weeksCount = 52,
+                orientation = heatmapOrientation
+            ).asImageBitmap()
+        }
+    }
+
+    LazyColumn(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item(key = "settings_header") {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         // 1. Heatmap Orientation Selector Box (Horizontal vs Vertical 90°)
         Box(
             modifier = Modifier
@@ -2408,8 +2481,11 @@ private fun WidgetsScreenContent(
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold
         )
+            }
+        }
 
         // 1. LeetCode Heatmap (4x2)
+        item(key = "card_lc_heatmap") {
         var lcHmShowHeading by remember { mutableStateOf(getWidgetShowHeading("leetcode_heatmap")) }
         WidgetGalleryCard(
             title = "LeetCode Heatmap (4x2)",
@@ -2430,16 +2506,6 @@ private fun WidgetsScreenContent(
             },
             onClick = { onPinWidget(LeetCodeHeatmapWidgetProvider::class.java) },
             content = {
-                val lcHeatmap = remember(dashboardData.leetCode.submissionCalendar, heatmapOrientation) {
-                    WidgetBitmapRenderer.renderHeatmap(
-                        dashboardData.leetCode.submissionCalendar,
-                        isLeetCode = true,
-                        widthPx = 680,
-                        heightPx = 340,
-                        weeksCount = 52,
-                        orientation = heatmapOrientation
-                    ).asImageBitmap()
-                }
                 Column(modifier = Modifier.fillMaxWidth()) {
                     if (lcHmShowHeading) {
                         Row(
@@ -2469,18 +2535,22 @@ private fun WidgetsScreenContent(
                             Text("Sync: Just now", color = Color(0xFFCBD5E1), fontSize = 9.sp)
                         }
                     }
-                    Image(
-                        bitmap = lcHeatmap,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(110.dp)
-                    )
+                    sharedLcHeatmap?.let { bmp ->
+                        Image(
+                            bitmap = bmp,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(110.dp)
+                        )
+                    } ?: Spacer(modifier = Modifier.fillMaxWidth().height(110.dp))
                 }
             }
         )
+        }
 
         // 2. GitHub Heatmap (4x2)
+        item(key = "card_gh_heatmap") {
         var ghHmShowHeading by remember { mutableStateOf(getWidgetShowHeading("github_heatmap")) }
         WidgetGalleryCard(
             title = "GitHub Heatmap (4x2)",
@@ -2501,16 +2571,6 @@ private fun WidgetsScreenContent(
             },
             onClick = { onPinWidget(GitHubHeatmapWidgetProvider::class.java) },
             content = {
-                val ghHeatmap = remember(dashboardData.gitHub.contributionDays, heatmapOrientation) {
-                    WidgetBitmapRenderer.renderHeatmap(
-                        dashboardData.gitHub.contributionDays,
-                        isLeetCode = false,
-                        widthPx = 680,
-                        heightPx = 340,
-                        weeksCount = 52,
-                        orientation = heatmapOrientation
-                    ).asImageBitmap()
-                }
                 Column(modifier = Modifier.fillMaxWidth()) {
                     if (ghHmShowHeading) {
                         Row(
@@ -2540,18 +2600,22 @@ private fun WidgetsScreenContent(
                             Text("Sync: Just now", color = Color(0xFFCBD5E1), fontSize = 9.sp)
                         }
                     }
-                    Image(
-                        bitmap = ghHeatmap,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(110.dp)
-                    )
+                    sharedGhHeatmap?.let { bmp ->
+                        Image(
+                            bitmap = bmp,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(110.dp)
+                        )
+                    } ?: Spacer(modifier = Modifier.fillMaxWidth().height(110.dp))
                 }
             }
         )
+        }
 
-        // 3. LeetCode Solved Circle (Locked 2x2 with Free Edge-to-Edge Drag)
+        // 3. LeetCode Solved Circle (x*2 / x*3 with Free Edge-to-Edge Drag)
+        item(key = "card_lc_circle") {
         var lcShowHeading by remember { mutableStateOf(getWidgetShowHeading("leetcode_circle")) }
         var lcWidgetWallpaper by remember { mutableStateOf(getWidgetSpecificWallpaper("leetcode_circle")) }
         val lcInitialOffset = remember { getWidgetElementOffset("leetcode_circle") }
@@ -2562,8 +2626,8 @@ private fun WidgetsScreenContent(
 
         WidgetGalleryCard(
             title = "LeetCode Solved Circle",
-            subtitle = "Circle gauge (x*2) with edge-to-edge element positioning",
-            tag = "2x2 Circle",
+            subtitle = "Circle gauge (x*2 / x*3) with edge-to-edge element positioning",
+            tag = "x*2 / x*3",
             widgetKey = "leetcode_circle",
             currentWidgetWallpaper = lcWidgetWallpaper,
             onSelectWidgetWallpaper = {
@@ -2605,11 +2669,10 @@ private fun WidgetsScreenContent(
             content = {
                 val context = LocalContext.current
                 val density = LocalDensity.current
-                val lcCircle = remember(dashboardData.leetCode) {
-                    WidgetBitmapRenderer.renderLeetCodeCircle(dashboardData.leetCode, sizePx = 360).asImageBitmap()
-                }
-                val lcPodColor = remember(lcWidgetWallpaper) {
-                    WallpaperManager.resolvePodColorForWallpaper(context, lcWidgetWallpaper, "leetcode_circle")
+                val lcPodColor by produceState("WHITE", lcWidgetWallpaper) {
+                    value = withContext(Dispatchers.IO) {
+                        WallpaperManager.resolvePodColorForWallpaper(context, lcWidgetWallpaper, "leetcode_circle")
+                    }
                 }
                 val isLcPodBlack = (lcPodColor == "BLACK")
 
@@ -2681,18 +2744,22 @@ private fun WidgetsScreenContent(
                                 .border(1.dp, if (isLcPodBlack) Color(0x33FFFFFF) else Color(0x38FFFFFF), RoundedCornerShape(12.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Image(
-                                bitmap = lcCircle,
-                                contentDescription = "LeetCode Gauge",
-                                modifier = Modifier.size(76.dp)
-                            )
+                            sharedLcCircle?.let { bmp ->
+                                Image(
+                                    bitmap = bmp,
+                                    contentDescription = "LeetCode Gauge",
+                                    modifier = Modifier.size(76.dp)
+                                )
+                            }
                         }
                     }
                 }
             }
         )
+        }
 
-        // 4. GitHub Contribution Circle (Locked 2x2 with Free Edge-to-Edge Drag)
+        // 4. GitHub Contribution Circle (x*2 / x*3 with Free Edge-to-Edge Drag)
+        item(key = "card_gh_circle") {
         var ghShowHeading by remember { mutableStateOf(getWidgetShowHeading("github_circle")) }
         var ghWidgetWallpaper by remember { mutableStateOf(getWidgetSpecificWallpaper("github_circle")) }
         val ghInitialOffset = remember { getWidgetElementOffset("github_circle") }
@@ -2703,8 +2770,8 @@ private fun WidgetsScreenContent(
 
         WidgetGalleryCard(
             title = "GitHub Contribution Circle",
-            subtitle = "Circle gauge (x*2) with edge-to-edge element positioning",
-            tag = "2x2 Circle",
+            subtitle = "Circle gauge (x*2 / x*3) with edge-to-edge element positioning",
+            tag = "x*2 / x*3",
             widgetKey = "github_circle",
             currentWidgetWallpaper = ghWidgetWallpaper,
             onSelectWidgetWallpaper = {
@@ -2746,11 +2813,10 @@ private fun WidgetsScreenContent(
             content = {
                 val context = LocalContext.current
                 val density = LocalDensity.current
-                val ghCircle = remember(dashboardData.gitHub) {
-                    WidgetBitmapRenderer.renderGitHubTypeMap(dashboardData.gitHub, sizePx = 360).asImageBitmap()
-                }
-                val ghPodColor = remember(ghWidgetWallpaper) {
-                    WallpaperManager.resolvePodColorForWallpaper(context, ghWidgetWallpaper, "github_circle")
+                val ghPodColor by produceState("WHITE", ghWidgetWallpaper) {
+                    value = withContext(Dispatchers.IO) {
+                        WallpaperManager.resolvePodColorForWallpaper(context, ghWidgetWallpaper, "github_circle")
+                    }
                 }
                 val isGhPodBlack = (ghPodColor == "BLACK")
 
@@ -2822,18 +2888,22 @@ private fun WidgetsScreenContent(
                                 .border(1.dp, if (isGhPodBlack) Color(0x33FFFFFF) else Color(0x38FFFFFF), RoundedCornerShape(12.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Image(
-                                bitmap = ghCircle,
-                                contentDescription = "GitHub Contribution Circle",
-                                modifier = Modifier.size(76.dp)
-                            )
+                            sharedGhCircle?.let { bmp ->
+                                Image(
+                                    bitmap = bmp,
+                                    contentDescription = "GitHub Contribution Circle",
+                                    modifier = Modifier.size(76.dp)
+                                )
+                            }
                         }
                     }
                 }
             }
         )
+        }
 
         // 5. LeetCode Full (Circle + Heatmap) (4x2)
+        item(key = "card_lc_full") {
         var lcFullShowHeading by remember { mutableStateOf(getWidgetShowHeading("leetcode")) }
         WidgetGalleryCard(
             title = "LeetCode Full: Circle + Heatmap (4x2)",
@@ -2854,19 +2924,6 @@ private fun WidgetsScreenContent(
             },
             onClick = { onPinWidget(LeetCodeWidgetProvider::class.java) },
             content = {
-                val lcCircle = remember(dashboardData.leetCode) {
-                    WidgetBitmapRenderer.renderLeetCodeCircle(dashboardData.leetCode, sizePx = 320).asImageBitmap()
-                }
-                val lcHeatmap = remember(dashboardData.leetCode.submissionCalendar, heatmapOrientation) {
-                    WidgetBitmapRenderer.renderHeatmap(
-                        dashboardData.leetCode.submissionCalendar,
-                        isLeetCode = true,
-                        widthPx = 450,
-                        heightPx = 420,
-                        weeksCount = 52,
-                        orientation = heatmapOrientation
-                    ).asImageBitmap()
-                }
                 Column(modifier = Modifier.fillMaxWidth()) {
                     if (lcFullShowHeading) {
                         Row(
@@ -2903,15 +2960,21 @@ private fun WidgetsScreenContent(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Image(bitmap = lcCircle, contentDescription = null, modifier = Modifier.weight(0.42f).fillMaxHeight())
+                        sharedLcCircle?.let { bmp ->
+                            Image(bitmap = bmp, contentDescription = null, modifier = Modifier.weight(0.42f).fillMaxHeight())
+                        } ?: Spacer(modifier = Modifier.weight(0.42f).fillMaxHeight())
                         Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(ThemeCardBorder))
-                        Image(bitmap = lcHeatmap, contentDescription = null, modifier = Modifier.weight(0.58f).fillMaxHeight())
+                        sharedLcHeatmapCompact?.let { bmp ->
+                            Image(bitmap = bmp, contentDescription = null, modifier = Modifier.weight(0.58f).fillMaxHeight())
+                        } ?: Spacer(modifier = Modifier.weight(0.58f).fillMaxHeight())
                     }
                 }
             }
         )
+        }
 
         // 6. GitHub Full (Circle + Heatmap) (4x2)
+        item(key = "card_gh_full") {
         var ghFullShowHeading by remember { mutableStateOf(getWidgetShowHeading("github")) }
         WidgetGalleryCard(
             title = "GitHub Full: Circle + Heatmap (4x2)",
@@ -2932,19 +2995,6 @@ private fun WidgetsScreenContent(
             },
             onClick = { onPinWidget(GitHubWidgetProvider::class.java) },
             content = {
-                val ghRadar = remember(dashboardData.gitHub) {
-                    WidgetBitmapRenderer.renderGitHubTypeMap(dashboardData.gitHub, sizePx = 320).asImageBitmap()
-                }
-                val ghHeatmap = remember(dashboardData.gitHub.contributionDays, heatmapOrientation) {
-                    WidgetBitmapRenderer.renderHeatmap(
-                        dashboardData.gitHub.contributionDays,
-                        isLeetCode = false,
-                        widthPx = 450,
-                        heightPx = 420,
-                        weeksCount = 52,
-                        orientation = heatmapOrientation
-                    ).asImageBitmap()
-                }
                 Column(modifier = Modifier.fillMaxWidth()) {
                     if (ghFullShowHeading) {
                         Row(
@@ -2981,15 +3031,21 @@ private fun WidgetsScreenContent(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Image(bitmap = ghRadar, contentDescription = null, modifier = Modifier.weight(0.42f).fillMaxHeight())
+                        sharedGhCircle?.let { bmp ->
+                            Image(bitmap = bmp, contentDescription = null, modifier = Modifier.weight(0.42f).fillMaxHeight())
+                        } ?: Spacer(modifier = Modifier.weight(0.42f).fillMaxHeight())
                         Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(ThemeCardBorder))
-                        Image(bitmap = ghHeatmap, contentDescription = null, modifier = Modifier.weight(0.58f).fillMaxHeight())
+                        sharedGhHeatmapCompact?.let { bmp ->
+                            Image(bitmap = bmp, contentDescription = null, modifier = Modifier.weight(0.58f).fillMaxHeight())
+                        } ?: Spacer(modifier = Modifier.weight(0.58f).fillMaxHeight())
                     }
                 }
             }
         )
+        }
 
         // 7. Combined All: Master Dev Life (4x4)
+        item(key = "card_combined_all") {
         var devActShowHeading by remember { mutableStateOf(getWidgetShowHeading("dev_activity")) }
         var devActIsReversed by remember { mutableStateOf(getWidgetOrderReversed("dev_activity")) }
         var devActWallpaper by remember { mutableStateOf(getWidgetSpecificWallpaper("dev_activity")) }
@@ -3075,8 +3131,10 @@ private fun WidgetsScreenContent(
                 )
             }
         )
+        }
 
         // 8. Dual Combined Heatmaps (4x4)
+        item(key = "card_combined_hm") {
         var combHmShowHeading by remember { mutableStateOf(getWidgetShowHeading("combined_heatmap")) }
         var combHmWallpaper by remember { mutableStateOf(getWidgetSpecificWallpaper("combined_heatmap")) }
         WidgetGalleryCard(
@@ -3102,26 +3160,6 @@ private fun WidgetsScreenContent(
             },
             onClick = { onPinWidget(CombinedHeatmapWidgetProvider::class.java) },
             content = {
-                val lcHeatmap = remember(dashboardData.leetCode.submissionCalendar, heatmapOrientation) {
-                    WidgetBitmapRenderer.renderHeatmap(
-                        dashboardData.leetCode.submissionCalendar,
-                        isLeetCode = true,
-                        widthPx = 680,
-                        heightPx = 280,
-                        weeksCount = 52,
-                        orientation = heatmapOrientation
-                    ).asImageBitmap()
-                }
-                val ghHeatmap = remember(dashboardData.gitHub.contributionDays, heatmapOrientation) {
-                    WidgetBitmapRenderer.renderHeatmap(
-                        dashboardData.gitHub.contributionDays,
-                        isLeetCode = false,
-                        widthPx = 680,
-                        heightPx = 280,
-                        weeksCount = 52,
-                        orientation = heatmapOrientation
-                    ).asImageBitmap()
-                }
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -3152,7 +3190,9 @@ private fun WidgetsScreenContent(
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        Image(bitmap = lcHeatmap, contentDescription = null, modifier = Modifier.fillMaxWidth().height(80.dp))
+                        sharedLcHeatmap?.let { bmp ->
+                            Image(bitmap = bmp, contentDescription = null, modifier = Modifier.fillMaxWidth().height(80.dp))
+                        } ?: Spacer(modifier = Modifier.fillMaxWidth().height(80.dp))
                         Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(ThemeCardBorder))
                         Text(
                             text = if (dashboardData.gitHub.username.isNotBlank()) "GitHub (@${dashboardData.gitHub.username})" else "GitHub",
@@ -3160,11 +3200,14 @@ private fun WidgetsScreenContent(
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        Image(bitmap = ghHeatmap, contentDescription = null, modifier = Modifier.fillMaxWidth().height(80.dp))
+                        sharedGhHeatmap?.let { bmp ->
+                            Image(bitmap = bmp, contentDescription = null, modifier = Modifier.fillMaxWidth().height(80.dp))
+                        } ?: Spacer(modifier = Modifier.fillMaxWidth().height(80.dp))
                     }
                 }
             }
         )
+        }
     }
 }
 
@@ -3510,13 +3553,19 @@ private fun WidgetGalleryCard(
 
             // 3. Visual Preview Chassis (Clean Wallpaper Chassis with ONLY Content)
             val context = LocalContext.current
-            val previewWallpaperBitmap = remember(currentWidgetWallpaper, widgetKey) {
-                if (currentWidgetWallpaper in listOf("MATCH_APP", "CUSTOM", "PRESET")) {
-                    try {
-                        val bmp = WallpaperManager.getWidgetWallpaperBitmap(context, width = 340, height = 180, widgetKey = widgetKey)
-                        if (bmp != null && !bmp.isRecycled) bmp else null
-                    } catch (_: Exception) {
-                        null
+            val previewWallpaperBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(
+                initialValue = null,
+                key1 = currentWidgetWallpaper,
+                key2 = widgetKey
+            ) {
+                value = if (currentWidgetWallpaper in listOf("MATCH_APP", "CUSTOM", "PRESET")) {
+                    withContext(Dispatchers.IO) {
+                        try {
+                            val bmp = WallpaperManager.getWidgetWallpaperBitmap(context, width = 340, height = 180, widgetKey = widgetKey)
+                            if (bmp != null && !bmp.isRecycled) bmp.asImageBitmap() else null
+                        } catch (_: Exception) {
+                            null
+                        }
                     }
                 } else null
             }
@@ -3539,9 +3588,9 @@ private fun WidgetGalleryCard(
                         }
                     )
             ) {
-                if (previewWallpaperBitmap != null && !previewWallpaperBitmap.isRecycled) {
+                previewWallpaperBitmap?.let { bmp ->
                     Image(
-                        bitmap = previewWallpaperBitmap.asImageBitmap(),
+                        bitmap = bmp,
                         contentDescription = "Widget Wallpaper",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.matchParentSize()
@@ -4146,31 +4195,39 @@ fun WidgetVisualPreview(
     ghOffsetX: Float = 0f,
     ghOffsetY: Float = 0f
 ) {
-    val lcCircle = remember(data.leetCode) {
-        WidgetBitmapRenderer.renderLeetCodeCircle(data.leetCode, sizePx = 360).asImageBitmap()
+    val lcCircle by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, data.leetCode) {
+        value = withContext(Dispatchers.Default) {
+            WidgetBitmapRenderer.renderLeetCodeCircle(data.leetCode, sizePx = 360).asImageBitmap()
+        }
     }
-    val lcHeatmap = remember(data.leetCode.submissionCalendar, orientation) {
-        WidgetBitmapRenderer.renderHeatmap(
-            data.leetCode.submissionCalendar,
-            isLeetCode = true,
-            widthPx = 450,
-            heightPx = 480,
-            weeksCount = 52,
-            orientation = orientation
-        ).asImageBitmap()
+    val lcHeatmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, data.leetCode.submissionCalendar, orientation) {
+        value = withContext(Dispatchers.Default) {
+            WidgetBitmapRenderer.renderHeatmap(
+                data.leetCode.submissionCalendar,
+                isLeetCode = true,
+                widthPx = 450,
+                heightPx = 480,
+                weeksCount = 52,
+                orientation = orientation
+            ).asImageBitmap()
+        }
     }
-    val ghTypeMap = remember(data.gitHub) {
-        WidgetBitmapRenderer.renderGitHubTypeMap(data.gitHub, sizePx = 360).asImageBitmap()
+    val ghTypeMap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, data.gitHub) {
+        value = withContext(Dispatchers.Default) {
+            WidgetBitmapRenderer.renderGitHubTypeMap(data.gitHub, sizePx = 360).asImageBitmap()
+        }
     }
-    val ghHeatmap = remember(data.gitHub.contributionDays, orientation) {
-        WidgetBitmapRenderer.renderHeatmap(
-            data.gitHub.contributionDays,
-            isLeetCode = false,
-            widthPx = 450,
-            heightPx = 480,
-            weeksCount = 52,
-            orientation = orientation
-        ).asImageBitmap()
+    val ghHeatmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, data.gitHub.contributionDays, orientation) {
+        value = withContext(Dispatchers.Default) {
+            WidgetBitmapRenderer.renderHeatmap(
+                data.gitHub.contributionDays,
+                isLeetCode = false,
+                widthPx = 450,
+                heightPx = 480,
+                weeksCount = 52,
+                orientation = orientation
+            ).asImageBitmap()
+        }
     }
 
     Box(
@@ -4255,26 +4312,30 @@ fun WidgetVisualPreview(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Image(
-                                bitmap = lcCircle,
-                                contentDescription = "LeetCode Count",
-                                modifier = Modifier
-                                    .weight(0.42f)
-                                    .fillMaxHeight()
-                            )
+                            lcCircle?.let { bmp ->
+                                Image(
+                                    bitmap = bmp,
+                                    contentDescription = "LeetCode Count",
+                                    modifier = Modifier
+                                        .weight(0.42f)
+                                        .fillMaxHeight()
+                                )
+                            } ?: Spacer(modifier = Modifier.weight(0.42f).fillMaxHeight())
                             Box(
                                 modifier = Modifier
                                     .width(1.dp)
                                     .fillMaxHeight()
                                     .background(Color(0x26FFFFFF))
                             )
-                            Image(
-                                bitmap = lcHeatmap,
-                                contentDescription = "LeetCode Heatmap",
-                                modifier = Modifier
-                                    .weight(0.58f)
-                                    .fillMaxHeight()
-                            )
+                            lcHeatmap?.let { bmp ->
+                                Image(
+                                    bitmap = bmp,
+                                    contentDescription = "LeetCode Heatmap",
+                                    modifier = Modifier
+                                        .weight(0.58f)
+                                        .fillMaxHeight()
+                                )
+                            } ?: Spacer(modifier = Modifier.weight(0.58f).fillMaxHeight())
                         }
                     }
                 }
@@ -4323,26 +4384,30 @@ fun WidgetVisualPreview(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Image(
-                                bitmap = ghTypeMap,
-                                contentDescription = "GitHub Type Map",
-                                modifier = Modifier
-                                    .weight(0.42f)
-                                    .fillMaxHeight()
-                            )
+                            ghTypeMap?.let { bmp ->
+                                Image(
+                                    bitmap = bmp,
+                                    contentDescription = "GitHub Type Map",
+                                    modifier = Modifier
+                                        .weight(0.42f)
+                                        .fillMaxHeight()
+                                )
+                            } ?: Spacer(modifier = Modifier.weight(0.42f).fillMaxHeight())
                             Box(
                                 modifier = Modifier
                                     .width(1.dp)
                                     .fillMaxHeight()
                                     .background(Color(0x26FFFFFF))
                             )
-                            Image(
-                                bitmap = ghHeatmap,
-                                contentDescription = "GitHub Heatmap",
-                                modifier = Modifier
-                                    .weight(0.58f)
-                                    .fillMaxHeight()
-                            )
+                            ghHeatmap?.let { bmp ->
+                                Image(
+                                    bitmap = bmp,
+                                    contentDescription = "GitHub Heatmap",
+                                    modifier = Modifier
+                                        .weight(0.58f)
+                                        .fillMaxHeight()
+                                )
+                            } ?: Spacer(modifier = Modifier.weight(0.58f).fillMaxHeight())
                         }
                     }
                 }

@@ -45,11 +45,20 @@ class GitHubCircleWidgetProvider : AppWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.widget_github_circle)
             val prefs = WidgetPreferences(context)
             val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
-            val minWidthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0).toFloat()
-            val minHeightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0).toFloat()
+            val isLandscape = context.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            val optWidthDp = if (isLandscape) {
+                options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0).toFloat()
+            } else {
+                options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0).toFloat()
+            }
+            val optHeightDp = if (isLandscape) {
+                options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0).toFloat()
+            } else {
+                options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0).toFloat()
+            }
 
-            val actualWidthDp = if (minWidthDp > 120f) minWidthDp else 160f
-            val actualHeightDp = 140f
+            val actualWidthDp = if (optWidthDp > 86f) optWidthDp else 160f
+            val actualHeightDp = if (optHeightDp > 86f) optHeightDp else 140f
 
             val showHeading = prefs.getWidgetShowHeading("GITHUB_CIRCLE")
             views.setViewVisibility(R.id.header_bar, if (showHeading) android.view.View.VISIBLE else android.view.View.GONE)
