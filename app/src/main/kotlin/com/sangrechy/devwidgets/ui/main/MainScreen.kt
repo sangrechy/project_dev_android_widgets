@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SystemUpdate
@@ -63,6 +64,8 @@ import androidx.compose.ui.unit.Dp
 import com.sangrechy.devwidgets.data.WallpaperManager
 import com.sangrechy.devwidgets.data.WallpaperPreset
 import androidx.activity.compose.BackHandler
+import com.sangrechy.devwidgets.ui.notes.NoteFileViewerOverlay
+import com.sangrechy.devwidgets.ui.notes.NotesScreenContent
 import com.sangrechy.devwidgets.ui.problems.LeetCodeProblemDetailView
 import com.sangrechy.devwidgets.ui.problems.GeneralNoteEditorView
 import com.sangrechy.devwidgets.util.ChangelogParser
@@ -173,6 +176,9 @@ fun MainScreen(
     val leetCodeInput by viewModel.leetCodeInput.collectAsStateWithLifecycle()
     val gitHubInput by viewModel.gitHubInput.collectAsStateWithLifecycle()
     val tokenInput by viewModel.gitHubTokenInput.collectAsStateWithLifecycle()
+    val problemsTokenInput by viewModel.problemsTokenInput.collectAsStateWithLifecycle()
+    val notesRepoInput by viewModel.notesRepoInput.collectAsStateWithLifecycle()
+    val notesTokenInput by viewModel.notesTokenInput.collectAsStateWithLifecycle()
 
     val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
     val isVerifyingLc by viewModel.isVerifyingLeetCode.collectAsStateWithLifecycle()
@@ -194,6 +200,14 @@ fun MainScreen(
     val leetCodeSearchResults by viewModel.leetCodeSearchResults.collectAsStateWithLifecycle()
     val isSearchingLeetCode by viewModel.isSearchingLeetCode.collectAsStateWithLifecycle()
     val isAddingProblem by viewModel.isAddingProblem.collectAsStateWithLifecycle()
+
+    val notesCurrentPath by viewModel.notesCurrentPath.collectAsStateWithLifecycle()
+    val notesEntries by viewModel.notesEntries.collectAsStateWithLifecycle()
+    val notesSearchQuery by viewModel.notesSearchQuery.collectAsStateWithLifecycle()
+    val isSyncingNotes by viewModel.isSyncingNotes.collectAsStateWithLifecycle()
+    val openedNoteFile by viewModel.openedNoteFile.collectAsStateWithLifecycle()
+    val isLoadingNoteFile by viewModel.isLoadingNoteFile.collectAsStateWithLifecycle()
+    val isSavingNoteFile by viewModel.isSavingNoteFile.collectAsStateWithLifecycle()
 
     val syncMessage by viewModel.syncMessage.collectAsStateWithLifecycle()
     val dashboardData by viewModel.dashboardData.collectAsStateWithLifecycle()
@@ -321,6 +335,24 @@ fun MainScreen(
                         coroutineScope.launch { drawerState.close() }
                     },
                     icon = { Icon(Icons.Default.Code, contentDescription = "Problems") },
+                    colors = NavigationDrawerItemDefaults.colors(
+                        selectedContainerColor = ThemeDrawerItemSelected,
+                        selectedTextColor = ThemeTextPrimary,
+                        selectedIconColor = ThemeAccentBlue,
+                        unselectedTextColor = ThemeTextSecondary,
+                        unselectedIconColor = ThemeTextMuted
+                    ),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
+                )
+
+                NavigationDrawerItem(
+                    label = { Text("Notes", fontWeight = FontWeight.SemiBold) },
+                    selected = currentScreen == AppScreen.NOTES,
+                    onClick = {
+                        viewModel.setScreen(AppScreen.NOTES)
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    icon = { Icon(Icons.Default.MenuBook, contentDescription = "Notes") },
                     colors = NavigationDrawerItemDefaults.colors(
                         selectedContainerColor = ThemeDrawerItemSelected,
                         selectedTextColor = ThemeTextPrimary,
@@ -494,7 +526,8 @@ fun MainScreen(
                             Text(
                                 text = when (currentScreen) {
                                     AppScreen.HOME -> "User Insights & Activity"
-                                    AppScreen.PROBLEMS -> "Offline Problem Bank & Notes"
+                                    AppScreen.PROBLEMS -> "Offline Problem Bank"
+                                    AppScreen.NOTES -> "Notes Vault • res/"
                                     AppScreen.WIDGETS -> "Widget Gallery & Sync"
                                     AppScreen.WALLPAPER -> "App & Widget Wallpaper Studio"
                                     AppScreen.SETTINGS -> "Accounts & Configuration"
@@ -507,12 +540,16 @@ fun MainScreen(
                         // Quick Sync Icon Button
                         IconButton(
                             onClick = {
-                                viewModel.refreshCurrentScreen()
-                                DevActivityWidgetProvider.enqueueImmediateSync(context)
+                                if (currentScreen == AppScreen.NOTES) {
+                                    viewModel.syncNotesFromGitHub()
+                                } else {
+                                    viewModel.refreshCurrentScreen()
+                                    DevActivityWidgetProvider.enqueueImmediateSync(context)
+                                }
                             },
-                            enabled = !isSyncing
+                            enabled = !isSyncing && !isSyncingNotes
                         ) {
-                            if (isSyncing) {
+                            if (isSyncing || (currentScreen == AppScreen.NOTES && isSyncingNotes)) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(18.dp),
                                     strokeWidth = 2.dp,
@@ -564,6 +601,40 @@ fun MainScreen(
                             onSetWidgetOrderReversed = viewModel::setWidgetOrderReversed,
                             getWidgetOrderReversed = viewModel::getWidgetOrderReversed,
                             onPinWidget = { providerClass -> pinWidgetToHomeScreen(context, providerClass) }
+                        )
+                    } else if (currentScreen == AppScreen.NOTES) {
+                        BackHandler(enabled = openedNoteFile != null || notesCurrentPath.isNotBlank()) {
+                            if (openedNoteFile != null) {
+                                viewModel.closeNoteFile()
+                            } else {
+                                viewModel.navigateNotesUp()
+                            }
+                        }
+                        NotesScreenContent(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            gitHubUsername = gitHubInput,
+                            notesRepoInput = notesRepoInput,
+                            notesTokenInput = notesTokenInput,
+                            currentPath = notesCurrentPath,
+                            entries = notesEntries,
+                            searchQuery = notesSearchQuery,
+                            isSyncing = isSyncingNotes,
+                            isLoadingFile = isLoadingNoteFile,
+                            onNotesRepoChanged = viewModel::onNotesRepoInputChanged,
+                            onNotesTokenChanged = viewModel::onNotesTokenInputChanged,
+                            onSaveNotesConfig = viewModel::saveNotesRepoConfig,
+                            onSearchQueryChanged = viewModel::setNotesSearchQuery,
+                            onNavigateTo = viewModel::navigateNotesTo,
+                            onNavigateUp = viewModel::navigateNotesUp,
+                            onSyncNotes = { viewModel.syncNotesFromGitHub() },
+                            onOpenFile = viewModel::openNoteFile,
+                            onCreateFolder = viewModel::createNoteFolder,
+                            onCreateMarkdownNote = viewModel::createMarkdownNote,
+                            onUploadDocument = viewModel::uploadNoteDocument,
+                            onDeleteEntry = viewModel::deleteNoteEntry,
+                            onNavigateToSettings = { viewModel.setScreen(AppScreen.SETTINGS) }
                         )
                     } else {
                     Column(
@@ -626,6 +697,8 @@ fun MainScreen(
                             onUploadGeneralDocument = viewModel::uploadGeneralDocument
                         )
 
+                        AppScreen.NOTES -> {}
+
                         AppScreen.WIDGETS -> {}
 
                         AppScreen.WALLPAPER -> WallpaperScreenContent(
@@ -640,7 +713,11 @@ fun MainScreen(
                             gitHubInput = gitHubInput,
                             tokenInput = tokenInput,
                             backupRepoInput = backupRepoInput,
+                            problemsTokenInput = problemsTokenInput,
+                            notesRepoInput = notesRepoInput,
+                            notesTokenInput = notesTokenInput,
                             isSyncing = isSyncing,
+                            isSyncingNotes = isSyncingNotes,
                             isVerifyingLc = isVerifyingLc,
                             isVerifyingGh = isVerifyingGh,
                             isCheckingUpdate = isCheckingUpdate,
@@ -648,7 +725,12 @@ fun MainScreen(
                             onGitHubChanged = viewModel::onGitHubInputChanged,
                             onTokenChanged = viewModel::onGitHubTokenChanged,
                             onBackupRepoChanged = viewModel::onBackupRepoInputChanged,
+                            onProblemsTokenChanged = viewModel::onProblemsTokenInputChanged,
                             onSaveBackupRepo = viewModel::saveBackupRepo,
+                            onNotesRepoChanged = viewModel::onNotesRepoInputChanged,
+                            onNotesTokenChanged = viewModel::onNotesTokenInputChanged,
+                            onSaveNotesConfig = viewModel::saveNotesRepoConfig,
+                            onSyncNotes = { viewModel.syncNotesFromGitHub() },
                             onVerifyLeetCode = viewModel::verifyLeetCode,
                             onVerifyGitHub = viewModel::verifyGitHub,
                             onSyncAll = {
@@ -686,22 +768,17 @@ fun MainScreen(
                         .padding(top = 28.dp, bottom = 12.dp, start = 12.dp, end = 12.dp)
                 )
             }
+        }
 
-            // General Note Editor In-Hierarchy View (Wallpaper completely visible behind outer margins)
-            selectedGeneralNote?.let { note ->
-                BackHandler(onBack = { viewModel.selectGeneralNote(null) })
-                GeneralNoteEditorView(
-                    note = note,
-                    isNew = note.id.isBlank(),
-                    onDismiss = { viewModel.selectGeneralNote(null) },
-                    onSave = { updated ->
-                        viewModel.saveGeneralNote(updated)
-                        viewModel.selectGeneralNote(null)
-                    },
-                    onDelete = { id ->
-                        viewModel.deleteGeneralNote(id)
-                        viewModel.selectGeneralNote(null)
-                    },
+        // Notes File Viewer / Editor Overlay
+        if (currentScreen == AppScreen.NOTES) {
+            openedNoteFile?.let { file ->
+                BackHandler(onBack = { viewModel.closeNoteFile() })
+                NoteFileViewerOverlay(
+                    openedFile = file,
+                    isSaving = isSavingNoteFile,
+                    onClose = { viewModel.closeNoteFile() },
+                    onSaveText = { updated -> viewModel.saveOpenedNoteFile(updated) },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(top = 28.dp, bottom = 12.dp, start = 12.dp, end = 12.dp)
@@ -3641,7 +3718,11 @@ private fun SettingsScreenContent(
     gitHubInput: String,
     tokenInput: String,
     backupRepoInput: String,
+    problemsTokenInput: String,
+    notesRepoInput: String,
+    notesTokenInput: String,
     isSyncing: Boolean,
+    isSyncingNotes: Boolean,
     isVerifyingLc: Boolean,
     isVerifyingGh: Boolean,
     isCheckingUpdate: Boolean,
@@ -3649,7 +3730,12 @@ private fun SettingsScreenContent(
     onGitHubChanged: (String) -> Unit,
     onTokenChanged: (String) -> Unit,
     onBackupRepoChanged: (String) -> Unit,
+    onProblemsTokenChanged: (String) -> Unit,
     onSaveBackupRepo: (String) -> Unit,
+    onNotesRepoChanged: (String) -> Unit,
+    onNotesTokenChanged: (String) -> Unit,
+    onSaveNotesConfig: () -> Unit,
+    onSyncNotes: () -> Unit,
     onVerifyLeetCode: () -> Unit,
     onVerifyGitHub: () -> Unit,
     onSyncAll: () -> Unit,
@@ -3958,7 +4044,7 @@ private fun SettingsScreenContent(
                 }
             }
 
-            // 3. LeetCode Backup Repository (project_git_the_leet integration)
+            // 3. Problems Repository & Token (LeetCode / Git The Leet)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -3974,7 +4060,7 @@ private fun SettingsScreenContent(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "LeetCode Backup Repository",
+                            text = "Problems Repository",
                             color = ThemeTextPrimary,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold
@@ -3994,14 +4080,14 @@ private fun SettingsScreenContent(
                         }
                     }
                     Text(
-                        text = "GitHub repository storing your leetcode_problem/ folder and notes",
+                        text = "Uses your common GitHub username (@${gitHubInput.ifBlank { "not_set" }}) with a dedicated repo & token for Problems",
                         color = ThemeTextSecondary,
                         fontSize = 11.sp
                     )
                     OutlinedTextField(
                         value = backupRepoInput,
                         onValueChange = onBackupRepoChanged,
-                        label = { Text("Repository Name", color = ThemeTextSecondary) },
+                        label = { Text("Problems Repo Name", color = ThemeTextSecondary) },
                         placeholder = { Text("e.g. project_git_the_leet or username/repo", color = ThemeTextMuted) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
@@ -4015,6 +4101,40 @@ private fun SettingsScreenContent(
                             cursorColor = ThemeTextPrimary
                         )
                     )
+                    OutlinedTextField(
+                        value = problemsTokenInput,
+                        onValueChange = onProblemsTokenChanged,
+                        label = { Text("Problems Token (PAT)", color = ThemeTextSecondary) },
+                        placeholder = { Text("ghp_... (optional, falls back to GitHub token)", color = ThemeTextMuted) },
+                        trailingIcon = {
+                            if (problemsTokenInput.isNotEmpty()) {
+                                IconButton(onClick = { onProblemsTokenChanged("") }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Clear",
+                                        tint = ThemeTextSecondary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = ThemeTextPrimary,
+                            unfocusedTextColor = ThemeTextPrimary,
+                            focusedBorderColor = ThemeTextPrimary,
+                            unfocusedBorderColor = ThemeInnerBoxBorder,
+                            focusedContainerColor = ThemeTextFieldBg,
+                            unfocusedContainerColor = ThemeTextFieldBg,
+                            cursorColor = ThemeTextPrimary
+                        ),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done
+                        )
+                    )
                     Button(
                         onClick = { onSaveBackupRepo(backupRepoInput) },
                         modifier = Modifier.fillMaxWidth(),
@@ -4025,7 +4145,140 @@ private fun SettingsScreenContent(
                         border = BorderStroke(1.dp, ThemeCardBorder),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Save Backup Repository", fontWeight = FontWeight.SemiBold)
+                        Text("Save Problems Repo & Token", fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+
+            // 4. Notes Repository & Token (Hardcoded res/ root)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(ThemeInnerBoxBg)
+                    .border(1.dp, ThemeInnerBoxBorder, RoundedCornerShape(16.dp))
+                    .padding(12.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Notes Repository",
+                            color = ThemeTextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(ThemeAccentBlue.copy(alpha = 0.16f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "res/ Vault",
+                                color = ThemeAccentBlue,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                    Text(
+                        text = "Dedicated GitHub repo for your Notes tab (reads & edits folders/files inside res/)",
+                        color = ThemeTextSecondary,
+                        fontSize = 11.sp
+                    )
+                    OutlinedTextField(
+                        value = notesRepoInput,
+                        onValueChange = onNotesRepoChanged,
+                        label = { Text("Notes Repo Name", color = ThemeTextSecondary) },
+                        placeholder = { Text("e.g. notes or username/notes", color = ThemeTextMuted) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = ThemeTextPrimary,
+                            unfocusedTextColor = ThemeTextPrimary,
+                            focusedBorderColor = ThemeTextPrimary,
+                            unfocusedBorderColor = ThemeInnerBoxBorder,
+                            focusedContainerColor = ThemeTextFieldBg,
+                            unfocusedContainerColor = ThemeTextFieldBg,
+                            cursorColor = ThemeTextPrimary
+                        )
+                    )
+                    OutlinedTextField(
+                        value = notesTokenInput,
+                        onValueChange = onNotesTokenChanged,
+                        label = { Text("Notes Token (PAT)", color = ThemeTextSecondary) },
+                        placeholder = { Text("ghp_... (for private Notes repo & push edits)", color = ThemeTextMuted) },
+                        trailingIcon = {
+                            if (notesTokenInput.isNotEmpty()) {
+                                IconButton(onClick = { onNotesTokenChanged("") }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Clear",
+                                        tint = ThemeTextSecondary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = ThemeTextPrimary,
+                            unfocusedTextColor = ThemeTextPrimary,
+                            focusedBorderColor = ThemeTextPrimary,
+                            unfocusedBorderColor = ThemeInnerBoxBorder,
+                            focusedContainerColor = ThemeTextFieldBg,
+                            unfocusedContainerColor = ThemeTextFieldBg,
+                            cursorColor = ThemeTextPrimary
+                        ),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done
+                        )
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = onSaveNotesConfig,
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = ThemeCardBgElevated,
+                                contentColor = ThemeTextPrimary
+                            ),
+                            border = BorderStroke(1.dp, ThemeCardBorder),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Save Notes", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                        }
+                        Button(
+                            onClick = {
+                                onSaveNotesConfig()
+                                onSyncNotes()
+                            },
+                            enabled = !isSyncingNotes,
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = ThemeAccentBlue.copy(alpha = 0.2f),
+                                contentColor = ThemeAccentBlue
+                            ),
+                            border = BorderStroke(1.dp, ThemeAccentBlue.copy(alpha = 0.4f)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            if (isSyncingNotes) {
+                                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = ThemeAccentBlue)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Syncing...", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                            } else {
+                                Text("Save & Sync", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                            }
+                        }
                     }
                 }
             }

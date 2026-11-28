@@ -16,7 +16,9 @@ import com.sangrechy.devwidgets.BuildConfig
 import com.sangrechy.devwidgets.data.model.AppUpdateInfo
 import com.sangrechy.devwidgets.data.model.CustomNote
 import com.sangrechy.devwidgets.data.model.LeetCodeSearchResult
+import com.sangrechy.devwidgets.data.model.NoteTreeEntry
 import com.sangrechy.devwidgets.data.model.OfflineProblem
+import com.sangrechy.devwidgets.data.model.OpenedNoteFile
 import com.sangrechy.devwidgets.data.model.ProblemDifficultyFilter
 import com.sangrechy.devwidgets.data.model.ProblemNote
 import com.sangrechy.devwidgets.data.model.ProblemsPlatform
@@ -31,6 +33,7 @@ import kotlinx.coroutines.delay
 enum class AppScreen(val title: String) {
     HOME("Home"),
     PROBLEMS("Problems"),
+    NOTES("Notes"),
     WIDGETS("Widgets"),
     WALLPAPER("Wallpaper"),
     SETTINGS("Settings")
@@ -149,8 +152,41 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
     private val _backupRepoInput = MutableStateFlow(repository.getGitHubBackupRepo().ifBlank { "leetcode" })
     val backupRepoInput: StateFlow<String> = _backupRepoInput.asStateFlow()
 
+    private val _problemsTokenInput = MutableStateFlow(repository.getGitHubProblemsToken())
+    val problemsTokenInput: StateFlow<String> = _problemsTokenInput.asStateFlow()
+
     private val _isSyncingBackupRepo = MutableStateFlow(false)
     val isSyncingBackupRepo: StateFlow<Boolean> = _isSyncingBackupRepo.asStateFlow()
+
+    // Dedicated Notes Menu (res/ hierarchical file manager with separate repo & token)
+    private val notesRepo = repository.notesRepository
+
+    private val _notesRepoInput = MutableStateFlow(repository.getGitHubNotesRepo().ifBlank { "notes" })
+    val notesRepoInput: StateFlow<String> = _notesRepoInput.asStateFlow()
+
+    private val _notesTokenInput = MutableStateFlow(repository.getGitHubNotesToken())
+    val notesTokenInput: StateFlow<String> = _notesTokenInput.asStateFlow()
+
+    private val _notesCurrentPath = MutableStateFlow("")
+    val notesCurrentPath: StateFlow<String> = _notesCurrentPath.asStateFlow()
+
+    private val _notesEntries = MutableStateFlow<List<NoteTreeEntry>>(emptyList())
+    val notesEntries: StateFlow<List<NoteTreeEntry>> = _notesEntries.asStateFlow()
+
+    private val _notesSearchQuery = MutableStateFlow("")
+    val notesSearchQuery: StateFlow<String> = _notesSearchQuery.asStateFlow()
+
+    private val _isSyncingNotes = MutableStateFlow(false)
+    val isSyncingNotes: StateFlow<Boolean> = _isSyncingNotes.asStateFlow()
+
+    private val _openedNoteFile = MutableStateFlow<OpenedNoteFile?>(null)
+    val openedNoteFile: StateFlow<OpenedNoteFile?> = _openedNoteFile.asStateFlow()
+
+    private val _isLoadingNoteFile = MutableStateFlow(false)
+    val isLoadingNoteFile: StateFlow<Boolean> = _isLoadingNoteFile.asStateFlow()
+
+    private val _isSavingNoteFile = MutableStateFlow(false)
+    val isSavingNoteFile: StateFlow<Boolean> = _isSavingNoteFile.asStateFlow()
 
     private val _leetCodeSearchResults = MutableStateFlow<List<LeetCodeSearchResult>>(emptyList())
     val leetCodeSearchResults: StateFlow<List<LeetCodeSearchResult>> = _leetCodeSearchResults.asStateFlow()
@@ -312,6 +348,10 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
                     _isSyncing.value = false
                     _syncMessage.value = "Problem bank & notes refreshed!"
                 }
+                AppScreen.NOTES -> {
+                    _isSyncing.value = false
+                    syncNotesFromGitHub()
+                }
                 AppScreen.WALLPAPER -> {
                     _isSyncing.value = false
                     applyWidgetWallpaperToAllWidgets()
@@ -333,6 +373,11 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
         if (screen != AppScreen.PROBLEMS) {
             _selectedProblemDetail.value = null
             _selectedGeneralNote.value = null
+        }
+        if (screen == AppScreen.NOTES) {
+            loadNotesEntries(_notesCurrentPath.value)
+        } else {
+            _openedNoteFile.value = null
         }
     }
 
@@ -632,11 +677,16 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
         _backupRepoInput.value = value
     }
 
+    fun onProblemsTokenInputChanged(token: String) {
+        _problemsTokenInput.value = token
+    }
+
     fun saveBackupRepo(repo: String) {
         val trimmed = repo.trim()
         _backupRepoInput.value = trimmed
         repository.setGitHubBackupRepo(trimmed)
-        _syncMessage.value = "Backup repository updated to '$trimmed'"
+        repository.setGitHubProblemsToken(_problemsTokenInput.value.trim())
+        _syncMessage.value = "Problems repository & token saved ('$trimmed')"
         if (trimmed.isNotBlank()) {
             syncFromGitHubBackupRepo()
         }
@@ -645,7 +695,7 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
     fun syncFromGitHubBackupRepo() {
         val repo = _backupRepoInput.value.trim().ifBlank { repository.getGitHubBackupRepo().ifBlank { "leetcode" } }
         val owner = _gitHubInput.value.trim().removePrefix("@")
-        val token = _gitHubTokenInput.value.trim()
+        val token = _problemsTokenInput.value.trim().ifBlank { _gitHubTokenInput.value.trim() }
 
         val targetOwner = if (repo.contains("/")) repo.substringBefore("/").trim() else owner.ifBlank { "sangrechy" }
         val targetRepo = if (repo.contains("/")) repo.substringAfter("/").trim() else repo
@@ -857,6 +907,207 @@ class MainScreenViewModel(private val repository: DataRepository) : ViewModel() 
 
     fun applyWidgetWallpaperToAllWidgets() {
         repository.updateAllWidgets()
+    }
+
+    // =========================================================================
+    // NOTES MENU (res/ Hierarchical File Manager + Separate GitHub Repo & Token)
+    // =========================================================================
+
+    private fun resolveNotesOwnerAndRepo(): Pair<String, String> {
+        val rawRepo = _notesRepoInput.value.trim().ifBlank { repository.getGitHubNotesRepo().ifBlank { "notes" } }
+        val commonUser = _gitHubInput.value.trim().removePrefix("@")
+        val owner = if (rawRepo.contains("/")) rawRepo.substringBefore("/").trim() else commonUser
+        val repo = if (rawRepo.contains("/")) rawRepo.substringAfter("/").trim() else rawRepo
+        return owner to repo
+    }
+
+    private fun resolveNotesToken(): String = _notesTokenInput.value.trim()
+
+    fun onNotesRepoInputChanged(value: String) {
+        _notesRepoInput.value = value
+    }
+
+    fun onNotesTokenInputChanged(value: String) {
+        _notesTokenInput.value = value
+    }
+
+    fun saveNotesRepoConfig(repo: String = _notesRepoInput.value, token: String = _notesTokenInput.value) {
+        val cleanRepo = repo.trim().ifBlank { "notes" }
+        val cleanToken = token.trim()
+        _notesRepoInput.value = cleanRepo
+        _notesTokenInput.value = cleanToken
+        repository.setGitHubNotesRepo(cleanRepo)
+        repository.setGitHubNotesToken(cleanToken)
+        _syncMessage.value = "Notes repository & token saved ('$cleanRepo')"
+        syncNotesFromGitHub()
+    }
+
+    fun setNotesSearchQuery(query: String) {
+        _notesSearchQuery.value = query
+    }
+
+    fun loadNotesEntries(path: String = _notesCurrentPath.value) {
+        val cleanPath = path.trim('/')
+        _notesCurrentPath.value = cleanPath
+        viewModelScope.launch {
+            _notesEntries.value = notesRepo.getEntries(cleanPath)
+        }
+    }
+
+    fun navigateNotesTo(path: String) {
+        _notesSearchQuery.value = ""
+        _openedNoteFile.value = null
+        loadNotesEntries(path)
+    }
+
+    fun navigateNotesUp(): Boolean {
+        if (_openedNoteFile.value != null) {
+            _openedNoteFile.value = null
+            return true
+        }
+        val current = _notesCurrentPath.value.trim('/')
+        if (current.isEmpty()) return false
+        val parent = current.substringBeforeLast('/', "")
+        navigateNotesTo(parent)
+        return true
+    }
+
+    fun syncNotesFromGitHub() {
+        val (owner, repo) = resolveNotesOwnerAndRepo()
+        val token = resolveNotesToken()
+        if (owner.isBlank() || repo.isBlank()) {
+            _syncMessage.value = "Set your GitHub username and Notes repo in Settings first"
+            return
+        }
+        viewModelScope.launch {
+            _isSyncingNotes.value = true
+            _syncMessage.value = "Syncing Notes ($owner/$repo · res/)..."
+            val result = notesRepo.syncFromGitHub(owner, repo, token)
+            _isSyncingNotes.value = false
+            if (result.isSuccess) {
+                val count = result.getOrDefault(0)
+                _syncMessage.value = "Synced $count files from $owner/$repo/res"
+                loadNotesEntries(_notesCurrentPath.value)
+            } else {
+                _syncMessage.value = "Notes sync failed: ${result.exceptionOrNull()?.message ?: "Check repo & token"}"
+            }
+        }
+    }
+
+    fun openNoteFile(entry: NoteTreeEntry) {
+        if (entry.isFolder) {
+            navigateNotesTo(entry.relativePath)
+            return
+        }
+        val (owner, repo) = resolveNotesOwnerAndRepo()
+        val token = resolveNotesToken()
+        viewModelScope.launch {
+            _isLoadingNoteFile.value = true
+            val result = notesRepo.openFile(entry.relativePath, owner, repo, token)
+            _isLoadingNoteFile.value = false
+            if (result.isSuccess) {
+                _openedNoteFile.value = result.getOrNull()
+                loadNotesEntries(_notesCurrentPath.value)
+            } else {
+                _syncMessage.value = "Failed to open '${entry.name}': ${result.exceptionOrNull()?.message}"
+            }
+        }
+    }
+
+    fun closeNoteFile() {
+        _openedNoteFile.value = null
+    }
+
+    fun saveOpenedNoteFile(newContent: String) {
+        val current = _openedNoteFile.value ?: return
+        val (owner, repo) = resolveNotesOwnerAndRepo()
+        val token = resolveNotesToken()
+        viewModelScope.launch {
+            _isSavingNoteFile.value = true
+            val result = notesRepo.saveTextFile(current.entry.relativePath, newContent, owner, repo, token)
+            _isSavingNoteFile.value = false
+            if (result.isSuccess) {
+                _openedNoteFile.value = result.getOrNull()
+                _syncMessage.value = if (token.isNotBlank()) "Saved & pushed '${current.entry.name}' to GitHub" else "Saved '${current.entry.name}' locally"
+                loadNotesEntries(_notesCurrentPath.value)
+            } else {
+                _openedNoteFile.value = current.copy(textContent = newContent)
+                _syncMessage.value = result.exceptionOrNull()?.message ?: "Saved locally"
+                loadNotesEntries(_notesCurrentPath.value)
+            }
+        }
+    }
+
+    fun createNoteFolder(folderName: String) {
+        val (owner, repo) = resolveNotesOwnerAndRepo()
+        val token = resolveNotesToken()
+        viewModelScope.launch {
+            val result = notesRepo.createFolder(_notesCurrentPath.value, folderName, owner, repo, token)
+            if (result.isSuccess) {
+                _syncMessage.value = "Created folder '$folderName'"
+                loadNotesEntries(_notesCurrentPath.value)
+            } else {
+                _syncMessage.value = "Could not create folder: ${result.exceptionOrNull()?.message}"
+            }
+        }
+    }
+
+    fun createMarkdownNote(filename: String, initialContent: String = "") {
+        val trimmed = filename.trim()
+        if (trimmed.isBlank()) return
+        val finalName = if (trimmed.contains('.')) trimmed else "$trimmed.md"
+        val parent = _notesCurrentPath.value.trim('/')
+        val relPath = if (parent.isEmpty()) finalName else "$parent/$finalName"
+        val (owner, repo) = resolveNotesOwnerAndRepo()
+        val token = resolveNotesToken()
+        val content = initialContent.ifBlank { "# ${finalName.substringBeforeLast('.')}\n\n" }
+        viewModelScope.launch {
+            _isSavingNoteFile.value = true
+            val result = notesRepo.saveTextFile(relPath, content, owner, repo, token)
+            _isSavingNoteFile.value = false
+            if (result.isSuccess) {
+                _openedNoteFile.value = result.getOrNull()
+                _syncMessage.value = "Created '$finalName'"
+                loadNotesEntries(_notesCurrentPath.value)
+            } else {
+                _syncMessage.value = result.exceptionOrNull()?.message ?: "Created locally"
+                loadNotesEntries(_notesCurrentPath.value)
+            }
+        }
+    }
+
+    fun uploadNoteDocument(filename: String, bytes: ByteArray) {
+        val (owner, repo) = resolveNotesOwnerAndRepo()
+        val token = resolveNotesToken()
+        viewModelScope.launch {
+            _isSyncingNotes.value = true
+            val result = notesRepo.uploadFile(_notesCurrentPath.value, filename, bytes, owner, repo, token)
+            _isSyncingNotes.value = false
+            if (result.isSuccess) {
+                _syncMessage.value = "Uploaded '$filename'"
+                loadNotesEntries(_notesCurrentPath.value)
+            } else {
+                _syncMessage.value = result.exceptionOrNull()?.message ?: "Upload failed"
+                loadNotesEntries(_notesCurrentPath.value)
+            }
+        }
+    }
+
+    fun deleteNoteEntry(entry: NoteTreeEntry) {
+        val (owner, repo) = resolveNotesOwnerAndRepo()
+        val token = resolveNotesToken()
+        viewModelScope.launch {
+            val result = notesRepo.deleteEntry(entry.relativePath, entry.isFolder, owner, repo, token)
+            if (result.isSuccess) {
+                if (_openedNoteFile.value?.entry?.relativePath == entry.relativePath) {
+                    _openedNoteFile.value = null
+                }
+                _syncMessage.value = "Deleted '${entry.name}'"
+                loadNotesEntries(_notesCurrentPath.value)
+            } else {
+                _syncMessage.value = "Delete failed: ${result.exceptionOrNull()?.message}"
+            }
+        }
     }
 
     fun dismissMessage() {

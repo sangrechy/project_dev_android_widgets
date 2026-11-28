@@ -170,63 +170,31 @@ fun ProblemsScreenContent(
             onPlatformSelected = onPlatformSelected
         )
 
-        // Sub-tab Navigation (Problems vs Notes)
-        SubTabCard(
-            selectedSubTab = subTab,
-            onSubTabSelected = onSubTabSelected
+        // LeetCode Problem Bank Section (per-problem notes live inside each problem)
+        LeetCodeProblemsSection(
+            searchQuery = searchQuery,
+            difficultyFilter = difficultyFilter,
+            problems = problems,
+            isLoadingProblems = isLoadingProblems,
+            backupRepoInput = backupRepoInput,
+            isSyncingBackupRepo = isSyncingBackupRepo,
+            leetCodeSearchResults = leetCodeSearchResults,
+            isSearchingLeetCode = isSearchingLeetCode,
+            isAddingProblem = isAddingProblem,
+            onSearchQueryChanged = onSearchQueryChanged,
+            onDifficultyFilterSelected = onDifficultyFilterSelected,
+            onBackupRepoChanged = onBackupRepoChanged,
+            onSaveBackupRepo = onSaveBackupRepo,
+            onSyncFromGitHubBackup = onSyncFromGitHubBackup,
+            onSelectProblem = onSelectProblem,
+            onDownloadProblemOffline = onDownloadProblemOffline,
+            onDeleteProblemOffline = onDeleteProblemOffline,
+            onBulkDeleteProblems = onBulkDeleteProblems,
+            onSearchLeetCode = onSearchLeetCode,
+            onClearLeetCodeSearch = onClearLeetCodeSearch,
+            onAddProblemFromLeetCode = onAddProblemFromLeetCode,
+            onAddMultipleProblemsFromLeetCode = onAddMultipleProblemsFromLeetCode
         )
-
-        when (subTab) {
-            ProblemsSubTab.PROBLEMS -> {
-                // LeetCode Problem Bank Section
-                LeetCodeProblemsSection(
-                    searchQuery = searchQuery,
-                    difficultyFilter = difficultyFilter,
-                    problems = problems,
-                    isLoadingProblems = isLoadingProblems,
-                    backupRepoInput = backupRepoInput,
-                    isSyncingBackupRepo = isSyncingBackupRepo,
-                    leetCodeSearchResults = leetCodeSearchResults,
-                    isSearchingLeetCode = isSearchingLeetCode,
-                    isAddingProblem = isAddingProblem,
-                    onSearchQueryChanged = onSearchQueryChanged,
-                    onDifficultyFilterSelected = onDifficultyFilterSelected,
-                    onBackupRepoChanged = onBackupRepoChanged,
-                    onSaveBackupRepo = onSaveBackupRepo,
-                    onSyncFromGitHubBackup = onSyncFromGitHubBackup,
-                    onSelectProblem = onSelectProblem,
-                    onDownloadProblemOffline = onDownloadProblemOffline,
-                    onDeleteProblemOffline = onDeleteProblemOffline,
-                    onBulkDeleteProblems = onBulkDeleteProblems,
-                    onSearchLeetCode = onSearchLeetCode,
-                    onClearLeetCodeSearch = onClearLeetCodeSearch,
-                    onAddProblemFromLeetCode = onAddProblemFromLeetCode,
-                    onAddMultipleProblemsFromLeetCode = onAddMultipleProblemsFromLeetCode
-                )
-            }
-
-            ProblemsSubTab.NOTES -> {
-                // Standalone Developer Notes Section
-                GeneralNotesSection(
-                    notes = generalNotes,
-                    onSelectNote = onSelectGeneralNote,
-                    onDeleteNote = onDeleteGeneralNote,
-                    onBulkDeleteNotes = onBulkDeleteGeneralNotes,
-                    onUploadDocument = onUploadGeneralDocument,
-                    onCreateNewNote = {
-                        onSelectGeneralNote(
-                            CustomNote(
-                                id = "",
-                                title = "New Note",
-                                content = "# Notes\n\n- Key algorithm steps\n- Time & Space complexity\n",
-                                category = "General",
-                                lastModifiedMillis = System.currentTimeMillis()
-                            )
-                        )
-                    }
-                )
-            }
-        }
     }
 }
 

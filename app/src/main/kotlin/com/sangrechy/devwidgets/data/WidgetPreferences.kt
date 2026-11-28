@@ -32,6 +32,21 @@ class WidgetPreferences(context: Context) {
         get() = prefs.getString(KEY_GITHUB_BACKUP_REPO, "")?.trim()?.ifBlank { "leetcode" } ?: "leetcode"
         set(value) = prefs.edit().putString(KEY_GITHUB_BACKUP_REPO, value.trim()).apply()
 
+    var gitHubProblemsToken: String
+        get() = prefs.getString(KEY_GITHUB_PROBLEMS_TOKEN, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_GITHUB_PROBLEMS_TOKEN, value.trim()).apply()
+
+    val effectiveProblemsToken: String
+        get() = gitHubProblemsToken.ifBlank { gitHubToken }
+
+    var gitHubNotesRepo: String
+        get() = prefs.getString(KEY_GITHUB_NOTES_REPO, "")?.trim()?.ifBlank { "notes" } ?: "notes"
+        set(value) = prefs.edit().putString(KEY_GITHUB_NOTES_REPO, value.trim()).apply()
+
+    var gitHubNotesToken: String
+        get() = prefs.getString(KEY_GITHUB_NOTES_TOKEN, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_GITHUB_NOTES_TOKEN, value.trim()).apply()
+
     var autoRefreshInterval: String
         get() = prefs.getString(KEY_REFRESH_INTERVAL, "1h") ?: "1h"
         set(value) = prefs.edit().putString(KEY_REFRESH_INTERVAL, value).apply()
@@ -255,6 +270,8 @@ class WidgetPreferences(context: Context) {
             .remove(KEY_LEETCODE_USERNAME)
             .remove(KEY_GITHUB_USERNAME)
             .remove(KEY_GITHUB_TOKEN)
+            .remove(KEY_GITHUB_PROBLEMS_TOKEN)
+            .remove(KEY_GITHUB_NOTES_TOKEN)
             .remove(KEY_CACHED_DASHBOARD)
             .apply()
     }
@@ -652,6 +669,9 @@ class WidgetPreferences(context: Context) {
         private const val KEY_GITHUB_USERNAME = "github_username"
         private const val KEY_GITHUB_TOKEN = "github_token"
         private const val KEY_GITHUB_BACKUP_REPO = "github_backup_repo"
+        private const val KEY_GITHUB_PROBLEMS_TOKEN = "github_problems_token"
+        private const val KEY_GITHUB_NOTES_REPO = "github_notes_repo"
+        private const val KEY_GITHUB_NOTES_TOKEN = "github_notes_token"
         private const val KEY_CACHED_DASHBOARD = "cached_dashboard_json"
         private const val KEY_REFRESH_INTERVAL = "auto_refresh_interval"
         private const val KEY_HEATMAP_ORIENTATION = "heatmap_orientation"

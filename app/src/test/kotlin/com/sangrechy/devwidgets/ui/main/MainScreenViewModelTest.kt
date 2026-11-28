@@ -213,6 +213,46 @@ class MainScreenViewModelTest {
     }
 
     @Test
+    fun testNotesNavigationCreateEditAndSeparateConfig() = runTest {
+        val fakeRepo = FakeDataRepository()
+        val viewModel = MainScreenViewModel(fakeRepo)
+
+        // Separate Problems token & Notes repo/token
+        viewModel.onProblemsTokenInputChanged("ghp_problems_123")
+        viewModel.saveBackupRepo("my_leetcode_repo")
+        assertEquals("ghp_problems_123", fakeRepo.getGitHubProblemsToken())
+        assertEquals("my_leetcode_repo", fakeRepo.getGitHubBackupRepo())
+
+        viewModel.onNotesRepoInputChanged("my_notes_repo")
+        viewModel.onNotesTokenInputChanged("ghp_notes_456")
+        viewModel.saveNotesRepoConfig()
+        assertEquals("my_notes_repo", fakeRepo.getGitHubNotesRepo())
+        assertEquals("ghp_notes_456", fakeRepo.getGitHubNotesToken())
+
+        // Navigate to Notes & create subject folder
+        viewModel.setScreen(AppScreen.NOTES)
+        assertEquals(AppScreen.NOTES, viewModel.currentScreen.value)
+        viewModel.createNoteFolder("CS Fundamentals")
+        assertTrue(viewModel.notesEntries.value.any { it.isFolder && it.name == "CS Fundamentals" })
+
+        // Drill into subject folder & create markdown note
+        viewModel.navigateNotesTo("CS Fundamentals")
+        assertEquals("CS Fundamentals", viewModel.notesCurrentPath.value)
+        viewModel.createMarkdownNote("Deadlock.md", "# Deadlock")
+        assertEquals("Deadlock.md", viewModel.openedNoteFile.value?.entry?.name)
+
+        // Edit & save opened markdown note
+        viewModel.saveOpenedNoteFile("# Deadlock\n\nUpdated content")
+        assertEquals("# Deadlock\n\nUpdated content", viewModel.openedNoteFile.value?.textContent)
+
+        // Navigate back up
+        viewModel.closeNoteFile()
+        assertEquals(null, viewModel.openedNoteFile.value)
+        viewModel.navigateNotesUp()
+        assertEquals("", viewModel.notesCurrentPath.value)
+    }
+
+    @Test
     fun wallpaperSettings_updateStatesAndRepository() = runTest {
         val fakeRepo = FakeDataRepository()
         val viewModel = MainScreenViewModel(fakeRepo)
@@ -567,6 +607,129 @@ private class FakeProblemRepository : com.sangrechy.devwidgets.data.ProblemRepos
     override suspend fun deleteGeneralNote(id: String): Boolean = generalNotes.removeIf { it.id == id }
 }
 
+private class FakeNotesRepository : com.sangrechy.devwidgets.data.NotesRepository {
+    val entries = mutableListOf<com.sangrechy.devwidgets.data.model.NoteTreeEntry>()
+    val contents = mutableMapOf<String, String>()
+
+    override suspend fun getEntries(parentPath: String): List<com.sangrechy.devwidgets.data.model.NoteTreeEntry> {
+        val norm = parentPath.trim().trim('/')
+        return entries.filter { it.parentPath == norm }
+    }
+
+    override suspend fun syncFromGitHub(owner: String, repo: String, token: String): Result<Int> {
+        return Result.success(entries.size)
+    }
+
+    override suspend fun openFile(
+        relativePath: String,
+        owner: String,
+        repo: String,
+        token: String
+    ): Result<com.sangrechy.devwidgets.data.model.OpenedNoteFile> {
+        val norm = relativePath.trim().trim('/')
+        val entry = entries.find { it.relativePath == norm }
+            ?: com.sangrechy.devwidgets.data.model.NoteTreeEntry(
+                relativePath = norm,
+                name = norm.substringAfterLast('/'),
+                parentPath = norm.substringBeforeLast('/', ""),
+                isFolder = false
+            )
+        return Result.success(
+            com.sangrechy.devwidgets.data.model.OpenedNoteFile(
+                entry = entry,
+                textContent = contents[norm] ?: "",
+                localFilePath = "/mock/notes_repo/res/$norm"
+            )
+        )
+    }
+
+    override suspend fun saveTextFile(
+        relativePath: String,
+        content: String,
+        owner: String,
+        repo: String,
+        token: String
+    ): Result<com.sangrechy.devwidgets.data.model.OpenedNoteFile> {
+        val norm = relativePath.trim().trim('/')
+        val name = norm.substringAfterLast('/')
+        val parent = norm.substringBeforeLast('/', "")
+        val entry = com.sangrechy.devwidgets.data.model.NoteTreeEntry(
+            relativePath = norm,
+            name = name,
+            parentPath = parent,
+            isFolder = false,
+            sizeBytes = content.length.toLong(),
+            isDownloaded = true
+        )
+        entries.removeIf { it.relativePath == norm }
+        entries.add(entry)
+        contents[norm] = content
+        return Result.success(
+            com.sangrechy.devwidgets.data.model.OpenedNoteFile(
+                entry = entry,
+                textContent = content,
+                localFilePath = "/mock/notes_repo/res/$norm"
+            )
+        )
+    }
+
+    override suspend fun createFolder(
+        parentPath: String,
+        folderName: String,
+        owner: String,
+        repo: String,
+        token: String
+    ): Result<com.sangrechy.devwidgets.data.model.NoteTreeEntry> {
+        val normParent = parentPath.trim().trim('/')
+        val rel = if (normParent.isBlank()) folderName.trim() else "$normParent/${folderName.trim()}"
+        val entry = com.sangrechy.devwidgets.data.model.NoteTreeEntry(
+            relativePath = rel,
+            name = folderName.trim(),
+            parentPath = normParent,
+            isFolder = true
+        )
+        entries.removeIf { it.relativePath == rel }
+        entries.add(entry)
+        return Result.success(entry)
+    }
+
+    override suspend fun uploadFile(
+        parentPath: String,
+        filename: String,
+        bytes: ByteArray,
+        owner: String,
+        repo: String,
+        token: String
+    ): Result<com.sangrechy.devwidgets.data.model.NoteTreeEntry> {
+        val normParent = parentPath.trim().trim('/')
+        val rel = if (normParent.isBlank()) filename.trim() else "$normParent/${filename.trim()}"
+        val entry = com.sangrechy.devwidgets.data.model.NoteTreeEntry(
+            relativePath = rel,
+            name = filename.trim(),
+            parentPath = normParent,
+            isFolder = false,
+            sizeBytes = bytes.size.toLong(),
+            isDownloaded = true
+        )
+        entries.removeIf { it.relativePath == rel }
+        entries.add(entry)
+        return Result.success(entry)
+    }
+
+    override suspend fun deleteEntry(
+        relativePath: String,
+        isFolder: Boolean,
+        owner: String,
+        repo: String,
+        token: String
+    ): Result<Boolean> {
+        val norm = relativePath.trim().trim('/')
+        entries.removeIf { it.relativePath == norm || (isFolder && it.relativePath.startsWith("$norm/")) }
+        contents.remove(norm)
+        return Result.success(true)
+    }
+}
+
 private class FakeDataRepository : DataRepository {
     override val dashboardData: Flow<WidgetDashboardData> = flowOf(WidgetDashboardData())
     var interval = "1h"
@@ -574,13 +737,35 @@ private class FakeDataRepository : DataRepository {
     var ignoredVersion = ""
     var isLoggedOut = false
     var backupRepo = "project_git_the_leet"
+    var problemsToken = ""
+    var notesRepo = "notes"
+    var notesToken = ""
 
     override val problemRepository: com.sangrechy.devwidgets.data.ProblemRepository = FakeProblemRepository()
+    override val notesRepository: com.sangrechy.devwidgets.data.NotesRepository = FakeNotesRepository()
 
     override fun getGitHubBackupRepo(): String = backupRepo
 
     override fun setGitHubBackupRepo(repo: String) {
         backupRepo = repo
+    }
+
+    override fun getGitHubProblemsToken(): String = problemsToken
+
+    override fun setGitHubProblemsToken(token: String) {
+        problemsToken = token
+    }
+
+    override fun getGitHubNotesRepo(): String = notesRepo
+
+    override fun setGitHubNotesRepo(repo: String) {
+        notesRepo = repo
+    }
+
+    override fun getGitHubNotesToken(): String = notesToken
+
+    override fun setGitHubNotesToken(token: String) {
+        notesToken = token
     }
 
     override fun getSavedUsernames(): Triple<String, String, String> {

@@ -917,7 +917,7 @@ class OfflineProblemRepository(
         noteFile.writeText(content)
 
         val repoConfig = prefs.gitHubBackupRepo.trim().ifBlank { "leetcode" }
-        val token = DevApiService.normalizeToken(prefs.gitHubToken)
+        val token = DevApiService.normalizeToken(prefs.effectiveProblemsToken)
         val owner = if (repoConfig.contains('/')) repoConfig.substringBefore('/').trim() else prefs.gitHubUsername.trim().removePrefix("@")
         val repo = if (repoConfig.contains('/')) repoConfig.substringAfter('/').trim() else repoConfig
 
@@ -949,7 +949,7 @@ class OfflineProblemRepository(
         docFile.writeBytes(bytes)
 
         val repoConfig = prefs.gitHubBackupRepo.trim().ifBlank { "leetcode" }
-        val token = DevApiService.normalizeToken(prefs.gitHubToken)
+        val token = DevApiService.normalizeToken(prefs.effectiveProblemsToken)
         val owner = if (repoConfig.contains('/')) repoConfig.substringBefore('/').trim() else prefs.gitHubUsername.trim().removePrefix("@")
         val repo = if (repoConfig.contains('/')) repoConfig.substringAfter('/').trim() else repoConfig
 
@@ -1055,7 +1055,7 @@ class OfflineProblemRepository(
 
     private fun launchGitHubPush(subPath: String, bytes: ByteArray) {
         val repoConfig = prefs.gitHubBackupRepo.trim().ifBlank { "leetcode" }
-        val token = DevApiService.normalizeToken(prefs.gitHubToken)
+        val token = DevApiService.normalizeToken(prefs.effectiveProblemsToken)
         if (token.isBlank()) return
         val owner = if (repoConfig.contains('/')) repoConfig.substringBefore('/').trim() else prefs.gitHubUsername.trim().removePrefix("@")
         val repo = if (repoConfig.contains('/')) repoConfig.substringAfter('/').trim() else repoConfig
@@ -1068,7 +1068,7 @@ class OfflineProblemRepository(
 
     private fun launchGitHubDelete(subPath: String) {
         val repoConfig = prefs.gitHubBackupRepo.trim().ifBlank { "leetcode" }
-        val token = DevApiService.normalizeToken(prefs.gitHubToken)
+        val token = DevApiService.normalizeToken(prefs.effectiveProblemsToken)
         if (token.isBlank()) return
         val owner = if (repoConfig.contains('/')) repoConfig.substringBefore('/').trim() else prefs.gitHubUsername.trim().removePrefix("@")
         val repo = if (repoConfig.contains('/')) repoConfig.substringAfter('/').trim() else repoConfig
@@ -1166,7 +1166,7 @@ class OfflineProblemRepository(
             return@withContext Result.failure(Exception("GitHub username/owner and repository name are required."))
         }
 
-        val cleanToken = DevApiService.normalizeToken(token.ifBlank { prefs.gitHubToken })
+        val cleanToken = DevApiService.normalizeToken(token.ifBlank { prefs.effectiveProblemsToken })
 
         try {
             // 1. Detect default branch from repository info
@@ -1420,7 +1420,7 @@ class OfflineProblemRepository(
 
     override suspend fun syncSingleProblemFromGitHub(folderName: String): Result<OfflineProblem> = withContext(Dispatchers.IO) {
         val repoConfig = prefs.gitHubBackupRepo.trim().ifBlank { "leetcode" }
-        val token = DevApiService.normalizeToken(prefs.gitHubToken)
+        val token = DevApiService.normalizeToken(prefs.effectiveProblemsToken)
         val owner = if (repoConfig.contains('/')) repoConfig.substringBefore('/').trim() else prefs.gitHubUsername.trim().removePrefix("@")
         val repo = if (repoConfig.contains('/')) repoConfig.substringAfter('/').trim() else repoConfig
 
@@ -1670,7 +1670,7 @@ class OfflineProblemRepository(
         file.writeText(note.content)
 
         val repoConfig = prefs.gitHubBackupRepo.trim().ifBlank { "leetcode" }
-        val token = DevApiService.normalizeToken(prefs.gitHubToken)
+        val token = DevApiService.normalizeToken(prefs.effectiveProblemsToken)
         val owner = if (repoConfig.contains('/')) repoConfig.substringBefore('/').trim() else prefs.gitHubUsername.trim().removePrefix("@")
         val repo = if (repoConfig.contains('/')) repoConfig.substringAfter('/').trim() else repoConfig
 
@@ -1695,7 +1695,7 @@ class OfflineProblemRepository(
         file.writeBytes(bytes)
 
         val repoConfig = prefs.gitHubBackupRepo.trim().ifBlank { "leetcode" }
-        val token = DevApiService.normalizeToken(prefs.gitHubToken)
+        val token = DevApiService.normalizeToken(prefs.effectiveProblemsToken)
         val owner = if (repoConfig.contains('/')) repoConfig.substringBefore('/').trim() else prefs.gitHubUsername.trim().removePrefix("@")
         val repo = if (repoConfig.contains('/')) repoConfig.substringAfter('/').trim() else repoConfig
 

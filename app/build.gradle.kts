@@ -11,8 +11,8 @@ android {
     applicationId = "com.sangrechy.devwidgets"
     minSdk = 26
     targetSdk = 36
-    versionCode = 25
-    versionName = "1.7.2"
+    versionCode = 26
+    versionName = "2.1"
   }
 
   buildTypes {

@@ -38,8 +38,15 @@ interface DataRepository {
     fun getHeatmapOrientation(): String
     fun setHeatmapOrientation(orientation: String)
     val problemRepository: ProblemRepository
+    val notesRepository: NotesRepository
     fun getGitHubBackupRepo(): String
     fun setGitHubBackupRepo(repo: String)
+    fun getGitHubProblemsToken(): String
+    fun setGitHubProblemsToken(token: String)
+    fun getGitHubNotesRepo(): String
+    fun setGitHubNotesRepo(repo: String)
+    fun getGitHubNotesToken(): String
+    fun setGitHubNotesToken(token: String)
     suspend fun logoutAll()
 
     fun getAppWallpaperType(): String
@@ -83,6 +90,7 @@ class DefaultDataRepository(private val context: Context) : DataRepository {
     private val prefs = WidgetPreferences(context)
     private val apiService = DevApiService()
     override val problemRepository: ProblemRepository = OfflineProblemRepository(context)
+    override val notesRepository: NotesRepository = OfflineNotesRepository(context)
     private val _dashboardData = MutableStateFlow(prefs.getDashboardData())
     override val dashboardData: Flow<WidgetDashboardData> = _dashboardData.asStateFlow()
 
@@ -90,6 +98,24 @@ class DefaultDataRepository(private val context: Context) : DataRepository {
 
     override fun setGitHubBackupRepo(repo: String) {
         prefs.gitHubBackupRepo = repo.trim()
+    }
+
+    override fun getGitHubProblemsToken(): String = prefs.gitHubProblemsToken
+
+    override fun setGitHubProblemsToken(token: String) {
+        prefs.gitHubProblemsToken = token.trim()
+    }
+
+    override fun getGitHubNotesRepo(): String = prefs.gitHubNotesRepo
+
+    override fun setGitHubNotesRepo(repo: String) {
+        prefs.gitHubNotesRepo = repo.trim()
+    }
+
+    override fun getGitHubNotesToken(): String = prefs.gitHubNotesToken
+
+    override fun setGitHubNotesToken(token: String) {
+        prefs.gitHubNotesToken = token.trim()
     }
 
     override fun getSavedUsernames(): Triple<String, String, String> {
