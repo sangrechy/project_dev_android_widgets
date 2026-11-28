@@ -3,11 +3,15 @@
     <string name="widget_description">LeetCode &amp; GitHub Developer Activity Dashboard with Heatmaps</string>
 
     <!-- Widget Labels for Launcher Picker -->
-    <string name="widget_leetcode_circle_label">LeetCode Solved Circle (2x2)</string>
-    <string name="widget_leetcode_circle_desc">Compact LeetCode circular solved speedometer gauge</string>
+    <string name="widget_leetcode_circle_label">LeetCode Solved Circle (x*2)</string>
+    <string name="widget_leetcode_circle_desc">Compact LeetCode circular solved gauge locked to 2 rows tall (horizontal resize)</string>
+    <string name="widget_leetcode_circle_tall_label">LeetCode Solved Circle (x*3)</string>
+    <string name="widget_leetcode_circle_tall_desc">Tall LeetCode circular solved gauge locked to 3 rows tall (horizontal resize)</string>
 
-    <string name="widget_github_circle_label">GitHub Contribution Circle (2x2)</string>
-    <string name="widget_github_circle_desc">Compact GitHub contribution spider radar circle</string>
+    <string name="widget_github_circle_label">GitHub Contribution Circle (x*2)</string>
+    <string name="widget_github_circle_desc">Compact GitHub contribution radar circle locked to 2 rows tall (horizontal resize)</string>
+    <string name="widget_github_circle_tall_label">GitHub Contribution Circle (x*3)</string>
+    <string name="widget_github_circle_tall_desc">Tall GitHub contribution radar circle locked to 3 rows tall (horizontal resize)</string>
 
     <string name="widget_leetcode_label">LeetCode Full Stats (4x2)</string>
     <string name="widget_leetcode_desc">LeetCode circular solved gauge and 52-week submission calendar side-by-side</string>

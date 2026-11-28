@@ -39,6 +39,7 @@ class GitHubCircleWidgetProvider : AppWidgetProvider() {
             for (id in appWidgetIds) {
                 updateAppWidget(context, appWidgetManager, id, data)
             }
+            GitHubCircleTallWidgetProvider.updateAllWidgets(context, data)
         }
 
         fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, data: WidgetDashboardData) {

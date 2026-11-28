@@ -148,7 +148,9 @@ import com.sangrechy.devwidgets.widget.DevActivityWidgetProvider
 import com.sangrechy.devwidgets.widget.GitHubHeatmapWidgetProvider
 import com.sangrechy.devwidgets.widget.GitHubWidgetProvider
 import com.sangrechy.devwidgets.widget.LeetCodeCircleWidgetProvider
+import com.sangrechy.devwidgets.widget.LeetCodeCircleTallWidgetProvider
 import com.sangrechy.devwidgets.widget.GitHubCircleWidgetProvider
+import com.sangrechy.devwidgets.widget.GitHubCircleTallWidgetProvider
 import com.sangrechy.devwidgets.widget.LeetCodeHeatmapWidgetProvider
 import com.sangrechy.devwidgets.widget.LeetCodeWidgetProvider
 import com.sangrechy.devwidgets.widget.WidgetBitmapRenderer
@@ -2698,6 +2700,7 @@ private fun WidgetsScreenContent(
         item(key = "card_lc_circle") {
         var lcShowHeading by remember { mutableStateOf(getWidgetShowHeading("leetcode_circle")) }
         var lcWidgetWallpaper by remember { mutableStateOf(getWidgetSpecificWallpaper("leetcode_circle")) }
+        var lcOuterSize by remember { mutableStateOf(getWidgetOuterDivSize("leetcode_circle")) }
         val lcInitialOffset = remember { getWidgetElementOffset("leetcode_circle") }
         var lcMaxDx by remember { mutableStateOf(120f) }
         var lcMaxDy by remember { mutableStateOf(28f) }
@@ -2706,13 +2709,18 @@ private fun WidgetsScreenContent(
 
         WidgetGalleryCard(
             title = "LeetCode Solved Circle",
-            subtitle = "Circle gauge (x*2 / x*3) with edge-to-edge element positioning",
-            tag = "x*2 / x*3",
+            subtitle = "Height-locked ($lcOuterSize) — horizontal width expands without changing height",
+            tag = lcOuterSize,
             widgetKey = "leetcode_circle",
             currentWidgetWallpaper = lcWidgetWallpaper,
             onSelectWidgetWallpaper = {
                 lcWidgetWallpaper = it
                 onSetWidgetSpecificWallpaper("leetcode_circle", it)
+            },
+            outerSize = lcOuterSize,
+            onSelectOuterSize = {
+                lcOuterSize = it
+                onSetWidgetOuterDivSize("leetcode_circle", it)
             },
             showHeading = lcShowHeading,
             onToggleShowHeading = {
@@ -2739,13 +2747,22 @@ private fun WidgetsScreenContent(
             onReset = {
                 lcShowHeading = true
                 onSetWidgetShowHeading("leetcode_circle", true)
+                lcOuterSize = "x*2"
+                onSetWidgetOuterDivSize("leetcode_circle", "x*2")
                 lcWidgetWallpaper = "DEFAULT"
                 onSetWidgetSpecificWallpaper("leetcode_circle", "DEFAULT")
                 lcOffsetX = 0f
                 lcOffsetY = 0f
                 onSetWidgetElementOffset("leetcode_circle", 0f, 0f, 0f, 0f)
             },
-            onClick = { onPinWidget(LeetCodeCircleWidgetProvider::class.java) },
+            onClick = {
+                val targetProvider = if (lcOuterSize == "x*3") {
+                    LeetCodeCircleTallWidgetProvider::class.java
+                } else {
+                    LeetCodeCircleWidgetProvider::class.java
+                }
+                onPinWidget(targetProvider)
+            },
             content = {
                 val context = LocalContext.current
                 val density = LocalDensity.current
@@ -2786,7 +2803,7 @@ private fun WidgetsScreenContent(
                     BoxWithConstraints(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(115.dp),
+                            .height(if (lcOuterSize == "x*3") 172.dp else 115.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         val currentMaxDx = ((maxWidth - 86.dp) / 2).coerceAtLeast(0.dp).value
@@ -2842,6 +2859,7 @@ private fun WidgetsScreenContent(
         item(key = "card_gh_circle") {
         var ghShowHeading by remember { mutableStateOf(getWidgetShowHeading("github_circle")) }
         var ghWidgetWallpaper by remember { mutableStateOf(getWidgetSpecificWallpaper("github_circle")) }
+        var ghOuterSize by remember { mutableStateOf(getWidgetOuterDivSize("github_circle")) }
         val ghInitialOffset = remember { getWidgetElementOffset("github_circle") }
         var ghMaxDx by remember { mutableStateOf(120f) }
         var ghMaxDy by remember { mutableStateOf(28f) }
@@ -2850,13 +2868,18 @@ private fun WidgetsScreenContent(
 
         WidgetGalleryCard(
             title = "GitHub Contribution Circle",
-            subtitle = "Circle gauge (x*2 / x*3) with edge-to-edge element positioning",
-            tag = "x*2 / x*3",
+            subtitle = "Height-locked ($ghOuterSize) — horizontal width expands without changing height",
+            tag = ghOuterSize,
             widgetKey = "github_circle",
             currentWidgetWallpaper = ghWidgetWallpaper,
             onSelectWidgetWallpaper = {
                 ghWidgetWallpaper = it
                 onSetWidgetSpecificWallpaper("github_circle", it)
+            },
+            outerSize = ghOuterSize,
+            onSelectOuterSize = {
+                ghOuterSize = it
+                onSetWidgetOuterDivSize("github_circle", it)
             },
             showHeading = ghShowHeading,
             onToggleShowHeading = {
@@ -2883,13 +2906,22 @@ private fun WidgetsScreenContent(
             onReset = {
                 ghShowHeading = true
                 onSetWidgetShowHeading("github_circle", true)
+                ghOuterSize = "x*2"
+                onSetWidgetOuterDivSize("github_circle", "x*2")
                 ghWidgetWallpaper = "DEFAULT"
                 onSetWidgetSpecificWallpaper("github_circle", "DEFAULT")
                 ghOffsetX = 0f
                 ghOffsetY = 0f
                 onSetWidgetElementOffset("github_circle", 0f, 0f, 0f, 0f)
             },
-            onClick = { onPinWidget(GitHubCircleWidgetProvider::class.java) },
+            onClick = {
+                val targetProvider = if (ghOuterSize == "x*3") {
+                    GitHubCircleTallWidgetProvider::class.java
+                } else {
+                    GitHubCircleWidgetProvider::class.java
+                }
+                onPinWidget(targetProvider)
+            },
             content = {
                 val context = LocalContext.current
                 val density = LocalDensity.current
@@ -2930,7 +2962,7 @@ private fun WidgetsScreenContent(
                     BoxWithConstraints(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(115.dp),
+                            .height(if (ghOuterSize == "x*3") 172.dp else 115.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         val currentMaxDx = ((maxWidth - 86.dp) / 2).coerceAtLeast(0.dp).value
