@@ -12,6 +12,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -571,11 +573,16 @@ fun MainScreen(
                         contentScrollState.scrollTo(0)
                     }
 
-                    if (currentScreen == AppScreen.WIDGETS) {
+                    Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                    Crossfade(
+                        targetState = currentScreen,
+                        animationSpec = tween(durationMillis = 220),
+                        label = "screen_transition"
+                    ) { screen ->
+                    if (screen == AppScreen.WIDGETS) {
                         WidgetsScreenContent(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
+                                .fillMaxSize(),
                             dashboardData = dashboardData,
                             selectedInterval = selectedInterval,
                             heatmapOrientation = heatmapOrientation,
@@ -602,7 +609,7 @@ fun MainScreen(
                             getWidgetOrderReversed = viewModel::getWidgetOrderReversed,
                             onPinWidget = { providerClass -> pinWidgetToHomeScreen(context, providerClass) }
                         )
-                    } else if (currentScreen == AppScreen.NOTES) {
+                    } else if (screen == AppScreen.NOTES) {
                         BackHandler(enabled = openedNoteFile != null || notesCurrentPath.isNotBlank()) {
                             if (openedNoteFile != null) {
                                 viewModel.closeNoteFile()
@@ -612,8 +619,7 @@ fun MainScreen(
                         }
                         NotesScreenContent(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
+                                .fillMaxSize(),
                             gitHubUsername = gitHubInput,
                             notesRepoInput = notesRepoInput,
                             notesTokenInput = notesTokenInput,
@@ -639,13 +645,12 @@ fun MainScreen(
                     } else {
                     Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
+                            .fillMaxSize()
                             .verticalScroll(contentScrollState),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         // Content Based on Selected Screen
-                        when (currentScreen) {
+                        when (screen) {
                         AppScreen.HOME -> HomeScreenContent(
                             dashboardData = dashboardData,
                             currentTab = currentHomeTab,
@@ -743,6 +748,8 @@ fun MainScreen(
                         )
                     }
                 }
+                    }
+                    }
                 }
             }
         }
@@ -1150,17 +1157,10 @@ private fun LeetCodeDetailView(
     onFeedLimitSelected: (FeedLimit) -> Unit,
     onNavigateToSettings: () -> Unit = {}
 ) {
-    val lcCircleBitmap = remember(stats) {
-        WidgetBitmapRenderer.renderLeetCodeCircle(stats, sizePx = 420).asImageBitmap()
-    }
-    val lcHeatmapBitmap = remember(stats.submissionCalendar) {
-        WidgetBitmapRenderer.renderHeatmap(
-            stats.submissionCalendar,
-            isLeetCode = true,
-            widthPx = 680,
-            heightPx = 520,
-            weeksCount = 52
-        ).asImageBitmap()
+    val lcCircleBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, stats) {
+        value = withContext(Dispatchers.Default) {
+            WidgetBitmapRenderer.renderLeetCodeCircle(stats, sizePx = 420).asImageBitmap()
+        }
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -1298,11 +1298,16 @@ private fun LeetCodeDetailView(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Image(
-                        bitmap = lcCircleBitmap,
-                        contentDescription = "LeetCode Progress Gauge",
-                        modifier = Modifier.size(150.dp)
-                    )
+                    val lcBmp = lcCircleBitmap
+                    if (lcBmp != null) {
+                        Image(
+                            bitmap = lcBmp,
+                            contentDescription = "LeetCode Progress Gauge",
+                            modifier = Modifier.size(150.dp)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.size(150.dp))
+                    }
 
                     val maxTarget = stats.totalSolved.coerceAtLeast(100)
                     Column(
@@ -1689,17 +1694,10 @@ private fun GitHubDetailView(
     onFeedLimitSelected: (FeedLimit) -> Unit,
     onNavigateToSettings: () -> Unit = {}
 ) {
-    val ghTypeMapBitmap = remember(stats) {
-        WidgetBitmapRenderer.renderGitHubTypeMap(stats, sizePx = 420).asImageBitmap()
-    }
-    val ghHeatmapBitmap = remember(stats.contributionDays) {
-        WidgetBitmapRenderer.renderHeatmap(
-            stats.contributionDays,
-            isLeetCode = false,
-            widthPx = 680,
-            heightPx = 520,
-            weeksCount = 52
-        ).asImageBitmap()
+    val ghTypeMapBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, stats) {
+        value = withContext(Dispatchers.Default) {
+            WidgetBitmapRenderer.renderGitHubTypeMap(stats, sizePx = 420).asImageBitmap()
+        }
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -1837,11 +1835,16 @@ private fun GitHubDetailView(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Image(
-                        bitmap = ghTypeMapBitmap,
-                        contentDescription = "GitHub Spider Radar",
-                        modifier = Modifier.size(150.dp)
-                    )
+                    val ghBmp = ghTypeMapBitmap
+                    if (ghBmp != null) {
+                        Image(
+                            bitmap = ghBmp,
+                            contentDescription = "GitHub Spider Radar",
+                            modifier = Modifier.size(150.dp)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.size(150.dp))
+                    }
 
                     Column(
                         modifier = Modifier.weight(1f),

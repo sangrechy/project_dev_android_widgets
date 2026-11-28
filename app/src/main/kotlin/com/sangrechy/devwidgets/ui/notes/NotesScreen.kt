@@ -1170,7 +1170,7 @@ fun NoteFileViewerOverlay(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(22.dp))
-            .background(ThemeBgDark.copy(alpha = 0.97f))
+            .background(ThemeBgDark)
             .border(1.dp, ThemeCardBorder, RoundedCornerShape(22.dp))
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -1713,12 +1713,12 @@ private fun markdownToDarkHtml(markdown: String): String {
                 closeList()
                 body.append("<h1>").append(formatInline(trimmed.drop(2))).append("</h1>")
             }
-            trimmed.startsWith("- ") || trimmed.startsWith("* ") -> {
+            trimmed == "-" || trimmed == "*" || trimmed.startsWith("- ") || trimmed.startsWith("* ") -> {
                 if (!inList) {
                     body.append("<ul>")
                     inList = true
                 }
-                body.append("<li>").append(formatInline(trimmed.drop(2))).append("</li>")
+                body.append("<li>").append(formatInline(trimmed.drop(2).trim())).append("</li>")
             }
             trimmed.startsWith("> ") -> {
                 closeList()
